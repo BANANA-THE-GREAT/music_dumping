@@ -1,0 +1,45 @@
+# JavaScript
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Models and generated media
+models/
+*.onnx
+*.pt
+*.pth
+*.ckpt
+public/basic-pitch-model/
+test-data/*.wav
+
+# Runtime data
+data/
+uploads/
+stems/
+exports/
+*.db
+*.sqlite*
+
+# Local configuration
+.env
+.env.*
+!.env.example
+.DS_Store
+Thumbs.db
+*.log
+
+# Editors
+.idea/
+.vscode/
+*.swp
