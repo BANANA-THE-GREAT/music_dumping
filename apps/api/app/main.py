@@ -2,12 +2,15 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
+from app.database import init_db
+from app.routes import router
 from app.schemas import HealthResponse, ReadinessResponse
 
 
 def create_app() -> FastAPI:
     settings = get_settings()
     app = FastAPI(title=settings.api_title, version=settings.api_version)
+    init_db()
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
@@ -15,6 +18,7 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    app.include_router(router)
 
     @app.get("/health/live", response_model=HealthResponse, tags=["health"])
     def liveness() -> HealthResponse:
