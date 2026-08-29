@@ -20,7 +20,7 @@ models/
 *.pt
 *.pth
 *.ckpt
-public/basic-pitch-model/
+apps/web/public/basic-pitch-model/
 test-data/*.wav
 
 # Runtime data

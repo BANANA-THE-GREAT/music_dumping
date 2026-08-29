@@ -1,24 +1,14 @@
 {
-  "name": "vocal-score-studio",
+  "name": "vocal-score-studio-monorepo",
   "private": true,
   "version": "1.0.0",
-  "type": "module",
+  "workspaces": [
+    "apps/web",
+    "packages/*"
+  ],
   "scripts": {
-    "predev": "node scripts/copy-model.mjs",
-    "dev": "vite build && vite preview",
-    "prebuild": "node scripts/copy-model.mjs",
-    "build": "tsc && vite build",
-    "preview": "vite preview",
-    "test": "vitest run"
-  },
-  "dependencies": {
-    "@spotify/basic-pitch": "^1.0.1",
-    "@tonejs/midi": "^2.0.28",
-    "abcjs": "^6.5.2"
-  },
-  "devDependencies": {
-    "typescript": "^5.9.2",
-    "vite": "^7.1.3",
-    "vitest": "^3.2.4"
+    "dev": "npm run dev --workspace @vocal-score/web",
+    "build": "npm run build --workspace @vocal-score/web",
+    "test": "npm run test --workspace @vocal-score/web"
   }
 }
