@@ -1,0 +1,1 @@
+"""Vocal Score Studio API."""

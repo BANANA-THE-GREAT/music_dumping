@@ -9,6 +9,8 @@
   "scripts": {
     "dev": "npm run dev --workspace @vocal-score/web",
     "build": "npm run build --workspace @vocal-score/web",
-    "test": "npm run test --workspace @vocal-score/web"
+    "test": "npm run test --workspace @vocal-score/web",
+    "dev:web": "npm run dev --workspace @vocal-score/web",
+    "dev:api": "python -m uvicorn app.main:app --reload --app-dir apps/api"
   }
 }
