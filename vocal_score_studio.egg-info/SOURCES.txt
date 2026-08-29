@@ -1,8 +1,0 @@
-LICENSE
-README.md
-pyproject.toml
-vocal_score_studio.egg-info/PKG-INFO
-vocal_score_studio.egg-info/SOURCES.txt
-vocal_score_studio.egg-info/dependency_links.txt
-vocal_score_studio.egg-info/requires.txt
-vocal_score_studio.egg-info/top_level.txt
