@@ -1,10 +1,14 @@
+import time
+from collections.abc import Iterator
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.config import Settings, get_settings
-from app.database import get_session
+from app.database import SessionLocal, get_session
+from app.job_runner import dispatch_fake_job
 from app.models import JobRecord, ProjectRecord, UploadRecord
 from app.repository import create_job, create_upload, job_response
 from app.schemas import JobCreate, JobResponse, JobStage, JobStatus, ScoreProject, UploadResponse
@@ -42,7 +46,10 @@ async def upload_audio(
 def submit_job(request: JobCreate, session: SessionDep) -> JobResponse:
     if session.get(UploadRecord, request.upload_id) is None:
         raise HTTPException(status_code=404, detail="Upload not found")
-    return create_job(session, request)
+    response = create_job(session, request)
+    if request.options.auto_start:
+        dispatch_fake_job(response.id)
+    return response
 
 
 @router.get("/jobs/{job_id}", response_model=JobResponse)
@@ -51,6 +58,33 @@ def get_job(job_id: str, session: SessionDep) -> JobResponse:
     if record is None:
         raise HTTPException(status_code=404, detail="Job not found")
     return job_response(record)
+
+
+@router.get("/jobs/{job_id}/events")
+def job_events(job_id: str, session: SessionDep) -> StreamingResponse:
+    if session.get(JobRecord, job_id) is None:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    def stream() -> Iterator[str]:
+        last_payload = ""
+        while True:
+            with SessionLocal() as event_session:
+                record = event_session.get(JobRecord, job_id)
+                if record is None:
+                    return
+                payload = job_response(record).model_dump_json()
+                if payload != last_payload:
+                    yield f"event: progress\ndata: {payload}\n\n"
+                    last_payload = payload
+                if record.status in {
+                    JobStatus.COMPLETED,
+                    JobStatus.FAILED,
+                    JobStatus.CANCELLED,
+                }:
+                    return
+            time.sleep(0.1)
+
+    return StreamingResponse(stream(), media_type="text/event-stream")
 
 
 @router.post("/jobs/{job_id}/cancel", response_model=JobResponse)

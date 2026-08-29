@@ -50,6 +50,7 @@ class JobOptions(BaseModel):
     transcriber: str = "fake"
     detect_meter: bool = True
     detect_key: bool = True
+    auto_start: bool = True
 
 
 class JobCreate(BaseModel):
