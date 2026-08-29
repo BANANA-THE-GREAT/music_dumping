@@ -14,9 +14,11 @@
   "dependencies": {
     "@spotify/basic-pitch": "^1.0.1",
     "@tonejs/midi": "^2.0.28",
+    "@vocal-score/contracts": "1.0.0",
     "abcjs": "^6.5.2"
   },
   "devDependencies": {
+    "prettier": "^3.9.6",
     "typescript": "^5.9.2",
     "vite": "^7.1.3",
     "vitest": "^3.2.4"
