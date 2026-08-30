@@ -1,0 +1,16 @@
+.jianpu-meta small {
+  float: right;
+  color: #8a8174;
+  font: 400 11px "Noto Sans SC";
+}
+
+.jp-note {
+  cursor: pointer;
+  outline: none;
+}
+
+.jp-note.selected {
+  color: #942f13;
+  background: #f7e9df;
+  box-shadow: 0 0 0 2px #b24c2d;
+}

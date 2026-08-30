@@ -16,6 +16,7 @@ import { cleanAndQuantize, demoNotes, toAbc } from "./music";
 import { isolateCenterVocal, resampleAudio } from "./separation";
 import type { MusicalAnalysis, RawNote, ScoreNote } from "./types";
 import "./style.css";
+import "./editor.css";
 
 const KEYS = ["C", "C♯", "D", "E♭", "E", "F", "F♯", "G", "A♭", "A", "B♭", "B"];
 const api = new VocalScoreApi();
@@ -40,6 +41,7 @@ let sourceBuffer: AudioBuffer | null = null,
   serverProject: ApiScoreProject | null = null,
   rawNotes: RawNote[] = [],
   notes: ScoreNote[] = [];
+let selectedNoteIndex: number | null = null;
 let analysis: MusicalAnalysis = {
   bpm: 120,
   meter: 4,
@@ -126,6 +128,7 @@ async function runLocal() {
   analysis = analyzeMusic(sourceBuffer, rawNotes);
 }
 function applyApiProject(project: ApiScoreProject) {
+  selectedNoteIndex = null;
   const tempo = project.analysis.tempo_map[0];
   const meterPoint = project.analysis.meter_map[0];
   const keyPoint = project.analysis.key_map[0];
@@ -261,17 +264,54 @@ function render() {
     },
   });
   $("#jianpu").innerHTML =
-    `<div class="jianpu-meta">1 = ${KEYS[analysis.keyPitchClass]}　${analysis.meter}/4　♩ = ${analysis.bpm}</div>` +
+    `<div class="jianpu-meta">1 = ${KEYS[analysis.keyPitchClass]}　${analysis.meter}/4　♩ = ${analysis.bpm}<small>点击音符后按 ↑ / ↓ 升降半音</small></div>` +
     notes
       .map(
         (n, i) =>
-          `<span class="jp-note" data-note="${i}"><b>${n.accidental === 1 ? "♯" : n.accidental === -1 ? "♭" : ""}${n.degree}</b><em>${n.octave > 0 ? "·".repeat(n.octave) : ""}</em><i>${n.octave < 0 ? "·".repeat(-n.octave) : ""}</i><small>${n.durationBeats < 1 ? "━".repeat(Math.round(Math.log2(1 / n.durationBeats))) : n.durationBeats >= 2 ? "—" : ""}</small></span>`,
+          `<span class="jp-note${selectedNoteIndex === i ? " selected" : ""}" data-note="${i}" tabindex="0"><b>${n.accidental === 1 ? "♯" : n.accidental === -1 ? "♭" : ""}${n.degree}</b><em>${n.octave > 0 ? "·".repeat(n.octave) : ""}</em><i>${n.octave < 0 ? "·".repeat(-n.octave) : ""}</i><small>${n.durationBeats < 1 ? "━".repeat(Math.round(Math.log2(1 / n.durationBeats))) : n.durationBeats >= 2 ? "—" : ""}</small></span>`,
       )
       .join("");
   [play, $<HTMLButtonElement>("#midi"), $<HTMLButtonElement>("#xml")].forEach(
     (b) => (b.disabled = !notes.length),
   );
 }
+$<HTMLDivElement>("#jianpu").addEventListener("click", (event) => {
+  const target = (event.target as HTMLElement).closest<HTMLElement>("[data-note]");
+  if (!target) return;
+  selectedNoteIndex = Number(target.dataset.note);
+  render();
+  document.querySelector<HTMLElement>(`[data-note="${selectedNoteIndex}"]`)?.focus();
+});
+async function transposeSelected(semitones: number) {
+  if (selectedNoteIndex === null || !notes[selectedNoteIndex]) return;
+  const scoreNote = notes[selectedNoteIndex];
+  const rawNote = rawNotes[scoreNote.id];
+  if (!rawNote) return;
+  rawNote.pitchMidi = Math.max(0, Math.min(127, rawNote.pitchMidi + semitones));
+  render();
+  if (!serverProject?.notes[selectedNoteIndex]) return;
+  const updated = serverProject.notes.map((note, index) =>
+    index === selectedNoteIndex
+      ? { ...note, pitch_midi: rawNote.pitchMidi, origin: "user" as const }
+      : note,
+  );
+  try {
+    status("正在保存音高校正…");
+    serverProject = await api.updateProject(
+      serverProject.project_id,
+      serverProject.revision,
+      updated,
+    );
+    status(`音高校正已保存 · 修订 ${serverProject.revision}`, 100);
+  } catch (error) {
+    status(`保存失败：${error instanceof Error ? error.message : "未知错误"}`);
+  }
+}
+document.addEventListener("keydown", (event) => {
+  if (selectedNoteIndex === null || !["ArrowUp", "ArrowDown"].includes(event.key)) return;
+  event.preventDefault();
+  void transposeSelected(event.key === "ArrowUp" ? 1 : -1);
+});
 document.querySelectorAll<HTMLButtonElement>("[data-view]").forEach((btn) =>
   btn.addEventListener("click", () => {
     document
