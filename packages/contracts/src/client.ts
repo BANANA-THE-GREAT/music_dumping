@@ -10,6 +10,7 @@ export class ApiError extends Error {
   constructor(
     public status: number,
     message: string,
+    public detail?: unknown,
   ) {
     super(message);
   }
@@ -20,11 +21,15 @@ export class VocalScoreApi {
     const response = await fetch(`${this.baseUrl}${path}`, init);
     if (!response.ok) {
       let message = `API request failed (${response.status})`;
+      let detail: unknown;
       try {
         const body = await response.json();
-        message = body.detail ?? message;
+        detail = body.detail;
+        if (typeof detail === "string") message = detail;
+        else if (detail && typeof detail === "object" && "code" in detail)
+          message = String(detail.code);
       } catch {}
-      throw new ApiError(response.status, message);
+      throw new ApiError(response.status, message, detail);
     }
     return response.status === 204
       ? (undefined as T)
@@ -35,7 +40,10 @@ export class VocalScoreApi {
     body.append("file", file);
     return this.request("/v1/uploads", { method: "POST", body });
   }
-  createJob(uploadId: string, quality: "demo" | "high" = "demo"): Promise<JobResponse> {
+  createJob(
+    uploadId: string,
+    quality: "demo" | "high" = "demo",
+  ): Promise<JobResponse> {
     return this.request("/v1/jobs", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -114,7 +122,8 @@ export class VocalScoreApi {
     onProgress: (job: JobResponse) => void,
     signal?: AbortSignal,
   ): Promise<JobResponse> {
-    if (typeof EventSource === "undefined") return this.waitForJob(id, onProgress, signal);
+    if (typeof EventSource === "undefined")
+      return this.waitForJob(id, onProgress, signal);
     return new Promise((resolve, reject) => {
       const events = new EventSource(`${this.baseUrl}/v1/jobs/${id}/events`);
       let receivedEvent = false;
@@ -129,7 +138,9 @@ export class VocalScoreApi {
       );
       events.addEventListener("progress", (event) => {
         receivedEvent = true;
-        const job = JSON.parse((event as MessageEvent<string>).data) as JobResponse;
+        const job = JSON.parse(
+          (event as MessageEvent<string>).data,
+        ) as JobResponse;
         onProgress(job);
         if (job.status === "completed") {
           close();
@@ -141,7 +152,8 @@ export class VocalScoreApi {
       });
       events.onerror = () => {
         close();
-        if (receivedEvent) reject(new Error("Job progress stream ended unexpectedly"));
+        if (receivedEvent)
+          reject(new Error("Job progress stream ended unexpectedly"));
         else this.waitForJob(id, onProgress, signal).then(resolve, reject);
       };
     });

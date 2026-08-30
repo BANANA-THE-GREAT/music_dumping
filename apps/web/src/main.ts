@@ -2,7 +2,7 @@ import {
   JOB_STAGE_LABELS,
   type ScoreProject as ApiScoreProject,
 } from "@vocal-score/contracts";
-import { VocalScoreApi } from "@vocal-score/contracts/client";
+import { ApiError, VocalScoreApi } from "@vocal-score/contracts/client";
 import { ScoreHistory, type EditableNote } from "@vocal-score/score-core";
 import { analyzeMusic } from "./analysis";
 import { keyName, keyRootMidi } from "./key";
@@ -214,6 +214,16 @@ async function loadServerAudio(project: ApiScoreProject) {
     sourceBuffer = null;
   }
 }
+async function recoverRevisionConflict(error: unknown) {
+  if (!(error instanceof ApiError) || error.status !== 409 || !serverProject)
+    return false;
+  serverProject = await api.getProject(serverProject.project_id);
+  applyApiProject(serverProject);
+  sync();
+  void render();
+  status(`检测到其他页面的修改，已恢复最新修订 ${serverProject.revision}`, 100);
+  return true;
+}
 async function runServer(quality: "demo" | "high") {
   if (!sourceFile) return;
   status("正在上传音频…", 3);
@@ -329,6 +339,7 @@ $<HTMLSelectElement>("#recent-project").addEventListener(
         100,
       );
     } catch (error) {
+      if (await recoverRevisionConflict(error)) return;
       status(
         `恢复失败：${error instanceof Error ? error.message : "未知错误"}`,
         0,
@@ -607,6 +618,7 @@ async function saveEditedNotes(updated: EditableNote[], label: string) {
     );
     status(`${label}已保存 · 修订 ${serverProject.revision}`, 100);
   } catch (error) {
+    if (await recoverRevisionConflict(error)) return;
     status(`保存失败：${error instanceof Error ? error.message : "未知错误"}`);
   }
 }
@@ -749,11 +761,15 @@ function downloadServerExport(format: "midi" | "musicxml") {
 }
 $("#midi").addEventListener("click", () => {
   if (!downloadServerExport("midi"))
-    void import("./export").then(({ exportMidi }) => exportMidi(notes, analysis));
+    void import("./export").then(({ exportMidi }) =>
+      exportMidi(notes, analysis),
+    );
 });
 $("#xml").addEventListener("click", () => {
   if (!downloadServerExport("musicxml"))
-    void import("./export").then(({ exportMusicXml }) => exportMusicXml(notes, analysis));
+    void import("./export").then(({ exportMusicXml }) =>
+      exportMusicXml(notes, analysis),
+    );
 });
 void refreshProjects();
 void resumeActiveJob();

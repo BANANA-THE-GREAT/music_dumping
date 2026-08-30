@@ -1,0 +1,29 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { ApiError, VocalScoreApi } from "./client";
+
+describe("API errors", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("preserves structured revision conflict details", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(
+          JSON.stringify({
+            detail: { code: "REVISION_CONFLICT", current_revision: 4 },
+          }),
+          { status: 409, headers: { "content-type": "application/json" } },
+        ),
+      ),
+    );
+    const error = await new VocalScoreApi("http://api")
+      .getProject("project")
+      .catch((reason: unknown) => reason);
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error).toMatchObject({
+      status: 409,
+      message: "REVISION_CONFLICT",
+      detail: { code: "REVISION_CONFLICT", current_revision: 4 },
+    });
+  });
+});
