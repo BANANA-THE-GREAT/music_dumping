@@ -10,7 +10,8 @@ from app.schemas import HealthResponse, ReadinessResponse
 def create_app() -> FastAPI:
     settings = get_settings()
     app = FastAPI(title=settings.api_title, version=settings.api_version)
-    init_db()
+    if settings.auto_create_schema:
+        init_db()
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,

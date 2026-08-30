@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     ]
     data_dir: Path = Path("data")
     database_url: str = "sqlite:///data/vss.db"
+    auto_create_schema: bool = True
     max_upload_bytes: int = 200 * 1024 * 1024
     allowed_audio_types: set[str] = {
         "audio/mpeg",
