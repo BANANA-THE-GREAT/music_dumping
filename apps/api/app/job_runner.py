@@ -1,6 +1,8 @@
 import time
 from concurrent.futures import ThreadPoolExecutor
+from functools import lru_cache
 
+from vss_worker.adapters import AudioNormalizer, MelodyTranscriber, VocalSeparator
 from vss_worker.fake import build_fake_project
 
 from app.database import SessionLocal
@@ -8,6 +10,15 @@ from app.models import JobRecord, ProjectRecord, UploadRecord
 from app.schemas import JobStage, JobStatus, ScoreProject
 
 executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="fake-worker")
+
+
+@lru_cache
+def real_adapters() -> tuple[AudioNormalizer, VocalSeparator, MelodyTranscriber]:
+    from vss_worker.basic_pitch_adapter import BasicPitchTranscriber
+    from vss_worker.demucs import DemucsSeparator
+    from vss_worker.ffmpeg import FfmpegNormalizer
+
+    return FfmpegNormalizer(), DemucsSeparator(), BasicPitchTranscriber()
 
 
 def dispatch_fake_job(job_id: str) -> None:
@@ -84,14 +95,12 @@ def run_fake_job(job_id: str) -> None:
 
 
 def run_real_job(job_id: str) -> None:
-    from vss_worker.basic_pitch_adapter import BasicPitchTranscriber
-    from vss_worker.demucs import DemucsSeparator
-    from vss_worker.ffmpeg import FfmpegNormalizer
     from vss_worker.pipeline import build_real_project
 
     from app.config import get_settings
 
     settings = get_settings()
+    normalizer, separator, transcriber = real_adapters()
     with SessionLocal() as session:
         job = session.get(JobRecord, job_id)
         if job is None or job.status == JobStatus.CANCELLED:
@@ -119,9 +128,9 @@ def run_real_job(job_id: str) -> None:
                     object_key=upload.object_key,
                     source_path=settings.data_dir / upload.object_key,
                     work_dir=settings.data_dir / "work" / job_id,
-                    normalizer=FfmpegNormalizer(),
-                    separator=DemucsSeparator(),
-                    transcriber=BasicPitchTranscriber(),
+                    normalizer=normalizer,
+                    separator=separator,
+                    transcriber=transcriber,
                     progress=progress,
                 )
             )
