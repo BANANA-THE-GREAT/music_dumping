@@ -16,8 +16,9 @@ export interface ScoreNote extends RawNote {
 
 export interface MusicalAnalysis {
   bpm: number;
-  meter: 3 | 4;
+  meter: 2 | 3 | 4 | 6;
+  meterDenominator: 4 | 8;
   keyPitchClass: number;
-  mode: 'major' | 'minor';
+  mode: "major" | "minor";
   confidence: { bpm: number; meter: number; key: number };
 }

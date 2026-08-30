@@ -27,26 +27,36 @@ const ACTIVE_JOB_KEY = "vocal-score.active-job";
 const FAILED_JOB_KEY = "vocal-score.failed-job";
 document.querySelector<HTMLDivElement>("#app")!.innerHTML =
   `<main><header><div><span class="eyebrow">VOCAL SCORE STUDIO</span><h1>拾音</h1></div><p>从一首歌里分离人声，自动识别速度、拍号与调性，生成可演奏的简谱和五线谱。</p></header><section class="workbench"><aside><label class="drop" id="drop"><input id="file" type="file" accept="audio/*"><span class="drop-icon">↥</span><strong>放入歌曲或人声</strong><small>MP3 · WAV · OGG · FLAC</small></label><audio id="audio" controls></audio><div class="field"><label>人声分离 <output id="isolateValue">82%</output></label><input id="isolate" type="range" min="0" max="100" value="82"><small>适合主唱居中的立体声歌曲</small></div><div class="field"><label>识别灵敏度</label><select id="sensitivity"><option value="0.35">均衡</option><option value="0.48">保守</option><option value="0.25">灵敏</option></select></div><button class="primary" id="transcribe" disabled>自动分析并扒谱</button><button class="ghost" id="example">载入完整示例</button><div class="progress"><i id="progress"></i></div><p class="status" id="status">等待音频</p></aside><article><section class="analysis-panel"><div><span>速度 BPM</span><input id="bpm" type="number" min="40" max="240" value="120"><small id="bpmConfidence">待分析</small></div><div><span>拍号</span><select id="meter"><option value="4">4 / 4</option><option value="3">3 / 4</option></select><small id="meterConfidence">待分析</small></div><div><span>调性</span><section><select id="key">${KEYS.map((k, i) => `<option value="${i}">${k}</option>`).join("")}</select><select id="mode"><option value="major">大调</option><option value="minor">小调</option></select></section><small id="keyConfidence">待分析</small></div></section><div class="toolbar"><div class="tabs"><button class="active" data-view="staff">五线谱</button><button data-view="jianpu">简谱</button></div><div class="actions"><button id="play" disabled>▶ 演奏</button><button id="midi" disabled>导出 MIDI</button><button id="xml" disabled>导出 MusicXML</button></div></div><div id="staff" class="score"></div><div id="jianpu" class="score hidden"></div><div class="empty" id="empty"><div>♪</div><strong>完整乐谱会出现在这里</strong><span>导入歌曲后，一次完成分离、分析与转谱</span></div></article></section><footer>本地处理 · 不上传音频 · 自动识别结果可手动修正</footer></main>`;
-document.querySelector(".toolbar")!.insertAdjacentHTML(
-  "afterend",
-  `<div class="edit-actions"><button id="undo" disabled>↶ 撤销</button><button id="redo" disabled>↷ 重做</button><button id="shorter" disabled>缩短</button><button id="longer" disabled>延长</button><button id="split" disabled>拆分</button><button id="merge" disabled>与后音合并</button><button id="delete-note" disabled>删除</button></div>`,
-);
-document.querySelector(".edit-actions")!.insertAdjacentHTML(
-  "afterend",
-  `<section class="waveform-panel"><span>源音频波形</span><canvas id="waveform" width="900" height="100"></canvas></section>`,
-);
-document.querySelector(".tabs")!.insertAdjacentHTML(
-  "beforeend",
-  `<button data-view="piano">钢琴卷帘</button>`,
-);
-document.querySelector("#staff")!.insertAdjacentHTML(
-  "beforebegin",
-  `<div id="piano" class="score piano-roll hidden"></div>`,
-);
-document.querySelector("#piano")!.insertAdjacentHTML(
-  "beforebegin",
-  `<small class="roll-help">拖动音符可调整起点和音高；Shift + 拖动调整时值</small>`,
-);
+document
+  .querySelector(".toolbar")!
+  .insertAdjacentHTML(
+    "afterend",
+    `<div class="edit-actions"><button id="undo" disabled>↶ 撤销</button><button id="redo" disabled>↷ 重做</button><button id="shorter" disabled>缩短</button><button id="longer" disabled>延长</button><button id="split" disabled>拆分</button><button id="merge" disabled>与后音合并</button><button id="delete-note" disabled>删除</button></div>`,
+  );
+document
+  .querySelector(".edit-actions")!
+  .insertAdjacentHTML(
+    "afterend",
+    `<section class="waveform-panel"><span>源音频波形</span><canvas id="waveform" width="900" height="100"></canvas></section>`,
+  );
+document
+  .querySelector(".tabs")!
+  .insertAdjacentHTML(
+    "beforeend",
+    `<button data-view="piano">钢琴卷帘</button>`,
+  );
+document
+  .querySelector("#staff")!
+  .insertAdjacentHTML(
+    "beforebegin",
+    `<div id="piano" class="score piano-roll hidden"></div>`,
+  );
+document
+  .querySelector("#piano")!
+  .insertAdjacentHTML(
+    "beforebegin",
+    `<small class="roll-help">拖动音符可调整起点和音高；Shift + 拖动调整时值</small>`,
+  );
 
 const $ = <T extends HTMLElement>(s: string) => document.querySelector<T>(s)!;
 const input = $<HTMLInputElement>("#file"),
@@ -57,6 +67,7 @@ const input = $<HTMLInputElement>("#file"),
   key = $<HTMLSelectElement>("#key"),
   mode = $<HTMLSelectElement>("#mode"),
   play = $<HTMLButtonElement>("#play");
+meter.innerHTML = `<option value="2/4">2 / 4</option><option value="3/4">3 / 4</option><option value="4/4">4 / 4</option><option value="6/8">6 / 8</option>`;
 transcribe.insertAdjacentHTML(
   "afterend",
   `<button class="ghost" id="retry-job" disabled>重试上次失败任务</button>`,
@@ -65,10 +76,12 @@ audio.insertAdjacentHTML(
   "afterend",
   `<div class="field"><label>处理引擎</label><select id="engine"><option value="server-high">后端高质量 · Demucs</option><option value="server-demo">后端演示 · 快速</option><option value="local">浏览器本地模式</option></select><small>高质量模式需要部署模型 Worker</small></div>`,
 );
-document.querySelector("aside")!.insertAdjacentHTML(
-  "afterbegin",
-  `<div class="recent-projects"><label for="recent-project">最近项目</label><div><select id="recent-project"><option value="">选择已保存项目…</option></select><button id="refresh-projects" title="刷新项目">↻</button><button id="delete-project" title="删除项目" disabled>删除</button></div></div>`,
-);
+document
+  .querySelector("aside")!
+  .insertAdjacentHTML(
+    "afterbegin",
+    `<div class="recent-projects"><label for="recent-project">最近项目</label><div><select id="recent-project"><option value="">选择已保存项目…</option></select><button id="refresh-projects" title="刷新项目">↻</button><button id="delete-project" title="删除项目" disabled>删除</button></div></div>`,
+  );
 let sourceBuffer: AudioBuffer | null = null,
   sourceFile: File | null = null,
   serverProject: ApiScoreProject | null = null,
@@ -79,6 +92,7 @@ let scoreHistory: ScoreHistory | null = null;
 let analysis: MusicalAnalysis = {
   bpm: 120,
   meter: 4,
+  meterDenominator: 4,
   keyPitchClass: 0,
   mode: "major",
   confidence: { bpm: 0, meter: 0, key: 0 },
@@ -176,7 +190,10 @@ function applyApiProject(project: ApiScoreProject) {
   }));
   analysis = {
     bpm: tempo?.bpm ?? 120,
-    meter: meterPoint?.numerator === 3 ? 3 : 4,
+    meter: ([2, 3, 4, 6].includes(meterPoint?.numerator ?? 4)
+      ? meterPoint?.numerator
+      : 4) as 2 | 3 | 4 | 6,
+    meterDenominator: meterPoint?.denominator === 8 ? 8 : 4,
     keyPitchClass: keyPoint?.tonic ?? 0,
     mode: keyPoint?.mode ?? "major",
     confidence: {
@@ -190,7 +207,9 @@ async function loadServerAudio(project: ApiScoreProject) {
   const url = api.audioUrl(project.project_id);
   audio.src = url;
   try {
-    sourceBuffer = await new AudioContext().decodeAudioData(await (await fetch(url)).arrayBuffer());
+    sourceBuffer = await new AudioContext().decodeAudioData(
+      await (await fetch(url)).arrayBuffer(),
+    );
     drawWaveform($<HTMLCanvasElement>("#waveform"), sourceBuffer);
   } catch {
     sourceBuffer = null;
@@ -246,7 +265,10 @@ $("#retry-job").addEventListener("click", async () => {
     void refreshProjects();
     status("重试任务已完成", 100);
   } catch (error) {
-    status(`重试失败：${error instanceof Error ? error.message : "未知错误"}`, 0);
+    status(
+      `重试失败：${error instanceof Error ? error.message : "未知错误"}`,
+      0,
+    );
   }
 });
 async function resumeActiveJob() {
@@ -267,7 +289,10 @@ async function resumeActiveJob() {
     );
   } catch (error) {
     localStorage.removeItem(ACTIVE_JOB_KEY);
-    status(`任务恢复失败：${error instanceof Error ? error.message : "未知错误"}`, 0);
+    status(
+      `任务恢复失败：${error instanceof Error ? error.message : "未知错误"}`,
+      0,
+    );
   }
 }
 async function refreshProjects() {
@@ -287,26 +312,39 @@ async function refreshProjects() {
     select.innerHTML = `<option value="">后端项目不可用</option>`;
   }
 }
-$<HTMLSelectElement>("#recent-project").addEventListener("change", async (event) => {
-  const projectId = (event.currentTarget as HTMLSelectElement).value;
-  $<HTMLButtonElement>("#delete-project").disabled = !projectId;
-  if (!projectId) return;
-  try {
-    status("正在打开已保存项目…", 20);
-    serverProject = await api.getProject(projectId);
-    applyApiProject(serverProject);
-    await loadServerAudio(serverProject);
-    sync();
-    render();
-    status(`已恢复 ${serverProject.source.file_name} · 修订 ${serverProject.revision}`, 100);
-  } catch (error) {
-    status(`恢复失败：${error instanceof Error ? error.message : "未知错误"}`, 0);
-  }
-});
+$<HTMLSelectElement>("#recent-project").addEventListener(
+  "change",
+  async (event) => {
+    const projectId = (event.currentTarget as HTMLSelectElement).value;
+    $<HTMLButtonElement>("#delete-project").disabled = !projectId;
+    if (!projectId) return;
+    try {
+      status("正在打开已保存项目…", 20);
+      serverProject = await api.getProject(projectId);
+      applyApiProject(serverProject);
+      await loadServerAudio(serverProject);
+      sync();
+      render();
+      status(
+        `已恢复 ${serverProject.source.file_name} · 修订 ${serverProject.revision}`,
+        100,
+      );
+    } catch (error) {
+      status(
+        `恢复失败：${error instanceof Error ? error.message : "未知错误"}`,
+        0,
+      );
+    }
+  },
+);
 $("#refresh-projects").addEventListener("click", () => void refreshProjects());
 $("#delete-project").addEventListener("click", async () => {
   const projectId = $<HTMLSelectElement>("#recent-project").value;
-  if (!projectId || !confirm("确定删除这个项目、源音频和所有处理数据吗？此操作不可撤销。")) return;
+  if (
+    !projectId ||
+    !confirm("确定删除这个项目、源音频和所有处理数据吗？此操作不可撤销。")
+  )
+    return;
   try {
     await api.deleteProject(projectId);
     if (serverProject?.project_id === projectId) {
@@ -323,7 +361,10 @@ $("#delete-project").addEventListener("click", async () => {
     await refreshProjects();
     status("项目及关联数据已删除", 0);
   } catch (error) {
-    status(`删除失败：${error instanceof Error ? error.message : "未知错误"}`, 0);
+    status(
+      `删除失败：${error instanceof Error ? error.message : "未知错误"}`,
+      0,
+    );
   }
 });
 transcribe.addEventListener("click", async () => {
@@ -337,7 +378,7 @@ transcribe.addEventListener("click", async () => {
     sync();
     render();
     status(
-      `完成 · ${analysis.bpm} BPM · ${analysis.meter}/4 · ${keyName(analysis.keyPitchClass, analysis.mode)} · ${notes.length} 个音符`,
+      `完成 · ${analysis.bpm} BPM · ${analysis.meter}/${analysis.meterDenominator} · ${keyName(analysis.keyPitchClass, analysis.mode)} · ${notes.length} 个音符`,
       100,
     );
   } catch (e) {
@@ -349,7 +390,7 @@ transcribe.addEventListener("click", async () => {
 });
 function sync() {
   bpm.value = String(analysis.bpm);
-  meter.value = String(analysis.meter);
+  meter.value = `${analysis.meter}/${analysis.meterDenominator}`;
   key.value = String(analysis.keyPitchClass);
   mode.value = analysis.mode;
   $("#bpmConfidence").textContent = conf(analysis.confidence.bpm);
@@ -357,10 +398,12 @@ function sync() {
   $("#keyConfidence").textContent = conf(analysis.confidence.key);
 }
 async function update() {
+  const [numerator, denominator] = meter.value.split("/").map(Number);
   analysis = {
     ...analysis,
     bpm: Number(bpm.value),
-    meter: Number(meter.value) as 3 | 4,
+    meter: numerator as 2 | 3 | 4 | 6,
+    meterDenominator: denominator as 4 | 8,
     keyPitchClass: Number(key.value),
     mode: mode.value as "major" | "minor",
   };
@@ -372,7 +415,7 @@ async function update() {
         expected_revision: serverProject.revision,
         bpm: analysis.bpm,
         numerator: analysis.meter,
-        denominator: 4,
+        denominator: analysis.meterDenominator,
         tonic: analysis.keyPitchClass,
         mode: analysis.mode,
         grid: 0.25,
@@ -394,6 +437,7 @@ $("#example").addEventListener("click", () => {
   analysis = {
     bpm: 120,
     meter: 4,
+    meterDenominator: 4,
     keyPitchClass: 0,
     mode: "major",
     confidence: { bpm: 0.92, meter: 0.81, key: 0.95 },
@@ -413,18 +457,28 @@ function render() {
   const abcKey =
     KEYS[analysis.keyPitchClass].replace("♯", "#") +
     (analysis.mode === "minor" ? "m" : "");
-  ABCJS.renderAbc("staff", toAbc(notes, analysis.bpm, analysis.meter, abcKey), {
-    responsive: "resize",
-    add_classes: true,
-    staffwidth: 860,
-    wrap: {
-      minSpacing: 1.7,
-      maxSpacing: 2.7,
-      preferredMeasuresPerLine: analysis.meter === 3 ? 6 : 4,
+  ABCJS.renderAbc(
+    "staff",
+    toAbc(
+      notes,
+      analysis.bpm,
+      analysis.meter,
+      analysis.meterDenominator,
+      abcKey,
+    ),
+    {
+      responsive: "resize",
+      add_classes: true,
+      staffwidth: 860,
+      wrap: {
+        minSpacing: 1.7,
+        maxSpacing: 2.7,
+        preferredMeasuresPerLine: analysis.meter === 3 ? 6 : 4,
+      },
     },
-  });
+  );
   $("#jianpu").innerHTML =
-    `<div class="jianpu-meta">1 = ${KEYS[analysis.keyPitchClass]}　${analysis.meter}/4　♩ = ${analysis.bpm}<small>点击音符后按 ↑ / ↓ 升降半音</small></div>` +
+    `<div class="jianpu-meta">1 = ${KEYS[analysis.keyPitchClass]}　${analysis.meter}/${analysis.meterDenominator}　♩ = ${analysis.bpm}<small>点击音符后按 ↑ / ↓ 升降半音</small></div>` +
     notes
       .map(
         (n, i) =>
@@ -435,19 +489,25 @@ function render() {
   [play, $<HTMLButtonElement>("#midi"), $<HTMLButtonElement>("#xml")].forEach(
     (b) => (b.disabled = !notes.length),
   );
-  const selected = selectedNoteIndex !== null && Boolean(notes[selectedNoteIndex]);
+  const selected =
+    selectedNoteIndex !== null && Boolean(notes[selectedNoteIndex]);
   ["#shorter", "#longer", "#split", "#merge", "#delete-note"].forEach(
-    (selector) => ($<HTMLButtonElement>(selector).disabled = !selected || !scoreHistory),
+    (selector) =>
+      ($<HTMLButtonElement>(selector).disabled = !selected || !scoreHistory),
   );
   $<HTMLButtonElement>("#undo").disabled = !scoreHistory?.canUndo;
   $<HTMLButtonElement>("#redo").disabled = !scoreHistory?.canRedo;
 }
 $<HTMLDivElement>("#jianpu").addEventListener("click", (event) => {
-  const target = (event.target as HTMLElement).closest<HTMLElement>("[data-note]");
+  const target = (event.target as HTMLElement).closest<HTMLElement>(
+    "[data-note]",
+  );
   if (!target) return;
   selectedNoteIndex = Number(target.dataset.note);
   render();
-  document.querySelector<HTMLElement>(`[data-note="${selectedNoteIndex}"]`)?.focus();
+  document
+    .querySelector<HTMLElement>(`[data-note="${selectedNoteIndex}"]`)
+    ?.focus();
 });
 $<HTMLDivElement>("#piano").addEventListener("click", (event) => {
   const target = (event.target as Element).closest<SVGElement>("[data-note]");
@@ -469,8 +529,14 @@ $<HTMLDivElement>("#piano").addEventListener("pointerup", (event) => {
   const note = serverProject.notes[rollDrag.index];
   if (!svg || !note) return;
   const bounds = svg.getBoundingClientRect();
-  const x = Math.max(0, Math.min(1, (event.clientX - bounds.left) / bounds.width));
-  const y = Math.max(0, Math.min(1, (event.clientY - bounds.top) / bounds.height));
+  const x = Math.max(
+    0,
+    Math.min(1, (event.clientX - bounds.left) / bounds.width),
+  );
+  const y = Math.max(
+    0,
+    Math.min(1, (event.clientY - bounds.top) / bounds.height),
+  );
   const metrics = pianoRollMetrics(notes);
   if (rollDrag.resize) {
     const end = Math.round(x * metrics.endBeat * 4) / 4;
@@ -484,7 +550,9 @@ $<HTMLDivElement>("#piano").addEventListener("pointerup", (event) => {
     );
   } else {
     const start = Math.round(x * metrics.endBeat * 4) / 4;
-    const pitch = Math.round(metrics.highPitch - y * (metrics.highPitch - metrics.lowPitch));
+    const pitch = Math.round(
+      metrics.highPitch - y * (metrics.highPitch - metrics.lowPitch),
+    );
     void saveEditedNotes(
       scoreHistory.execute({ type: "move", noteId: note.id, start, pitch }),
       "音符拖动",
@@ -498,7 +566,10 @@ async function transposeSelected(semitones: number) {
   const rawNote = rawNotes[scoreNote.id];
   if (!rawNote) return;
   if (!scoreHistory || !serverProject?.notes[selectedNoteIndex]) {
-    rawNote.pitchMidi = Math.max(0, Math.min(127, rawNote.pitchMidi + semitones));
+    rawNote.pitchMidi = Math.max(
+      0,
+      Math.min(127, rawNote.pitchMidi + semitones),
+    );
     render();
     return;
   }
@@ -540,17 +611,26 @@ async function saveEditedNotes(updated: EditableNote[], label: string) {
   }
 }
 document.addEventListener("keydown", (event) => {
-  if (selectedNoteIndex === null || !["ArrowUp", "ArrowDown"].includes(event.key)) return;
+  if (
+    selectedNoteIndex === null ||
+    !["ArrowUp", "ArrowDown"].includes(event.key)
+  )
+    return;
   event.preventDefault();
   void transposeSelected(event.key === "ArrowUp" ? 1 : -1);
 });
 function selectedEditableNote() {
-  return selectedNoteIndex === null ? undefined : serverProject?.notes[selectedNoteIndex];
+  return selectedNoteIndex === null
+    ? undefined
+    : serverProject?.notes[selectedNoteIndex];
 }
 $("#delete-note").addEventListener("click", () => {
   const note = selectedEditableNote();
   if (note && scoreHistory)
-    void saveEditedNotes(scoreHistory.execute({ type: "delete", noteId: note.id }), "删除");
+    void saveEditedNotes(
+      scoreHistory.execute({ type: "delete", noteId: note.id }),
+      "删除",
+    );
 });
 $("#shorter").addEventListener("click", () => resizeSelected(-0.25));
 $("#longer").addEventListener("click", () => resizeSelected(0.25));
@@ -581,10 +661,17 @@ $("#split").addEventListener("click", () => {
 });
 $("#merge").addEventListener("click", () => {
   const note = selectedEditableNote();
-  const right = selectedNoteIndex === null ? undefined : serverProject?.notes[selectedNoteIndex + 1];
+  const right =
+    selectedNoteIndex === null
+      ? undefined
+      : serverProject?.notes[selectedNoteIndex + 1];
   if (note && right && scoreHistory)
     void saveEditedNotes(
-      scoreHistory.execute({ type: "merge", leftId: note.id, rightId: right.id }),
+      scoreHistory.execute({
+        type: "merge",
+        leftId: note.id,
+        rightId: right.id,
+      }),
       "合并",
     );
 });
@@ -668,4 +755,5 @@ $("#xml").addEventListener("click", () => {
 });
 void refreshProjects();
 void resumeActiveJob();
-$<HTMLButtonElement>("#retry-job").disabled = !localStorage.getItem(FAILED_JOB_KEY);
+$<HTMLButtonElement>("#retry-job").disabled =
+  !localStorage.getItem(FAILED_JOB_KEY);
