@@ -83,6 +83,7 @@ def test_project_exports_standard_midi_and_musicxml() -> None:
     assert musicxml.status_code == 200
     assert b'<score-partwise version="4.0">' in musicxml.content
     assert musicxml.content.count(b"<note>") >= len(project["notes"])
+    assert musicxml.content.count(b"<measure ") == 3
 
     audio = client.get(f"/v1/projects/{project_id}/audio")
     assert audio.status_code == 200
