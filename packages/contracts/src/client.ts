@@ -84,6 +84,9 @@ export class VocalScoreApi {
   exportUrl(id: string, format: "midi" | "musicxml"): string {
     return `${this.baseUrl}/v1/projects/${id}/exports/${format}`;
   }
+  audioUrl(id: string): string {
+    return `${this.baseUrl}/v1/projects/${id}/audio`;
+  }
   cancelJob(id: string): Promise<JobResponse> {
     return this.request(`/v1/jobs/${id}/cancel`, { method: "POST" });
   }

@@ -17,6 +17,7 @@ import { cleanAndQuantize, demoNotes, toAbc } from "./music";
 import { renderPianoRoll } from "./piano-roll";
 import { isolateCenterVocal, resampleAudio } from "./separation";
 import type { MusicalAnalysis, RawNote, ScoreNote } from "./types";
+import { drawWaveform } from "./waveform";
 import "./style.css";
 import "./editor.css";
 
@@ -29,6 +30,10 @@ document.querySelector<HTMLDivElement>("#app")!.innerHTML =
 document.querySelector(".toolbar")!.insertAdjacentHTML(
   "afterend",
   `<div class="edit-actions"><button id="undo" disabled>↶ 撤销</button><button id="redo" disabled>↷ 重做</button><button id="shorter" disabled>缩短</button><button id="longer" disabled>延长</button><button id="split" disabled>拆分</button><button id="merge" disabled>与后音合并</button><button id="delete-note" disabled>删除</button></div>`,
+);
+document.querySelector(".edit-actions")!.insertAdjacentHTML(
+  "afterend",
+  `<section class="waveform-panel"><span>源音频波形</span><canvas id="waveform" width="900" height="100"></canvas></section>`,
 );
 document.querySelector(".tabs")!.insertAdjacentHTML(
   "beforeend",
@@ -90,6 +95,7 @@ async function load(file: File) {
   sourceBuffer = await new AudioContext().decodeAudioData(
     await file.arrayBuffer(),
   );
+  drawWaveform($<HTMLCanvasElement>("#waveform"), sourceBuffer);
   transcribe.disabled = false;
   status(`已载入 ${file.name} · ${sourceBuffer.duration.toFixed(1)} 秒`, 0);
 }
@@ -176,6 +182,16 @@ function applyApiProject(project: ApiScoreProject) {
     },
   };
 }
+async function loadServerAudio(project: ApiScoreProject) {
+  const url = api.audioUrl(project.project_id);
+  audio.src = url;
+  try {
+    sourceBuffer = await new AudioContext().decodeAudioData(await (await fetch(url)).arrayBuffer());
+    drawWaveform($<HTMLCanvasElement>("#waveform"), sourceBuffer);
+  } catch {
+    sourceBuffer = null;
+  }
+}
 async function runServer(quality: "demo" | "high") {
   if (!sourceFile) return;
   status("正在上传音频…", 3);
@@ -187,6 +203,7 @@ async function runServer(quality: "demo" | "high") {
   if (!job.project_id) throw new Error("后端未返回乐谱项目");
   serverProject = await api.getProject(job.project_id);
   applyApiProject(serverProject);
+  await loadServerAudio(serverProject);
   void refreshProjects();
 }
 async function waitForServerJob(jobId: string) {
@@ -219,6 +236,7 @@ $("#retry-job").addEventListener("click", async () => {
     if (!job.project_id) throw new Error("重试任务没有乐谱项目");
     serverProject = await api.getProject(job.project_id);
     applyApiProject(serverProject);
+    await loadServerAudio(serverProject);
     sync();
     render();
     void refreshProjects();
@@ -236,6 +254,7 @@ async function resumeActiveJob() {
     if (!job.project_id) throw new Error("恢复的任务没有乐谱项目");
     serverProject = await api.getProject(job.project_id);
     applyApiProject(serverProject);
+    await loadServerAudio(serverProject);
     sync();
     render();
     status(
@@ -272,6 +291,7 @@ $<HTMLSelectElement>("#recent-project").addEventListener("change", async (event)
     status("正在打开已保存项目…", 20);
     serverProject = await api.getProject(projectId);
     applyApiProject(serverProject);
+    await loadServerAudio(serverProject);
     sync();
     render();
     status(`已恢复 ${serverProject.source.file_name} · 修订 ${serverProject.revision}`, 100);

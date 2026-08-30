@@ -96,3 +96,22 @@
   stroke: #641f0e;
   stroke-width: 2.5;
 }
+
+.waveform-panel {
+  padding: 10px 0 0;
+}
+
+.waveform-panel > span {
+  display: block;
+  margin-bottom: 5px;
+  color: #8a8174;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+}
+
+.waveform-panel canvas {
+  display: block;
+  width: 100%;
+  height: 80px;
+  border: 1px solid #e5ded2;
+}
