@@ -1,0 +1,50 @@
+# 部署与运维
+
+## 启动前检查
+
+生产环境应修改 Compose 中的数据库、MinIO 凭据，不把数据库和 Redis 端口暴露到公网，并在 Web/API 前配置 TLS 反向代理。应用数据位于 `app-data`，PostgreSQL 元数据位于 `postgres-data`；两者必须成组备份。
+
+```bash
+docker compose -f infra/compose.yaml config
+docker compose -f infra/compose.yaml build
+docker compose -f infra/compose.yaml up -d
+curl --fail http://localhost:8000/health/live
+curl --fail http://localhost:8000/health/ready
+```
+
+API 启动时先执行 Alembic migration。`ready` 失败时不要继续切换流量，应先检查 API 日志、数据库连接和 Redis 健康状态。
+
+## 备份与恢复
+
+备份前短暂停止 API 和 Worker 写入，再导出数据库并备份应用数据卷：
+
+```bash
+docker compose -f infra/compose.yaml stop api worker
+docker compose -f infra/compose.yaml exec -T postgres pg_dump -U vocal_score -Fc vocal_score > vocal-score.dump
+docker run --rm -v vocal-score-studio_app-data:/source:ro -v "$PWD/backups:/backup" alpine tar czf /backup/app-data.tgz -C /source .
+docker compose -f infra/compose.yaml start api worker
+```
+
+恢复到空环境时，先还原 `app-data`，再用 `pg_restore --clean --if-exists` 还原数据库，最后启动 API 与 Worker并检查 `/health/ready`。备份文件包含用户音频，必须加密、限制访问并按保留策略删除。
+
+## 数据保留与删除
+
+当前版本不自动删除项目。管理员应根据产品隐私承诺制定保留期；用户从“最近项目”执行删除时，API 会在同一操作中删除项目、关联任务、上传记录、源音频和任务工作目录。可通过以下请求核验删除结果：
+
+```bash
+curl -X DELETE http://localhost:8000/v1/projects/PROJECT_ID
+curl --fail http://localhost:8000/v1/projects/PROJECT_ID
+```
+
+第二个请求应返回 404。数据库/数据卷备份中的副本会持续到备份保留期结束，因此用户说明中应明确这一点。
+
+## 升级与回滚
+
+升级前创建数据库和 `app-data` 备份，再构建带固定 Git 提交号的镜像。先运行 migration 和健康检查，再切换 Web 流量。代码回滚不能自动回滚数据库结构；若迁移不向后兼容，应恢复成组备份，而不是只降级镜像。
+
+## 常见故障
+
+- 任务长期停在 queued：检查 Redis、Celery Worker 日志和 `VSS_WORKER_BACKEND`。
+- Worker OOM：降低并发、使用短音频验证，或部署更大内存/GPU；失败任务可从界面安全重试。
+- FFmpeg 或模型不可用：确认 Worker 镜像构建完成并检查模型下载/许可要求。
+- 磁盘持续增长：核对项目保留策略和 `app-data` 卷容量，先通过项目删除 API 清理，避免直接删除仍被数据库引用的文件。

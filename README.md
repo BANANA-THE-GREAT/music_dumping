@@ -39,6 +39,8 @@ docker compose -f infra/compose.yaml up --build
 
 Web 默认位于 `http://localhost:8080`，API 位于 `http://localhost:8000`。API 容器启动前自动执行 Alembic migration。
 
+生产部署、备份恢复、数据保留与故障排查见 [部署运维指南](docs/deployment.md)。
+
 ## 验证
 
 ```bash
@@ -49,4 +51,4 @@ npm test
 npm run build
 ```
 
-更多说明见 [架构](docs/architecture.md)、[API](docs/api.md) 和 [模型许可](docs/model-licenses.md)。
+更多说明见 [架构](docs/architecture.md)、[API](docs/api.md)、[评测](docs/evaluation.md) 和 [模型许可](docs/model-licenses.md)。
