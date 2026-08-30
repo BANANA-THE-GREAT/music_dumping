@@ -46,8 +46,8 @@ class UploadResponse(BaseModel):
 
 
 class JobOptions(BaseModel):
-    separator: str = "fake"
-    transcriber: str = "fake"
+    separator: Literal["fake", "demucs"] = "fake"
+    transcriber: Literal["fake", "basic_pitch"] = "fake"
     detect_meter: bool = True
     detect_key: bool = True
     auto_start: bool = True

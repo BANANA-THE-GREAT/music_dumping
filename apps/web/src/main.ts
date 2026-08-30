@@ -33,7 +33,7 @@ const input = $<HTMLInputElement>("#file"),
   play = $<HTMLButtonElement>("#play");
 audio.insertAdjacentHTML(
   "afterend",
-  `<div class="field"><label>处理引擎</label><select id="engine"><option value="server">后端高质量流水线</option><option value="local">浏览器本地模式</option></select><small>后端不可用时可切换本地模式</small></div>`,
+  `<div class="field"><label>处理引擎</label><select id="engine"><option value="server-high">后端高质量 · Demucs</option><option value="server-demo">后端演示 · 快速</option><option value="local">浏览器本地模式</option></select><small>高质量模式需要部署模型 Worker</small></div>`,
 );
 let sourceBuffer: AudioBuffer | null = null,
   sourceFile: File | null = null,
@@ -147,12 +147,12 @@ function applyApiProject(project: ApiScoreProject) {
     },
   };
 }
-async function runServer() {
+async function runServer(quality: "demo" | "high") {
   if (!sourceFile) return;
   status("正在上传音频…", 3);
   const upload = await api.upload(sourceFile);
   status("已进入后端处理队列…", 6);
-  const submitted = await api.createJob(upload.id);
+  const submitted = await api.createJob(upload.id, quality);
   const job = await api.waitForJob(submitted.id, (current) =>
     status(
       `${JOB_STAGE_LABELS[current.stage]} · ${Math.round(current.progress * 100)}%`,
@@ -167,7 +167,9 @@ transcribe.addEventListener("click", async () => {
   if (!sourceBuffer) return;
   transcribe.disabled = true;
   try {
-    if ($<HTMLSelectElement>("#engine").value === "server") await runServer();
+    const engine = $<HTMLSelectElement>("#engine").value;
+    if (engine === "server-high") await runServer("high");
+    else if (engine === "server-demo") await runServer("demo");
     else await runLocal();
     sync();
     render();

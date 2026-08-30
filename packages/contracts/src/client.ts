@@ -34,11 +34,17 @@ export class VocalScoreApi {
     body.append("file", file);
     return this.request("/v1/uploads", { method: "POST", body });
   }
-  createJob(uploadId: string): Promise<JobResponse> {
+  createJob(uploadId: string, quality: "demo" | "high" = "demo"): Promise<JobResponse> {
     return this.request("/v1/jobs", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ upload_id: uploadId }),
+      body: JSON.stringify({
+        upload_id: uploadId,
+        options:
+          quality === "high"
+            ? { separator: "demucs", transcriber: "basic_pitch" }
+            : { separator: "fake", transcriber: "fake" },
+      }),
     });
   }
   getJob(id: string): Promise<JobResponse> {
