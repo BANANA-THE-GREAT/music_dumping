@@ -14,6 +14,17 @@ def dispatch_fake_job(job_id: str) -> None:
     executor.submit(run_fake_job, job_id)
 
 
+def dispatch_job(job_id: str) -> None:
+    from app.config import get_settings
+
+    if get_settings().worker_backend == "celery":
+        from vss_worker.celery_app import run_transcription_job
+
+        run_transcription_job.delay(job_id)
+    else:
+        dispatch_fake_job(job_id)
+
+
 def run_fake_job(job_id: str) -> None:
     with SessionLocal() as session:
         job = session.get(JobRecord, job_id)

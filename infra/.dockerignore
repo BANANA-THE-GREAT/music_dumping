@@ -1,0 +1,8 @@
+.git
+node_modules
+**/dist
+.venv
+data
+test-data
+*.egg-info
+__pycache__

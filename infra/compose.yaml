@@ -1,0 +1,66 @@
+name: vocal-score-studio
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: vocal_score
+      POSTGRES_PASSWORD: vocal_score_dev
+      POSTGRES_DB: vocal_score
+    volumes: [postgres-data:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U vocal_score"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  redis:
+    image: redis:8-alpine
+    command: redis-server --appendonly yes
+    volumes: [redis-data:/data]
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address :9001
+    environment:
+      MINIO_ROOT_USER: vocal_score
+      MINIO_ROOT_PASSWORD: vocal_score_dev_secret
+    volumes: [minio-data:/data]
+    ports: ["9001:9001"]
+  api:
+    build:
+      context: ..
+      dockerfile: infra/docker/Dockerfile.api
+    environment: &backend-env
+      VSS_DATABASE_URL: postgresql+psycopg://vocal_score:vocal_score_dev@postgres/vocal_score
+      VSS_BROKER_URL: redis://redis:6379/0
+      VSS_RESULT_BACKEND: redis://redis:6379/1
+      VSS_WORKER_BACKEND: celery
+      VSS_DATA_DIR: /data
+    volumes: [app-data:/data]
+    ports: ["8000:8000"]
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+  worker:
+    build:
+      context: ..
+      dockerfile: infra/docker/Dockerfile.worker
+    environment: *backend-env
+    volumes: [app-data:/data]
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+  web:
+    build:
+      context: ..
+      dockerfile: infra/docker/Dockerfile.web
+    ports: ["8080:80"]
+    depends_on: [api]
+volumes:
+  postgres-data:
+  redis-data:
+  minio-data:
+  app-data:

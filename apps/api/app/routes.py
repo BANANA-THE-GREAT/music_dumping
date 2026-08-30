@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.config import Settings, get_settings
 from app.database import SessionLocal, get_session
-from app.job_runner import dispatch_fake_job
+from app.job_runner import dispatch_job
 from app.models import JobRecord, ProjectRecord, UploadRecord
 from app.repository import create_job, create_upload, job_response
 from app.schemas import JobCreate, JobResponse, JobStage, JobStatus, ScoreProject, UploadResponse
@@ -48,7 +48,7 @@ def submit_job(request: JobCreate, session: SessionDep) -> JobResponse:
         raise HTTPException(status_code=404, detail="Upload not found")
     response = create_job(session, request)
     if request.options.auto_start:
-        dispatch_fake_job(response.id)
+        dispatch_job(response.id)
     return response
 
 

@@ -30,6 +30,9 @@ class Settings(BaseSettings):
         "audio/x-flac",
         "audio/mp4",
     }
+    worker_backend: str = "thread"
+    broker_url: str = "redis://localhost:6379/0"
+    result_backend: str = "redis://localhost:6379/1"
 
 
 @lru_cache

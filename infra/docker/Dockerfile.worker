@@ -1,0 +1,9 @@
+FROM python:3.11-slim
+WORKDIR /app
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg && rm -rf /var/lib/apt/lists/*
+COPY pyproject.toml ./
+RUN pip install --no-cache-dir .
+COPY apps/api apps/api
+COPY workers/transcription workers/transcription
+ENV PYTHONPATH=/app/apps/api:/app/workers/transcription
+CMD ["python", "-m", "celery", "-A", "vss_worker.celery_app:celery_app", "worker", "--loglevel=INFO", "--concurrency=1"]
