@@ -10,8 +10,18 @@ from app.config import Settings, get_settings
 from app.database import SessionLocal, get_session
 from app.job_runner import dispatch_job
 from app.models import JobRecord, ProjectRecord, UploadRecord
+from app.project_service import requantize
 from app.repository import create_job, create_upload, job_response
-from app.schemas import JobCreate, JobResponse, JobStage, JobStatus, ScoreProject, UploadResponse
+from app.schemas import (
+    JobCreate,
+    JobResponse,
+    JobStage,
+    JobStatus,
+    ProjectPatch,
+    RequantizeRequest,
+    ScoreProject,
+    UploadResponse,
+)
 from app.storage import UploadTooLargeError, save_upload
 
 router = APIRouter(prefix="/v1")
@@ -106,6 +116,47 @@ def get_project(project_id: str, session: SessionDep) -> ScoreProject:
     if record is None:
         raise HTTPException(status_code=404, detail="Project not found")
     return ScoreProject.model_validate(record.document)
+
+
+def _editable_project(
+    project_id: str, expected_revision: int, session: Session
+) -> tuple[ProjectRecord, ScoreProject]:
+    record = session.get(ProjectRecord, project_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    if record.revision != expected_revision:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "REVISION_CONFLICT",
+                "current_revision": record.revision,
+            },
+        )
+    return record, ScoreProject.model_validate(record.document)
+
+
+def _save_project(record: ProjectRecord, project: ScoreProject, session: Session) -> ScoreProject:
+    record.revision += 1
+    project.revision = record.revision
+    record.document = project.model_dump(mode="json")
+    session.commit()
+    return project
+
+
+@router.patch("/projects/{project_id}", response_model=ScoreProject)
+def update_project(project_id: str, request: ProjectPatch, session: SessionDep) -> ScoreProject:
+    record, project = _editable_project(project_id, request.expected_revision, session)
+    if request.notes is not None:
+        project.notes = request.notes
+    return _save_project(record, project, session)
+
+
+@router.post("/projects/{project_id}/requantize", response_model=ScoreProject)
+def requantize_project(
+    project_id: str, request: RequantizeRequest, session: SessionDep
+) -> ScoreProject:
+    record, project = _editable_project(project_id, request.expected_revision, session)
+    return _save_project(record, requantize(project, request), session)
 
 
 @router.delete("/uploads/{upload_id}", status_code=status.HTTP_204_NO_CONTENT)

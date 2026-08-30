@@ -2,7 +2,7 @@ from datetime import datetime
 from enum import StrEnum
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class HealthResponse(BaseModel):
@@ -128,6 +128,28 @@ class ScoreProject(BaseModel):
     notes: list[ScoreNote]
     pipeline: list[PipelineStep]
     revision: int = Field(ge=1)
+
+
+class ProjectPatch(BaseModel):
+    expected_revision: int = Field(ge=1)
+    notes: list[ScoreNote] | None = None
+
+
+class RequantizeRequest(BaseModel):
+    expected_revision: int = Field(ge=1)
+    bpm: float = Field(ge=20, le=300)
+    numerator: int = Field(ge=1, le=16)
+    denominator: Literal[2, 4, 8, 16]
+    tonic: int = Field(ge=0, le=11)
+    mode: Literal["major", "minor"]
+    grid: float = 0.25
+
+    @field_validator("grid")
+    @classmethod
+    def validate_grid(cls, value: float) -> float:
+        if value not in {0.125, 0.25, 0.5, 1.0}:
+            raise ValueError("grid must be one of 0.125, 0.25, 0.5, or 1.0")
+        return value
 
 
 class ErrorResponse(BaseModel):
