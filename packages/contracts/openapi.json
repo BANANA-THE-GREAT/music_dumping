@@ -127,11 +127,19 @@
           },
           "separator": {
             "default": "fake",
+            "enum": [
+              "fake",
+              "demucs"
+            ],
             "title": "Separator",
             "type": "string"
           },
           "transcriber": {
             "default": "fake",
+            "enum": [
+              "fake",
+              "basic_pitch"
+            ],
             "title": "Transcriber",
             "type": "string"
           }
@@ -328,6 +336,34 @@
         "title": "PipelineStep",
         "type": "object"
       },
+      "ProjectPatch": {
+        "properties": {
+          "expected_revision": {
+            "minimum": 1.0,
+            "title": "Expected Revision",
+            "type": "integer"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ScoreNote"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          }
+        },
+        "required": [
+          "expected_revision"
+        ],
+        "title": "ProjectPatch",
+        "type": "object"
+      },
       "ReadinessResponse": {
         "properties": {
           "checks": {
@@ -362,6 +398,66 @@
           "checks"
         ],
         "title": "ReadinessResponse",
+        "type": "object"
+      },
+      "RequantizeRequest": {
+        "properties": {
+          "bpm": {
+            "maximum": 300.0,
+            "minimum": 20.0,
+            "title": "Bpm",
+            "type": "number"
+          },
+          "denominator": {
+            "enum": [
+              2,
+              4,
+              8,
+              16
+            ],
+            "title": "Denominator",
+            "type": "integer"
+          },
+          "expected_revision": {
+            "minimum": 1.0,
+            "title": "Expected Revision",
+            "type": "integer"
+          },
+          "grid": {
+            "default": 0.25,
+            "title": "Grid",
+            "type": "number"
+          },
+          "mode": {
+            "enum": [
+              "major",
+              "minor"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "numerator": {
+            "maximum": 16.0,
+            "minimum": 1.0,
+            "title": "Numerator",
+            "type": "integer"
+          },
+          "tonic": {
+            "maximum": 11.0,
+            "minimum": 0.0,
+            "title": "Tonic",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expected_revision",
+          "bpm",
+          "numerator",
+          "denominator",
+          "tonic",
+          "mode"
+        ],
+        "title": "RequantizeRequest",
         "type": "object"
       },
       "ScoreNote": {
@@ -847,6 +943,176 @@
           }
         },
         "summary": "Get Project"
+      },
+      "patch": {
+        "operationId": "update_project_v1_projects__project_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScoreProject"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Project"
+      }
+    },
+    "/v1/projects/{project_id}/exports/midi": {
+      "get": {
+        "operationId": "export_project_midi_v1_projects__project_id__exports_midi_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Export Project Midi"
+      }
+    },
+    "/v1/projects/{project_id}/exports/musicxml": {
+      "get": {
+        "operationId": "export_project_musicxml_v1_projects__project_id__exports_musicxml_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Export Project Musicxml"
+      }
+    },
+    "/v1/projects/{project_id}/requantize": {
+      "post": {
+        "operationId": "requantize_project_v1_projects__project_id__requantize_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequantizeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScoreProject"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Requantize Project"
       }
     },
     "/v1/uploads": {

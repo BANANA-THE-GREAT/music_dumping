@@ -28,5 +28,7 @@ jobs:
           cache: pip
       - run: pip install -e ".[dev]"
       - run: ruff check apps/api workers
-      - run: mypy apps/api/app
+      - run: mypy apps/api/app workers/transcription/vss_worker
       - run: pytest
+      - run: python scripts/export-openapi.py
+      - run: git diff --exit-code packages/contracts/openapi.json
