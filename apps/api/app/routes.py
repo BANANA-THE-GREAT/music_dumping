@@ -25,7 +25,7 @@ from app.schemas import (
     ScoreProject,
     UploadResponse,
 )
-from app.storage import UploadTooLargeError, save_upload
+from app.storage import UploadTooLargeError, remove_project_files, save_upload
 
 router = APIRouter(prefix="/v1")
 SessionDep = Annotated[Session, Depends(get_session)]
@@ -208,6 +208,32 @@ def requantize_project(
 ) -> ScoreProject:
     record, project = _editable_project(project_id, request.expected_revision, session)
     return _save_project(record, requantize(project, request), session)
+
+
+@router.delete("/projects/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_project(project_id: str, session: SessionDep, settings: SettingsDep) -> Response:
+    project = session.get(ProjectRecord, project_id)
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    job = session.get(JobRecord, project.job_id)
+    if job is None:
+        session.delete(project)
+        session.commit()
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+    upload = session.get(UploadRecord, job.upload_id)
+    object_key = upload.object_key if upload else None
+    session.delete(project)
+    session.delete(job)
+    session.flush()
+    other_job = session.scalar(
+        select(JobRecord.id).where(JobRecord.upload_id == job.upload_id).limit(1)
+    )
+    if upload is not None and other_job is None:
+        session.delete(upload)
+    session.commit()
+    if object_key is not None and other_job is None:
+        remove_project_files(settings, object_key, job.id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.delete("/uploads/{upload_id}", status_code=status.HTTP_204_NO_CONTENT)

@@ -1,4 +1,6 @@
 import hashlib
+import shutil
+from contextlib import suppress
 from pathlib import Path
 from uuid import uuid4
 
@@ -9,6 +11,19 @@ from app.config import Settings
 
 class UploadTooLargeError(Exception):
     pass
+
+
+def remove_project_files(settings: Settings, object_key: str, job_id: str) -> None:
+    root = settings.data_dir.resolve()
+    source = (root / object_key).resolve()
+    work = (root / "work" / job_id).resolve()
+    if root not in source.parents or root not in work.parents:
+        raise ValueError("Refusing to remove files outside the data directory")
+    source.unlink(missing_ok=True)
+    shutil.rmtree(work, ignore_errors=True)
+    for directory in (source.parent, source.parent.parent):
+        with suppress(OSError):
+            directory.rmdir()
 
 
 async def save_upload(file: UploadFile, settings: Settings) -> tuple[str, int, str]:

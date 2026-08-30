@@ -1,6 +1,7 @@
 import time
 from io import BytesIO
 
+from app.config import get_settings
 from app.main import app
 from fastapi.testclient import TestClient
 
@@ -99,3 +100,14 @@ def test_projects_are_listed_for_reopening() -> None:
             "updated_at": matching[0]["updated_at"],
         }
     ]
+
+
+def test_project_deletion_removes_related_records_and_source_file() -> None:
+    project = create_project()
+    source_path = get_settings().data_dir / project["source"]["audio_object_key"]
+    assert source_path.exists()
+
+    response = client.delete(f"/v1/projects/{project['project_id']}")
+    assert response.status_code == 204
+    assert client.get(f"/v1/projects/{project['project_id']}").status_code == 404
+    assert not source_path.exists()
