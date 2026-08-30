@@ -1,5 +1,5 @@
 from app.config import get_settings
-from app.job_runner import run_fake_job
+from app.job_runner import run_selected_job
 from celery import Celery  # type: ignore[import-untyped]
 
 settings = get_settings()
@@ -18,4 +18,4 @@ celery_app.conf.update(
 
 @celery_app.task(name="transcription.run", bind=True, max_retries=2)  # type: ignore[untyped-decorator]
 def run_transcription_job(self: object, job_id: str) -> None:
-    run_fake_job(job_id)
+    run_selected_job(job_id)
