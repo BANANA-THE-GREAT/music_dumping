@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from vss_worker.adapters import DetectedNote
-from vss_worker.pipeline import build_real_project
+from vss_worker.pipeline import build_real_project, estimate_meter
 
 
 class FakeNormalizer:
@@ -55,3 +55,23 @@ def test_real_pipeline_composes_adapters_and_quantizes(tmp_path: Path) -> None:
         "postprocessing",
         "rendering",
     ]
+
+
+def test_meter_estimator_detects_three_four_accent_cycle() -> None:
+    notes = [
+        DetectedNote(
+            index * 0.5, index * 0.5 + 0.4, 60 + index % 5, 0.95 if index % 3 == 0 else 0.3
+        )
+        for index in range(12)
+    ]
+    assert estimate_meter(notes)[:2] == (3, 4)
+
+
+def test_meter_estimator_detects_six_eight_and_falls_back_when_unclear() -> None:
+    six_eight = [
+        DetectedNote(index * 0.25, index * 0.25 + 0.2, 60, 0.95 if index % 6 == 0 else 0.25)
+        for index in range(18)
+    ]
+    assert estimate_meter(six_eight)[:2] == (6, 8)
+    uniform = [DetectedNote(index * 0.5, index * 0.5 + 0.4, 60, 0.8) for index in range(8)]
+    assert estimate_meter(uniform)[:2] == (4, 4)

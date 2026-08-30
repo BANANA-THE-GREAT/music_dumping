@@ -47,6 +47,33 @@ def _estimate_key(notes: list[DetectedNote]) -> tuple[int, str]:
     return tonic, mode
 
 
+def estimate_meter(notes: list[DetectedNote]) -> tuple[int, int, float]:
+    ordered = sorted(notes, key=lambda note: note.start_seconds)
+    if len(ordered) < 6:
+        return 4, 4, 0.2
+    best: tuple[float, int] = (0.0, 4)
+    for period in (2, 3, 4, 6):
+        phase_scores = []
+        for phase in range(period):
+            accented = [
+                note.confidence for index, note in enumerate(ordered) if index % period == phase
+            ]
+            unaccented = [
+                note.confidence for index, note in enumerate(ordered) if index % period != phase
+            ]
+            contrast = statistics.fmean(accented) - statistics.fmean(unaccented)
+            phase_scores.append(contrast)
+        score = max(phase_scores)
+        if score > best[0]:
+            best = score, period
+    contrast, numerator = best
+    if contrast < 0.08:
+        return 4, 4, 0.25
+    denominator = 8 if numerator == 6 else 4
+    confidence = min(0.9, 0.35 + contrast)
+    return numerator, denominator, round(confidence, 3)
+
+
 def build_real_project(
     *,
     upload_id: str,
@@ -68,6 +95,7 @@ def build_real_project(
     progress("tracking_beats", 0.76)
     bpm = _estimate_bpm(detected)
     tonic, mode = _estimate_key(detected)
+    numerator, denominator, meter_confidence = estimate_meter(detected)
     seconds_per_beat = 60 / bpm
     progress("postprocessing", 0.86)
     notes = []
@@ -103,9 +131,9 @@ def build_real_project(
         },
         "analysis": {
             "tempo_map": [{"time_ms": 0, "bpm": bpm}],
-            "meter_map": [{"beat": 0, "numerator": 4, "denominator": 4}],
+            "meter_map": [{"beat": 0, "numerator": numerator, "denominator": denominator}],
             "key_map": [{"beat": 0, "tonic": tonic, "mode": mode}],
-            "confidence": {"tempo": 0.65, "meter": 0.3, "key": 0.6},
+            "confidence": {"tempo": 0.65, "meter": meter_confidence, "key": 0.6},
         },
         "notes": notes,
         "pipeline": [
