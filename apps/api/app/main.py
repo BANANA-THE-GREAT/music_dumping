@@ -1,8 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.config import get_settings
-from app.database import init_db
+from app.database import SessionLocal, init_db
+from app.observability import RequestContextMiddleware
 from app.routes import router
 from app.schemas import HealthResponse, ReadinessResponse
 
@@ -19,6 +22,7 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    app.add_middleware(RequestContextMiddleware)
     app.include_router(router)
 
     @app.get("/health/live", response_model=HealthResponse, tags=["health"])
@@ -27,10 +31,16 @@ def create_app() -> FastAPI:
 
     @app.get("/health/ready", response_model=ReadinessResponse, tags=["health"])
     def readiness() -> ReadinessResponse:
+        database_status: str = "ok"
+        try:
+            with SessionLocal() as session:
+                session.execute(text("SELECT 1"))
+        except SQLAlchemyError:
+            database_status = "unavailable"
         return ReadinessResponse(
             service="api",
             version=settings.api_version,
-            checks={"api": "ok"},
+            checks={"api": "ok", "database": database_status},
         )
 
     return app

@@ -5,15 +5,16 @@ client = TestClient(app)
 
 
 def test_liveness() -> None:
-    response = client.get("/health/live")
+    response = client.get("/health/live", headers={"x-request-id": "test-request-123"})
     assert response.status_code == 200
     assert response.json() == {"status": "ok", "service": "api", "version": "0.1.0"}
+    assert response.headers["x-request-id"] == "test-request-123"
 
 
 def test_readiness() -> None:
     response = client.get("/health/ready")
     assert response.status_code == 200
-    assert response.json()["checks"] == {"api": "ok"}
+    assert response.json()["checks"] == {"api": "ok", "database": "ok"}
 
 
 def test_openapi_exposes_health_contract() -> None:
