@@ -99,4 +99,42 @@ export class VocalScoreApi {
       await new Promise((resolve) => setTimeout(resolve, 250));
     }
   }
+
+  waitForJobEvents(
+    id: string,
+    onProgress: (job: JobResponse) => void,
+    signal?: AbortSignal,
+  ): Promise<JobResponse> {
+    if (typeof EventSource === "undefined") return this.waitForJob(id, onProgress, signal);
+    return new Promise((resolve, reject) => {
+      const events = new EventSource(`${this.baseUrl}/v1/jobs/${id}/events`);
+      let receivedEvent = false;
+      const close = () => events.close();
+      signal?.addEventListener(
+        "abort",
+        () => {
+          close();
+          reject(new DOMException("Cancelled", "AbortError"));
+        },
+        { once: true },
+      );
+      events.addEventListener("progress", (event) => {
+        receivedEvent = true;
+        const job = JSON.parse((event as MessageEvent<string>).data) as JobResponse;
+        onProgress(job);
+        if (job.status === "completed") {
+          close();
+          resolve(job);
+        } else if (job.status === "failed" || job.status === "cancelled") {
+          close();
+          reject(new Error(job.error_message ?? `Job ${job.status}`));
+        }
+      });
+      events.onerror = () => {
+        close();
+        if (receivedEvent) reject(new Error("Job progress stream ended unexpectedly"));
+        else this.waitForJob(id, onProgress, signal).then(resolve, reject);
+      };
+    });
+  }
 }
