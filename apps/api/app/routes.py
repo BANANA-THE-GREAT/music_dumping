@@ -122,7 +122,8 @@ def retry_job(job_id: str, session: SessionDep) -> JobResponse:
         raise HTTPException(status_code=404, detail="Job not found")
     if previous.status not in {JobStatus.FAILED, JobStatus.CANCELLED}:
         raise HTTPException(status_code=409, detail="Only failed or cancelled jobs can be retried")
-    request = JobCreate(upload_id=previous.upload_id, options=previous.options)
+    options = {**previous.options, "auto_start": True}
+    request = JobCreate(upload_id=previous.upload_id, options=options)
     response = create_job(session, request)
     if request.options.auto_start:
         dispatch_job(response.id)

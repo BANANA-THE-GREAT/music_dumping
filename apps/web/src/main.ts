@@ -22,6 +22,7 @@ import "./editor.css";
 const KEYS = ["C", "C♯", "D", "E♭", "E", "F", "F♯", "G", "A♭", "A", "B♭", "B"];
 const api = new VocalScoreApi();
 const ACTIVE_JOB_KEY = "vocal-score.active-job";
+const FAILED_JOB_KEY = "vocal-score.failed-job";
 document.querySelector<HTMLDivElement>("#app")!.innerHTML =
   `<main><header><div><span class="eyebrow">VOCAL SCORE STUDIO</span><h1>拾音</h1></div><p>从一首歌里分离人声，自动识别速度、拍号与调性，生成可演奏的简谱和五线谱。</p></header><section class="workbench"><aside><label class="drop" id="drop"><input id="file" type="file" accept="audio/*"><span class="drop-icon">↥</span><strong>放入歌曲或人声</strong><small>MP3 · WAV · OGG · FLAC</small></label><audio id="audio" controls></audio><div class="field"><label>人声分离 <output id="isolateValue">82%</output></label><input id="isolate" type="range" min="0" max="100" value="82"><small>适合主唱居中的立体声歌曲</small></div><div class="field"><label>识别灵敏度</label><select id="sensitivity"><option value="0.35">均衡</option><option value="0.48">保守</option><option value="0.25">灵敏</option></select></div><button class="primary" id="transcribe" disabled>自动分析并扒谱</button><button class="ghost" id="example">载入完整示例</button><div class="progress"><i id="progress"></i></div><p class="status" id="status">等待音频</p></aside><article><section class="analysis-panel"><div><span>速度 BPM</span><input id="bpm" type="number" min="40" max="240" value="120"><small id="bpmConfidence">待分析</small></div><div><span>拍号</span><select id="meter"><option value="4">4 / 4</option><option value="3">3 / 4</option></select><small id="meterConfidence">待分析</small></div><div><span>调性</span><section><select id="key">${KEYS.map((k, i) => `<option value="${i}">${k}</option>`).join("")}</select><select id="mode"><option value="major">大调</option><option value="minor">小调</option></select></section><small id="keyConfidence">待分析</small></div></section><div class="toolbar"><div class="tabs"><button class="active" data-view="staff">五线谱</button><button data-view="jianpu">简谱</button></div><div class="actions"><button id="play" disabled>▶ 演奏</button><button id="midi" disabled>导出 MIDI</button><button id="xml" disabled>导出 MusicXML</button></div></div><div id="staff" class="score"></div><div id="jianpu" class="score hidden"></div><div class="empty" id="empty"><div>♪</div><strong>完整乐谱会出现在这里</strong><span>导入歌曲后，一次完成分离、分析与转谱</span></div></article></section><footer>本地处理 · 不上传音频 · 自动识别结果可手动修正</footer></main>`;
 document.querySelector(".toolbar")!.insertAdjacentHTML(
@@ -38,6 +39,10 @@ const input = $<HTMLInputElement>("#file"),
   key = $<HTMLSelectElement>("#key"),
   mode = $<HTMLSelectElement>("#mode"),
   play = $<HTMLButtonElement>("#play");
+transcribe.insertAdjacentHTML(
+  "afterend",
+  `<button class="ghost" id="retry-job" disabled>重试上次失败任务</button>`,
+);
 audio.insertAdjacentHTML(
   "afterend",
   `<div class="field"><label>处理引擎</label><select id="engine"><option value="server-high">后端高质量 · Demucs</option><option value="server-demo">后端演示 · 快速</option><option value="local">浏览器本地模式</option></select><small>高质量模式需要部署模型 Worker</small></div>`,
@@ -177,16 +182,42 @@ async function runServer(quality: "demo" | "high") {
 }
 async function waitForServerJob(jobId: string) {
   try {
-    return await api.waitForJobEvents(jobId, (current) =>
+    const job = await api.waitForJobEvents(jobId, (current) =>
       status(
         `${JOB_STAGE_LABELS[current.stage]} · ${Math.round(current.progress * 100)}%`,
         current.progress * 100,
       ),
     );
+    localStorage.removeItem(FAILED_JOB_KEY);
+    $<HTMLButtonElement>("#retry-job").disabled = true;
+    return job;
+  } catch (error) {
+    localStorage.setItem(FAILED_JOB_KEY, jobId);
+    $<HTMLButtonElement>("#retry-job").disabled = false;
+    throw error;
   } finally {
     localStorage.removeItem(ACTIVE_JOB_KEY);
   }
 }
+$("#retry-job").addEventListener("click", async () => {
+  const failedJobId = localStorage.getItem(FAILED_JOB_KEY);
+  if (!failedJobId) return;
+  try {
+    status("正在重新提交任务…", 2);
+    const submitted = await api.retryJob(failedJobId);
+    localStorage.setItem(ACTIVE_JOB_KEY, submitted.id);
+    const job = await waitForServerJob(submitted.id);
+    if (!job.project_id) throw new Error("重试任务没有乐谱项目");
+    serverProject = await api.getProject(job.project_id);
+    applyApiProject(serverProject);
+    sync();
+    render();
+    void refreshProjects();
+    status("重试任务已完成", 100);
+  } catch (error) {
+    status(`重试失败：${error instanceof Error ? error.message : "未知错误"}`, 0);
+  }
+});
 async function resumeActiveJob() {
   const jobId = localStorage.getItem(ACTIVE_JOB_KEY);
   if (!jobId) return;
@@ -559,3 +590,4 @@ $("#xml").addEventListener("click", () => {
 });
 void refreshProjects();
 void resumeActiveJob();
+$<HTMLButtonElement>("#retry-job").disabled = !localStorage.getItem(FAILED_JOB_KEY);

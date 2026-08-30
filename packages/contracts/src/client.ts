@@ -87,6 +87,9 @@ export class VocalScoreApi {
   cancelJob(id: string): Promise<JobResponse> {
     return this.request(`/v1/jobs/${id}/cancel`, { method: "POST" });
   }
+  retryJob(id: string): Promise<JobResponse> {
+    return this.request(`/v1/jobs/${id}/retry`, { method: "POST" });
+  }
   async waitForJob(
     id: string,
     onProgress: (job: JobResponse) => void,
