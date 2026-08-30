@@ -1,30 +1,52 @@
-# 拾音 · 人声扒谱应用
+# 拾音 · Vocal Score Studio
 
-浏览器本地运行的人声扒谱应用。可以上传完整歌曲或人声录音，提取居中人声、识别旋律，并生成可演奏和导出的简谱、五线谱。
+输入常见音频，生成可演奏、可校正的主旋律简谱与五线谱，并导出 MIDI / MusicXML。
 
-## 运行
+## 已实现
+
+- 三种转录模式：浏览器本地 Basic Pitch、后端快速演示、后端 Demucs + Basic Pitch 高质量管线
+- 上传、持久化任务、SSE 进度、取消和稳定错误状态
+- BPM、拍号、调性分析与服务端重新量化
+- 五线谱 / 简谱切换、合成器演奏和音符跟随
+- 简谱点击选音，方向键升降半音并自动保存 revision
+- 服务端标准 MIDI / MusicXML 导出
+- PostgreSQL / Redis / Celery 容器栈与 Alembic 数据库迁移
+
+## 本地开发
+
+需要 Node.js 20+ 和 Python 3.11/3.12。
 
 ```bash
 npm install
-npm run dev
+python -m pip install -e ".[dev]"
+npm run dev:api
+npm run dev:web
 ```
 
-浏览器打开终端显示的地址（默认 `http://localhost:4173`）。
+浏览器访问 Vite 输出的地址。默认数据库和上传位于 `data/`；不安装模型依赖时请选择“后端演示”或“浏览器本地”。运行高质量 Worker 需额外安装：
 
-## 功能
+```bash
+python -m pip install -e ".[models]"
+```
 
-- 本地中心声像人声提取，并增强 90–9000 Hz 人声频段
-- Basic Pitch 浏览器端旋律识别
-- 自动估计 BPM、3/4 或 4/4 拍号、主音和大小调
-- 自动分析结果带置信度提示，并可手动修正后立即重新排谱
-- 五线谱与简谱切换、合成音演奏和音符跟随
-- 导出标准 MIDI 与 MusicXML
-- 音频与模型推理全部留在本机
+并确保 `ffmpeg` 在 PATH 中。
 
-## 使用建议与边界
+## 容器部署
 
-- 首次转录需要加载约 50 MB 模型；推理和音频均留在浏览器本地。
-- 首次转录需要加载约 1 MB Basic Pitch 模型；应用包中的 TensorFlow.js 代码约 1.6 MB。
-- 人声分离使用中心声像与频段增强，适合主唱居中的常见立体声混音；若主唱偏置、伴奏也居中或混响很重，建议使用人声干声。
-- 自动拍号当前覆盖最常见的 3/4 和 4/4；复杂拍号、变拍子和自由速度音乐需人工修正。
-- 自动转录不可避免会产生碎音或节奏误差，导出的 MusicXML 可继续在 MuseScore、Dorico 等软件中编辑。
+```bash
+docker compose -f infra/compose.yaml up --build
+```
+
+Web 默认位于 `http://localhost:8080`，API 位于 `http://localhost:8000`。API 容器启动前自动执行 Alembic migration。
+
+## 验证
+
+```bash
+python -m ruff check apps/api workers
+python -m mypy apps/api/app workers/transcription/vss_worker
+python -m pytest
+npm test
+npm run build
+```
+
+更多说明见 [架构](docs/architecture.md)、[API](docs/api.md) 和 [模型许可](docs/model-licenses.md)。
