@@ -5,12 +5,6 @@ import {
 } from "@vocal-score/contracts";
 import { VocalScoreApi } from "@vocal-score/contracts/client";
 import { ScoreHistory, type EditableNote } from "@vocal-score/score-core";
-import {
-  BasicPitch,
-  addPitchBendsToNoteEvents,
-  noteFramesToTime,
-  outputToNotesPoly,
-} from "@spotify/basic-pitch";
 import { analyzeMusic } from "./analysis";
 import { exportMidi, exportMusicXml, keyName, keyRootMidi } from "./export";
 import { cleanAndQuantize, demoNotes, toAbc } from "./music";
@@ -139,6 +133,12 @@ isolate.addEventListener(
   () => ($("#isolateValue").textContent = `${isolate.value}%`),
 );
 async function infer(buffer: AudioBuffer) {
+  const {
+    BasicPitch,
+    addPitchBendsToNoteEvents,
+    noteFramesToTime,
+    outputToNotesPoly,
+  } = await import("@spotify/basic-pitch");
   const frames: number[][] = [],
     onsets: number[][] = [],
     contours: number[][] = [];
