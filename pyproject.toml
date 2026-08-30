@@ -21,6 +21,10 @@ dev = [
   "pytest>=8.4,<9",
   "ruff>=0.12,<1",
 ]
+models = [
+  "basic-pitch>=0.4,<1",
+  "demucs>=4,<5",
+]
 
 [tool.pytest.ini_options]
 pythonpath = ["apps/api", "workers/transcription"]
