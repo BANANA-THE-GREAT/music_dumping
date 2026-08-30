@@ -82,3 +82,20 @@ def test_project_exports_standard_midi_and_musicxml() -> None:
     assert musicxml.status_code == 200
     assert b'<score-partwise version="4.0">' in musicxml.content
     assert musicxml.content.count(b"<note>") >= len(project["notes"])
+
+
+def test_projects_are_listed_for_reopening() -> None:
+    project = create_project()
+    response = client.get("/v1/projects")
+    assert response.status_code == 200
+    matching = [item for item in response.json() if item["project_id"] == project["project_id"]]
+    assert matching == [
+        {
+            "project_id": project["project_id"],
+            "file_name": "edit.wav",
+            "duration_ms": 6000,
+            "note_count": 11,
+            "revision": 1,
+            "updated_at": matching[0]["updated_at"],
+        }
+    ]

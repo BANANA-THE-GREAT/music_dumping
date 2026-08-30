@@ -130,6 +130,15 @@ class ScoreProject(BaseModel):
     revision: int = Field(ge=1)
 
 
+class ProjectSummary(BaseModel):
+    project_id: str
+    file_name: str
+    duration_ms: int
+    note_count: int
+    revision: int
+    updated_at: datetime
+
+
 class ProjectPatch(BaseModel):
     expected_revision: int = Field(ge=1)
     notes: list[ScoreNote] | None = None

@@ -4,6 +4,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile, status
 from fastapi.responses import StreamingResponse
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import Settings, get_settings
@@ -19,6 +20,7 @@ from app.schemas import (
     JobStage,
     JobStatus,
     ProjectPatch,
+    ProjectSummary,
     RequantizeRequest,
     ScoreProject,
     UploadResponse,
@@ -117,6 +119,27 @@ def get_project(project_id: str, session: SessionDep) -> ScoreProject:
     if record is None:
         raise HTTPException(status_code=404, detail="Project not found")
     return ScoreProject.model_validate(record.document)
+
+
+@router.get("/projects", response_model=list[ProjectSummary])
+def list_projects(session: SessionDep) -> list[ProjectSummary]:
+    records = session.scalars(
+        select(ProjectRecord).order_by(ProjectRecord.updated_at.desc()).limit(50)
+    )
+    summaries = []
+    for record in records:
+        project = ScoreProject.model_validate(record.document)
+        summaries.append(
+            ProjectSummary(
+                project_id=project.project_id,
+                file_name=project.source.file_name,
+                duration_ms=project.source.duration_ms,
+                note_count=len(project.notes),
+                revision=record.revision,
+                updated_at=record.updated_at,
+            )
+        )
+    return summaries
 
 
 def _project_document(project_id: str, session: Session) -> ScoreProject:
