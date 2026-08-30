@@ -47,6 +47,14 @@ def test_real_pipeline_composes_adapters_and_quantizes(tmp_path: Path) -> None:
     assert document["analysis"]["tempo_map"][0]["bpm"] == 120
     assert [note["pitch_midi"] for note in document["notes"]] == [60, 64, 67]
     assert document["notes"][2]["quantized_duration"] == 1.75
+    assert [step["stage"] for step in document["pipeline"]] == [
+        "audio_to_melody",
+        "normalize",
+        "separate_vocals",
+        "transcribe_notes",
+        "analyze_music",
+    ]
+    assert document["pipeline"][3]["parameters"]["detected_notes"] == 3
     assert stages == [
         "preprocessing",
         "separating",

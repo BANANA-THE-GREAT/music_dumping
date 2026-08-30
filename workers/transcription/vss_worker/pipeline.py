@@ -1,4 +1,5 @@
 import statistics
+import time
 from pathlib import Path
 from uuid import uuid4
 
@@ -86,16 +87,68 @@ def build_real_project(
     transcriber: MelodyTranscriber,
     progress: Progress,
 ) -> dict[str, object]:
+    pipeline_steps: list[dict[str, object]] = []
     progress("preprocessing", 0.1)
+    started = time.perf_counter()
     normalized = normalizer.normalize(source_path, work_dir / "normalized.wav")
+    pipeline_steps.append(
+        {
+            "stage": "normalize",
+            "version": "1",
+            "parameters": {
+                "implementation": type(normalizer).__name__,
+                "elapsed_ms": round((time.perf_counter() - started) * 1000, 2),
+                "device": "cpu",
+            },
+        }
+    )
     progress("separating", 0.3)
+    started = time.perf_counter()
     vocal = separator.separate(normalized, work_dir / "stems")
+    pipeline_steps.append(
+        {
+            "stage": "separate_vocals",
+            "version": "1",
+            "parameters": {
+                "implementation": type(separator).__name__,
+                "elapsed_ms": round((time.perf_counter() - started) * 1000, 2),
+                "device": "worker-default",
+            },
+        }
+    )
     progress("transcribing", 0.65)
+    started = time.perf_counter()
     detected = sorted(transcriber.transcribe(vocal), key=lambda note: note.start_seconds)
+    pipeline_steps.append(
+        {
+            "stage": "transcribe_notes",
+            "version": "1",
+            "parameters": {
+                "implementation": type(transcriber).__name__,
+                "elapsed_ms": round((time.perf_counter() - started) * 1000, 2),
+                "device": "worker-default",
+                "detected_notes": len(detected),
+            },
+        }
+    )
     progress("tracking_beats", 0.76)
+    started = time.perf_counter()
     bpm = _estimate_bpm(detected)
     tonic, mode = _estimate_key(detected)
     numerator, denominator, meter_confidence = estimate_meter(detected)
+    pipeline_steps.append(
+        {
+            "stage": "analyze_music",
+            "version": "1",
+            "parameters": {
+                "elapsed_ms": round((time.perf_counter() - started) * 1000, 2),
+                "tempo_method": "median_onset_interval",
+                "key_method": "krumhansl_schmuckler",
+                "meter_method": "accent_cycle",
+                "device": "cpu",
+            },
+        }
+    )
     seconds_per_beat = 60 / bpm
     progress("postprocessing", 0.86)
     notes = []
@@ -140,13 +193,9 @@ def build_real_project(
             {
                 "stage": "audio_to_melody",
                 "version": "1.0.0",
-                "parameters": {
-                    "upload_id": upload_id,
-                    "normalizer": type(normalizer).__name__,
-                    "separator": type(separator).__name__,
-                    "transcriber": type(transcriber).__name__,
-                },
-            }
+                "parameters": {"upload_id": upload_id},
+            },
+            *pipeline_steps,
         ],
         "revision": 1,
     }
