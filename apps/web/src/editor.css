@@ -14,3 +14,24 @@
   background: #f7e9df;
   box-shadow: 0 0 0 2px #b24c2d;
 }
+
+.edit-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding: 10px 0;
+  border-bottom: 1px solid #e5ded2;
+}
+
+.edit-actions button {
+  padding: 6px 9px;
+  color: #71695e;
+  background: #fffdf8;
+  border: 1px solid #d6cbbc;
+  cursor: pointer;
+}
+
+.edit-actions button:disabled {
+  cursor: default;
+  opacity: 0.35;
+}

@@ -4,6 +4,7 @@ import {
   type ScoreProject as ApiScoreProject,
 } from "@vocal-score/contracts";
 import { VocalScoreApi } from "@vocal-score/contracts/client";
+import { ScoreHistory, type EditableNote } from "@vocal-score/score-core";
 import {
   BasicPitch,
   addPitchBendsToNoteEvents,
@@ -22,6 +23,10 @@ const KEYS = ["C", "C♯", "D", "E♭", "E", "F", "F♯", "G", "A♭", "A", "B�
 const api = new VocalScoreApi();
 document.querySelector<HTMLDivElement>("#app")!.innerHTML =
   `<main><header><div><span class="eyebrow">VOCAL SCORE STUDIO</span><h1>拾音</h1></div><p>从一首歌里分离人声，自动识别速度、拍号与调性，生成可演奏的简谱和五线谱。</p></header><section class="workbench"><aside><label class="drop" id="drop"><input id="file" type="file" accept="audio/*"><span class="drop-icon">↥</span><strong>放入歌曲或人声</strong><small>MP3 · WAV · OGG · FLAC</small></label><audio id="audio" controls></audio><div class="field"><label>人声分离 <output id="isolateValue">82%</output></label><input id="isolate" type="range" min="0" max="100" value="82"><small>适合主唱居中的立体声歌曲</small></div><div class="field"><label>识别灵敏度</label><select id="sensitivity"><option value="0.35">均衡</option><option value="0.48">保守</option><option value="0.25">灵敏</option></select></div><button class="primary" id="transcribe" disabled>自动分析并扒谱</button><button class="ghost" id="example">载入完整示例</button><div class="progress"><i id="progress"></i></div><p class="status" id="status">等待音频</p></aside><article><section class="analysis-panel"><div><span>速度 BPM</span><input id="bpm" type="number" min="40" max="240" value="120"><small id="bpmConfidence">待分析</small></div><div><span>拍号</span><select id="meter"><option value="4">4 / 4</option><option value="3">3 / 4</option></select><small id="meterConfidence">待分析</small></div><div><span>调性</span><section><select id="key">${KEYS.map((k, i) => `<option value="${i}">${k}</option>`).join("")}</select><select id="mode"><option value="major">大调</option><option value="minor">小调</option></select></section><small id="keyConfidence">待分析</small></div></section><div class="toolbar"><div class="tabs"><button class="active" data-view="staff">五线谱</button><button data-view="jianpu">简谱</button></div><div class="actions"><button id="play" disabled>▶ 演奏</button><button id="midi" disabled>导出 MIDI</button><button id="xml" disabled>导出 MusicXML</button></div></div><div id="staff" class="score"></div><div id="jianpu" class="score hidden"></div><div class="empty" id="empty"><div>♪</div><strong>完整乐谱会出现在这里</strong><span>导入歌曲后，一次完成分离、分析与转谱</span></div></article></section><footer>本地处理 · 不上传音频 · 自动识别结果可手动修正</footer></main>`;
+document.querySelector(".toolbar")!.insertAdjacentHTML(
+  "afterend",
+  `<div class="edit-actions"><button id="undo" disabled>↶ 撤销</button><button id="redo" disabled>↷ 重做</button><button id="shorter" disabled>缩短</button><button id="longer" disabled>延长</button><button id="split" disabled>拆分</button><button id="merge" disabled>与后音合并</button><button id="delete-note" disabled>删除</button></div>`,
+);
 
 const $ = <T extends HTMLElement>(s: string) => document.querySelector<T>(s)!;
 const input = $<HTMLInputElement>("#file"),
@@ -42,6 +47,7 @@ let sourceBuffer: AudioBuffer | null = null,
   rawNotes: RawNote[] = [],
   notes: ScoreNote[] = [];
 let selectedNoteIndex: number | null = null;
+let scoreHistory: ScoreHistory | null = null;
 let analysis: MusicalAnalysis = {
   bpm: 120,
   meter: 4,
@@ -129,6 +135,7 @@ async function runLocal() {
 }
 function applyApiProject(project: ApiScoreProject) {
   selectedNoteIndex = null;
+  scoreHistory = new ScoreHistory(project.notes);
   const tempo = project.analysis.tempo_map[0];
   const meterPoint = project.analysis.meter_map[0];
   const keyPoint = project.analysis.key_map[0];
@@ -274,6 +281,12 @@ function render() {
   [play, $<HTMLButtonElement>("#midi"), $<HTMLButtonElement>("#xml")].forEach(
     (b) => (b.disabled = !notes.length),
   );
+  const selected = selectedNoteIndex !== null && Boolean(notes[selectedNoteIndex]);
+  ["#shorter", "#longer", "#split", "#merge", "#delete-note"].forEach(
+    (selector) => ($<HTMLButtonElement>(selector).disabled = !selected || !scoreHistory),
+  );
+  $<HTMLButtonElement>("#undo").disabled = !scoreHistory?.canUndo;
+  $<HTMLButtonElement>("#redo").disabled = !scoreHistory?.canRedo;
 }
 $<HTMLDivElement>("#jianpu").addEventListener("click", (event) => {
   const target = (event.target as HTMLElement).closest<HTMLElement>("[data-note]");
@@ -287,22 +300,44 @@ async function transposeSelected(semitones: number) {
   const scoreNote = notes[selectedNoteIndex];
   const rawNote = rawNotes[scoreNote.id];
   if (!rawNote) return;
-  rawNote.pitchMidi = Math.max(0, Math.min(127, rawNote.pitchMidi + semitones));
+  if (!scoreHistory || !serverProject?.notes[selectedNoteIndex]) {
+    rawNote.pitchMidi = Math.max(0, Math.min(127, rawNote.pitchMidi + semitones));
+    render();
+    return;
+  }
+  const current = serverProject.notes[selectedNoteIndex];
+  const updated = scoreHistory.execute({
+    type: "move",
+    noteId: current.id,
+    start: current.quantized_start,
+    pitch: current.pitch_midi + semitones,
+  });
+  await saveEditedNotes(updated, "音高校正");
+}
+function useEditedNotes(updated: EditableNote[]) {
+  const secondsPerBeat = 60 / analysis.bpm;
+  rawNotes = updated.map((note) => ({
+    pitchMidi: note.pitch_midi,
+    amplitude: note.confidence,
+    startTimeSeconds: note.quantized_start * secondsPerBeat,
+    durationSeconds: note.quantized_duration * secondsPerBeat,
+  }));
+  if (selectedNoteIndex !== null && selectedNoteIndex >= updated.length) {
+    selectedNoteIndex = updated.length ? updated.length - 1 : null;
+  }
   render();
-  if (!serverProject?.notes[selectedNoteIndex]) return;
-  const updated = serverProject.notes.map((note, index) =>
-    index === selectedNoteIndex
-      ? { ...note, pitch_midi: rawNote.pitchMidi, origin: "user" as const }
-      : note,
-  );
+}
+async function saveEditedNotes(updated: EditableNote[], label: string) {
+  if (!serverProject) return;
+  useEditedNotes(updated);
   try {
-    status("正在保存音高校正…");
+    status(`正在保存${label}…`);
     serverProject = await api.updateProject(
       serverProject.project_id,
       serverProject.revision,
       updated,
     );
-    status(`音高校正已保存 · 修订 ${serverProject.revision}`, 100);
+    status(`${label}已保存 · 修订 ${serverProject.revision}`, 100);
   } catch (error) {
     status(`保存失败：${error instanceof Error ? error.message : "未知错误"}`);
   }
@@ -311,6 +346,56 @@ document.addEventListener("keydown", (event) => {
   if (selectedNoteIndex === null || !["ArrowUp", "ArrowDown"].includes(event.key)) return;
   event.preventDefault();
   void transposeSelected(event.key === "ArrowUp" ? 1 : -1);
+});
+function selectedEditableNote() {
+  return selectedNoteIndex === null ? undefined : serverProject?.notes[selectedNoteIndex];
+}
+$("#delete-note").addEventListener("click", () => {
+  const note = selectedEditableNote();
+  if (note && scoreHistory)
+    void saveEditedNotes(scoreHistory.execute({ type: "delete", noteId: note.id }), "删除");
+});
+$("#shorter").addEventListener("click", () => resizeSelected(-0.25));
+$("#longer").addEventListener("click", () => resizeSelected(0.25));
+function resizeSelected(delta: number) {
+  const note = selectedEditableNote();
+  if (note && scoreHistory)
+    void saveEditedNotes(
+      scoreHistory.execute({
+        type: "resize",
+        noteId: note.id,
+        duration: note.quantized_duration + delta,
+      }),
+      delta > 0 ? "延长" : "缩短",
+    );
+}
+$("#split").addEventListener("click", () => {
+  const note = selectedEditableNote();
+  if (note && scoreHistory)
+    void saveEditedNotes(
+      scoreHistory.execute({
+        type: "split",
+        noteId: note.id,
+        at: note.quantized_start + note.quantized_duration / 2,
+        rightId: crypto.randomUUID(),
+      }),
+      "拆分",
+    );
+});
+$("#merge").addEventListener("click", () => {
+  const note = selectedEditableNote();
+  const right = selectedNoteIndex === null ? undefined : serverProject?.notes[selectedNoteIndex + 1];
+  if (note && right && scoreHistory)
+    void saveEditedNotes(
+      scoreHistory.execute({ type: "merge", leftId: note.id, rightId: right.id }),
+      "合并",
+    );
+});
+$("#undo").addEventListener("click", () => {
+  if (scoreHistory) void saveEditedNotes(scoreHistory.undo(), "撤销");
+});
+$("#redo").addEventListener("click", () => {
+  if (scoreHistory) void saveEditedNotes(scoreHistory.redo(), "重做");
 });
 document.querySelectorAll<HTMLButtonElement>("[data-view]").forEach((btn) =>
   btn.addEventListener("click", () => {
