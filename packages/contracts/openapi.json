@@ -364,6 +364,45 @@
         "title": "ProjectPatch",
         "type": "object"
       },
+      "ProjectSummary": {
+        "properties": {
+          "duration_ms": {
+            "title": "Duration Ms",
+            "type": "integer"
+          },
+          "file_name": {
+            "title": "File Name",
+            "type": "string"
+          },
+          "note_count": {
+            "title": "Note Count",
+            "type": "integer"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "project_id",
+          "file_name",
+          "duration_ms",
+          "note_count",
+          "revision",
+          "updated_at"
+        ],
+        "title": "ProjectSummary",
+        "type": "object"
+      },
       "ReadinessResponse": {
         "properties": {
           "checks": {
@@ -904,6 +943,28 @@
           }
         },
         "summary": "Job Events"
+      }
+    },
+    "/v1/projects": {
+      "get": {
+        "operationId": "list_projects_v1_projects_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProjectSummary"
+                  },
+                  "title": "Response List Projects V1 Projects Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Projects"
       }
     },
     "/v1/projects/{project_id}": {

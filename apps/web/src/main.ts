@@ -41,6 +41,10 @@ audio.insertAdjacentHTML(
   "afterend",
   `<div class="field"><label>处理引擎</label><select id="engine"><option value="server-high">后端高质量 · Demucs</option><option value="server-demo">后端演示 · 快速</option><option value="local">浏览器本地模式</option></select><small>高质量模式需要部署模型 Worker</small></div>`,
 );
+document.querySelector("aside")!.insertAdjacentHTML(
+  "afterbegin",
+  `<div class="recent-projects"><label for="recent-project">最近项目</label><div><select id="recent-project"><option value="">选择已保存项目…</option></select><button id="refresh-projects" title="刷新项目">↻</button></div></div>`,
+);
 let sourceBuffer: AudioBuffer | null = null,
   sourceFile: File | null = null,
   serverProject: ApiScoreProject | null = null,
@@ -172,7 +176,40 @@ async function runServer(quality: "demo" | "high") {
   if (!job.project_id) throw new Error("后端未返回乐谱项目");
   serverProject = await api.getProject(job.project_id);
   applyApiProject(serverProject);
+  void refreshProjects();
 }
+async function refreshProjects() {
+  const select = $<HTMLSelectElement>("#recent-project");
+  try {
+    const projects = await api.listProjects();
+    select.innerHTML =
+      `<option value="">选择已保存项目…</option>` +
+      projects
+        .map(
+          (project) =>
+            `<option value="${project.project_id}">${project.file_name} · ${project.note_count} 音符 · r${project.revision}</option>`,
+        )
+        .join("");
+    if (serverProject) select.value = serverProject.project_id;
+  } catch {
+    select.innerHTML = `<option value="">后端项目不可用</option>`;
+  }
+}
+$<HTMLSelectElement>("#recent-project").addEventListener("change", async (event) => {
+  const projectId = (event.currentTarget as HTMLSelectElement).value;
+  if (!projectId) return;
+  try {
+    status("正在打开已保存项目…", 20);
+    serverProject = await api.getProject(projectId);
+    applyApiProject(serverProject);
+    sync();
+    render();
+    status(`已恢复 ${serverProject.source.file_name} · 修订 ${serverProject.revision}`, 100);
+  } catch (error) {
+    status(`恢复失败：${error instanceof Error ? error.message : "未知错误"}`, 0);
+  }
+});
+$("#refresh-projects").addEventListener("click", () => void refreshProjects());
 transcribe.addEventListener("click", async () => {
   if (!sourceBuffer) return;
   transcribe.disabled = true;
@@ -468,3 +505,4 @@ $("#midi").addEventListener("click", () => {
 $("#xml").addEventListener("click", () => {
   if (!downloadServerExport("musicxml")) exportMusicXml(notes, analysis);
 });
+void refreshProjects();

@@ -1,5 +1,6 @@
 import type {
   JobResponse,
+  ProjectSummary,
   RequantizeRequest,
   ScoreProject,
   ScoreProjectNote,
@@ -52,6 +53,9 @@ export class VocalScoreApi {
   }
   getProject(id: string): Promise<ScoreProject> {
     return this.request(`/v1/projects/${id}`);
+  }
+  listProjects(): Promise<ProjectSummary[]> {
+    return this.request("/v1/projects");
   }
   updateProject(
     id: string,

@@ -64,6 +64,14 @@ export interface ScoreProject {
   }>;
   revision: number;
 }
+export interface ProjectSummary {
+  project_id: string;
+  file_name: string;
+  duration_ms: number;
+  note_count: number;
+  revision: number;
+  updated_at: string;
+}
 export interface RequantizeRequest {
   expected_revision: number;
   bpm: number;

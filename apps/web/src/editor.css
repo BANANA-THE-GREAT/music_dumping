@@ -35,3 +35,29 @@
   cursor: default;
   opacity: 0.35;
 }
+
+.recent-projects {
+  padding-bottom: 14px;
+}
+
+.recent-projects > label {
+  display: block;
+  margin-bottom: 6px;
+  color: #71695e;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.recent-projects > div {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 5px;
+}
+
+.recent-projects select,
+.recent-projects button {
+  min-width: 0;
+  padding: 7px;
+  background: #fff;
+  border: 1px solid #d7cfc0;
+}
