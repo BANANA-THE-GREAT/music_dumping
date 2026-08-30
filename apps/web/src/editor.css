@@ -72,6 +72,14 @@
     #fffdf8 19px,
     #f0ece3 20px
   );
+  touch-action: none;
+}
+
+.roll-help {
+  display: block;
+  margin-top: 10px;
+  color: #8a8174;
+  font-size: 10px;
 }
 
 .piano-roll line {

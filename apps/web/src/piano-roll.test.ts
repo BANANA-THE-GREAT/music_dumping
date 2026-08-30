@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { pianoRollLayout, renderPianoRoll } from "./piano-roll";
+import { pianoRollLayout, pianoRollMetrics, renderPianoRoll } from "./piano-roll";
 import type { ScoreNote } from "./types";
 
 const notes: ScoreNote[] = [
@@ -42,5 +42,9 @@ describe("piano roll", () => {
     const svg = renderPianoRoll(notes, 1);
     expect(svg).toContain('data-note="1"');
     expect(svg).toContain("roll-note selected");
+  });
+
+  it("exposes stable beat and pitch bounds for pointer editing", () => {
+    expect(pianoRollMetrics(notes)).toEqual({ endBeat: 4, lowPitch: 58, highPitch: 66 });
   });
 });

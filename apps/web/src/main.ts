@@ -14,7 +14,7 @@ import {
 import { analyzeMusic } from "./analysis";
 import { exportMidi, exportMusicXml, keyName, keyRootMidi } from "./export";
 import { cleanAndQuantize, demoNotes, toAbc } from "./music";
-import { renderPianoRoll } from "./piano-roll";
+import { pianoRollMetrics, renderPianoRoll } from "./piano-roll";
 import { isolateCenterVocal, resampleAudio } from "./separation";
 import type { MusicalAnalysis, RawNote, ScoreNote } from "./types";
 import { drawWaveform } from "./waveform";
@@ -42,6 +42,10 @@ document.querySelector(".tabs")!.insertAdjacentHTML(
 document.querySelector("#staff")!.insertAdjacentHTML(
   "beforebegin",
   `<div id="piano" class="score piano-roll hidden"></div>`,
+);
+document.querySelector("#piano")!.insertAdjacentHTML(
+  "beforebegin",
+  `<small class="roll-help">拖动音符可调整起点和音高；Shift + 拖动调整时值</small>`,
 );
 
 const $ = <T extends HTMLElement>(s: string) => document.querySelector<T>(s)!;
@@ -450,6 +454,43 @@ $<HTMLDivElement>("#piano").addEventListener("click", (event) => {
   if (!target) return;
   selectedNoteIndex = Number(target.dataset.note);
   render();
+});
+let rollDrag: { index: number; resize: boolean } | null = null;
+$<HTMLDivElement>("#piano").addEventListener("pointerdown", (event) => {
+  const target = (event.target as Element).closest<SVGElement>("[data-note]");
+  if (!target) return;
+  rollDrag = { index: Number(target.dataset.note), resize: event.shiftKey };
+  selectedNoteIndex = rollDrag.index;
+  target.setPointerCapture(event.pointerId);
+});
+$<HTMLDivElement>("#piano").addEventListener("pointerup", (event) => {
+  if (!rollDrag || !scoreHistory || !serverProject) return;
+  const svg = $<HTMLDivElement>("#piano").querySelector("svg");
+  const note = serverProject.notes[rollDrag.index];
+  if (!svg || !note) return;
+  const bounds = svg.getBoundingClientRect();
+  const x = Math.max(0, Math.min(1, (event.clientX - bounds.left) / bounds.width));
+  const y = Math.max(0, Math.min(1, (event.clientY - bounds.top) / bounds.height));
+  const metrics = pianoRollMetrics(notes);
+  if (rollDrag.resize) {
+    const end = Math.round(x * metrics.endBeat * 4) / 4;
+    void saveEditedNotes(
+      scoreHistory.execute({
+        type: "resize",
+        noteId: note.id,
+        duration: end - note.quantized_start,
+      }),
+      "时值拖动",
+    );
+  } else {
+    const start = Math.round(x * metrics.endBeat * 4) / 4;
+    const pitch = Math.round(metrics.highPitch - y * (metrics.highPitch - metrics.lowPitch));
+    void saveEditedNotes(
+      scoreHistory.execute({ type: "move", noteId: note.id, start, pitch }),
+      "音符拖动",
+    );
+  }
+  rollDrag = null;
 });
 async function transposeSelected(semitones: number) {
   if (selectedNoteIndex === null || !notes[selectedNoteIndex]) return;
