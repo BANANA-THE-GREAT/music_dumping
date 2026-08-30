@@ -14,6 +14,7 @@ import {
 import { analyzeMusic } from "./analysis";
 import { exportMidi, exportMusicXml, keyName, keyRootMidi } from "./export";
 import { cleanAndQuantize, demoNotes, toAbc } from "./music";
+import { renderPianoRoll } from "./piano-roll";
 import { isolateCenterVocal, resampleAudio } from "./separation";
 import type { MusicalAnalysis, RawNote, ScoreNote } from "./types";
 import "./style.css";
@@ -28,6 +29,14 @@ document.querySelector<HTMLDivElement>("#app")!.innerHTML =
 document.querySelector(".toolbar")!.insertAdjacentHTML(
   "afterend",
   `<div class="edit-actions"><button id="undo" disabled>↶ 撤销</button><button id="redo" disabled>↷ 重做</button><button id="shorter" disabled>缩短</button><button id="longer" disabled>延长</button><button id="split" disabled>拆分</button><button id="merge" disabled>与后音合并</button><button id="delete-note" disabled>删除</button></div>`,
+);
+document.querySelector(".tabs")!.insertAdjacentHTML(
+  "beforeend",
+  `<button data-view="piano">钢琴卷帘</button>`,
+);
+document.querySelector("#staff")!.insertAdjacentHTML(
+  "beforebegin",
+  `<div id="piano" class="score piano-roll hidden"></div>`,
 );
 
 const $ = <T extends HTMLElement>(s: string) => document.querySelector<T>(s)!;
@@ -398,6 +407,7 @@ function render() {
           `<span class="jp-note${selectedNoteIndex === i ? " selected" : ""}" data-note="${i}" tabindex="0"><b>${n.accidental === 1 ? "♯" : n.accidental === -1 ? "♭" : ""}${n.degree}</b><em>${n.octave > 0 ? "·".repeat(n.octave) : ""}</em><i>${n.octave < 0 ? "·".repeat(-n.octave) : ""}</i><small>${n.durationBeats < 1 ? "━".repeat(Math.round(Math.log2(1 / n.durationBeats))) : n.durationBeats >= 2 ? "—" : ""}</small></span>`,
       )
       .join("");
+  $("#piano").innerHTML = renderPianoRoll(notes, selectedNoteIndex);
   [play, $<HTMLButtonElement>("#midi"), $<HTMLButtonElement>("#xml")].forEach(
     (b) => (b.disabled = !notes.length),
   );
@@ -414,6 +424,12 @@ $<HTMLDivElement>("#jianpu").addEventListener("click", (event) => {
   selectedNoteIndex = Number(target.dataset.note);
   render();
   document.querySelector<HTMLElement>(`[data-note="${selectedNoteIndex}"]`)?.focus();
+});
+$<HTMLDivElement>("#piano").addEventListener("click", (event) => {
+  const target = (event.target as Element).closest<SVGElement>("[data-note]");
+  if (!target) return;
+  selectedNoteIndex = Number(target.dataset.note);
+  render();
 });
 async function transposeSelected(semitones: number) {
   if (selectedNoteIndex === null || !notes[selectedNoteIndex]) return;
@@ -525,6 +541,7 @@ document.querySelectorAll<HTMLButtonElement>("[data-view]").forEach((btn) =>
     btn.classList.add("active");
     $("#staff").classList.toggle("hidden", btn.dataset.view !== "staff");
     $("#jianpu").classList.toggle("hidden", btn.dataset.view !== "jianpu");
+    $("#piano").classList.toggle("hidden", btn.dataset.view !== "piano");
   }),
 );
 function stop() {

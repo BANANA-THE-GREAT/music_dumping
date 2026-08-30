@@ -61,3 +61,38 @@
   background: #fff;
   border: 1px solid #d7cfc0;
 }
+
+.piano-roll svg {
+  display: block;
+  width: 100%;
+  min-width: 680px;
+  background: repeating-linear-gradient(
+    to bottom,
+    #fffdf8 0,
+    #fffdf8 19px,
+    #f0ece3 20px
+  );
+}
+
+.piano-roll line {
+  stroke: #ded6ca;
+  stroke-width: 0.7;
+}
+
+.piano-roll line.bar {
+  stroke: #8a8174;
+  stroke-width: 1.5;
+}
+
+.piano-roll .roll-note {
+  fill: #c76b4d;
+  stroke: #9c3f25;
+  stroke-width: 0.8;
+  cursor: pointer;
+}
+
+.piano-roll .roll-note.selected {
+  fill: #f1b08d;
+  stroke: #641f0e;
+  stroke-width: 2.5;
+}

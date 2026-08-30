@@ -1,0 +1,46 @@
+import { describe, expect, it } from "vitest";
+import { pianoRollLayout, renderPianoRoll } from "./piano-roll";
+import type { ScoreNote } from "./types";
+
+const notes: ScoreNote[] = [
+  {
+    id: 0,
+    pitchMidi: 60,
+    amplitude: 0.9,
+    startTimeSeconds: 0,
+    durationSeconds: 0.5,
+    startBeat: 0,
+    durationBeats: 1,
+    degree: 1,
+    accidental: 0,
+    octave: 0,
+  },
+  {
+    id: 1,
+    pitchMidi: 64,
+    amplitude: 0.8,
+    startTimeSeconds: 0.5,
+    durationSeconds: 1,
+    startBeat: 1,
+    durationBeats: 2,
+    degree: 3,
+    accidental: 0,
+    octave: 0,
+  },
+];
+
+describe("piano roll", () => {
+  it("maps beat and pitch coordinates into the viewport", () => {
+    const layout = pianoRollLayout(notes, 400, 140);
+    expect(layout[0].x).toBe(0);
+    expect(layout[1].x).toBe(100);
+    expect(layout[1].width).toBe(200);
+    expect(layout[1].y).toBeLessThan(layout[0].y);
+  });
+
+  it("renders selectable note rectangles", () => {
+    const svg = renderPianoRoll(notes, 1);
+    expect(svg).toContain('data-note="1"');
+    expect(svg).toContain("roll-note selected");
+  });
+});
