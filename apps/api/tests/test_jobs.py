@@ -1,6 +1,7 @@
 import time
 from io import BytesIO
 
+from app.job_runner import recover_interrupted_thread_jobs
 from app.main import app
 from fastapi.testclient import TestClient
 
@@ -54,6 +55,19 @@ def test_running_job_cannot_be_retried() -> None:
         "/v1/jobs", json={"upload_id": upload["id"], "options": {"auto_start": False}}
     ).json()
     assert client.post(f"/v1/jobs/{job['id']}/retry").status_code == 409
+    assert client.post(f"/v1/jobs/{job['id']}/cancel").status_code == 200
+
+
+def test_interrupted_local_job_becomes_retryable() -> None:
+    upload = create_test_upload()
+    job = client.post(
+        "/v1/jobs", json={"upload_id": upload["id"], "options": {"auto_start": False}}
+    ).json()
+    assert recover_interrupted_thread_jobs() >= 1
+    recovered = client.get(f"/v1/jobs/{job['id']}").json()
+    assert recovered["status"] == "failed"
+    assert recovered["error_code"] == "WORKER_RESTARTED"
+    assert recovered["retryable"] is True
 
 
 def test_rejects_unsupported_upload() -> None:

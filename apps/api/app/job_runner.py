@@ -12,6 +12,26 @@ from app.schemas import JobStage, JobStatus, ScoreProject
 executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="fake-worker")
 
 
+def recover_interrupted_thread_jobs() -> int:
+    from sqlalchemy import select
+
+    recovered = 0
+    with SessionLocal() as session:
+        jobs = session.scalars(
+            select(JobRecord).where(
+                JobRecord.status.in_([JobStatus.QUEUED, JobStatus.RUNNING, JobStatus.CANCELLING])
+            )
+        )
+        for job in jobs:
+            job.status = JobStatus.FAILED
+            job.error_code = "WORKER_RESTARTED"
+            job.error_message = "The local worker restarted before this job completed"
+            job.retryable = True
+            recovered += 1
+        session.commit()
+    return recovered
+
+
 @lru_cache
 def real_adapters() -> tuple[AudioNormalizer, VocalSeparator, MelodyTranscriber]:
     from vss_worker.basic_pitch_adapter import BasicPitchTranscriber

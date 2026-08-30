@@ -5,6 +5,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app.config import get_settings
 from app.database import SessionLocal, init_db
+from app.job_runner import recover_interrupted_thread_jobs
 from app.observability import RequestContextMiddleware
 from app.routes import router
 from app.schemas import HealthResponse, ReadinessResponse
@@ -15,6 +16,8 @@ def create_app() -> FastAPI:
     app = FastAPI(title=settings.api_title, version=settings.api_version)
     if settings.auto_create_schema:
         init_db()
+    if settings.worker_backend == "thread":
+        recover_interrupted_thread_jobs()
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
