@@ -18,6 +18,7 @@ import type { MusicalAnalysis, RawNote, ScoreNote } from "./types";
 import "./style.css";
 
 const KEYS = ["C", "C♯", "D", "E♭", "E", "F", "F♯", "G", "A♭", "A", "B♭", "B"];
+const api = new VocalScoreApi();
 document.querySelector<HTMLDivElement>("#app")!.innerHTML =
   `<main><header><div><span class="eyebrow">VOCAL SCORE STUDIO</span><h1>拾音</h1></div><p>从一首歌里分离人声，自动识别速度、拍号与调性，生成可演奏的简谱和五线谱。</p></header><section class="workbench"><aside><label class="drop" id="drop"><input id="file" type="file" accept="audio/*"><span class="drop-icon">↥</span><strong>放入歌曲或人声</strong><small>MP3 · WAV · OGG · FLAC</small></label><audio id="audio" controls></audio><div class="field"><label>人声分离 <output id="isolateValue">82%</output></label><input id="isolate" type="range" min="0" max="100" value="82"><small>适合主唱居中的立体声歌曲</small></div><div class="field"><label>识别灵敏度</label><select id="sensitivity"><option value="0.35">均衡</option><option value="0.48">保守</option><option value="0.25">灵敏</option></select></div><button class="primary" id="transcribe" disabled>自动分析并扒谱</button><button class="ghost" id="example">载入完整示例</button><div class="progress"><i id="progress"></i></div><p class="status" id="status">等待音频</p></aside><article><section class="analysis-panel"><div><span>速度 BPM</span><input id="bpm" type="number" min="40" max="240" value="120"><small id="bpmConfidence">待分析</small></div><div><span>拍号</span><select id="meter"><option value="4">4 / 4</option><option value="3">3 / 4</option></select><small id="meterConfidence">待分析</small></div><div><span>调性</span><section><select id="key">${KEYS.map((k, i) => `<option value="${i}">${k}</option>`).join("")}</select><select id="mode"><option value="major">大调</option><option value="minor">小调</option></select></section><small id="keyConfidence">待分析</small></div></section><div class="toolbar"><div class="tabs"><button class="active" data-view="staff">五线谱</button><button data-view="jianpu">简谱</button></div><div class="actions"><button id="play" disabled>▶ 演奏</button><button id="midi" disabled>导出 MIDI</button><button id="xml" disabled>导出 MusicXML</button></div></div><div id="staff" class="score"></div><div id="jianpu" class="score hidden"></div><div class="empty" id="empty"><div>♪</div><strong>完整乐谱会出现在这里</strong><span>导入歌曲后，一次完成分离、分析与转谱</span></div></article></section><footer>本地处理 · 不上传音频 · 自动识别结果可手动修正</footer></main>`;
 
@@ -36,6 +37,7 @@ audio.insertAdjacentHTML(
 );
 let sourceBuffer: AudioBuffer | null = null,
   sourceFile: File | null = null,
+  serverProject: ApiScoreProject | null = null,
   rawNotes: RawNote[] = [],
   notes: ScoreNote[] = [];
 let analysis: MusicalAnalysis = {
@@ -56,6 +58,7 @@ const conf = (v: number) =>
 async function load(file: File) {
   status("正在解码音频…", 3);
   sourceFile = file;
+  serverProject = null;
   audio.src = URL.createObjectURL(file);
   sourceBuffer = await new AudioContext().decodeAudioData(
     await file.arrayBuffer(),
@@ -146,7 +149,6 @@ function applyApiProject(project: ApiScoreProject) {
 }
 async function runServer() {
   if (!sourceFile) return;
-  const api = new VocalScoreApi();
   status("正在上传音频…", 3);
   const upload = await api.upload(sourceFile);
   status("已进入后端处理队列…", 6);
@@ -158,7 +160,8 @@ async function runServer() {
     ),
   );
   if (!job.project_id) throw new Error("后端未返回乐谱项目");
-  applyApiProject(await api.getProject(job.project_id));
+  serverProject = await api.getProject(job.project_id);
+  applyApiProject(serverProject);
 }
 transcribe.addEventListener("click", async () => {
   if (!sourceBuffer) return;
@@ -188,7 +191,7 @@ function sync() {
   $("#meterConfidence").textContent = conf(analysis.confidence.meter);
   $("#keyConfidence").textContent = conf(analysis.confidence.key);
 }
-function update() {
+async function update() {
   analysis = {
     ...analysis,
     bpm: Number(bpm.value),
@@ -197,9 +200,31 @@ function update() {
     mode: mode.value as "major" | "minor",
   };
   render();
+  if (serverProject) {
+    try {
+      status("正在保存参数并重新量化…");
+      serverProject = await api.requantizeProject(serverProject.project_id, {
+        expected_revision: serverProject.revision,
+        bpm: analysis.bpm,
+        numerator: analysis.meter,
+        denominator: 4,
+        tonic: analysis.keyPitchClass,
+        mode: analysis.mode,
+        grid: 0.25,
+      });
+      applyApiProject(serverProject);
+      render();
+      status(`已保存 · 修订 ${serverProject.revision}`, 100);
+    } catch (error) {
+      status(
+        `保存失败：${error instanceof Error ? error.message : "未知错误"}`,
+      );
+    }
+  }
 }
 [bpm, meter, key, mode].forEach((el) => el.addEventListener("change", update));
 $("#example").addEventListener("click", () => {
+  serverProject = null;
   rawNotes = demoNotes();
   analysis = {
     bpm: 120,
@@ -302,5 +327,17 @@ play.addEventListener("click", async () => {
     ),
   );
 });
-$("#midi").addEventListener("click", () => exportMidi(notes, analysis));
-$("#xml").addEventListener("click", () => exportMusicXml(notes, analysis));
+function downloadServerExport(format: "midi" | "musicxml") {
+  if (!serverProject) return false;
+  const link = document.createElement("a");
+  link.href = api.exportUrl(serverProject.project_id, format);
+  link.download = "";
+  link.click();
+  return true;
+}
+$("#midi").addEventListener("click", () => {
+  if (!downloadServerExport("midi")) exportMidi(notes, analysis);
+});
+$("#xml").addEventListener("click", () => {
+  if (!downloadServerExport("musicxml")) exportMusicXml(notes, analysis);
+});

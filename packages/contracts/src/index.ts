@@ -64,6 +64,15 @@ export interface ScoreProject {
   }>;
   revision: number;
 }
+export interface RequantizeRequest {
+  expected_revision: number;
+  bpm: number;
+  numerator: number;
+  denominator: 2 | 4 | 8 | 16;
+  tonic: number;
+  mode: "major" | "minor";
+  grid: number;
+}
 export const JOB_STAGE_LABELS: Record<JobStage, string> = {
   queued: "等待处理",
   preprocessing: "标准化音频",

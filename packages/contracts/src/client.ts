@@ -1,4 +1,10 @@
-import type { JobResponse, ScoreProject, UploadResponse } from "./index";
+import type {
+  JobResponse,
+  RequantizeRequest,
+  ScoreProject,
+  ScoreProjectNote,
+  UploadResponse,
+} from "./index";
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -40,6 +46,30 @@ export class VocalScoreApi {
   }
   getProject(id: string): Promise<ScoreProject> {
     return this.request(`/v1/projects/${id}`);
+  }
+  updateProject(
+    id: string,
+    expectedRevision: number,
+    notes: ScoreProjectNote[],
+  ): Promise<ScoreProject> {
+    return this.request(`/v1/projects/${id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ expected_revision: expectedRevision, notes }),
+    });
+  }
+  requantizeProject(
+    id: string,
+    request: RequantizeRequest,
+  ): Promise<ScoreProject> {
+    return this.request(`/v1/projects/${id}/requantize`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(request),
+    });
+  }
+  exportUrl(id: string, format: "midi" | "musicxml"): string {
+    return `${this.baseUrl}/v1/projects/${id}/exports/${format}`;
   }
   cancelJob(id: string): Promise<JobResponse> {
     return this.request(`/v1/jobs/${id}/cancel`, { method: "POST" });
