@@ -50,7 +50,7 @@
 
 .recent-projects > div {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: 1fr auto auto;
   gap: 5px;
 }
 

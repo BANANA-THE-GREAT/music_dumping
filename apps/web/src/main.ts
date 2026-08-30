@@ -44,7 +44,7 @@ audio.insertAdjacentHTML(
 );
 document.querySelector("aside")!.insertAdjacentHTML(
   "afterbegin",
-  `<div class="recent-projects"><label for="recent-project">最近项目</label><div><select id="recent-project"><option value="">选择已保存项目…</option></select><button id="refresh-projects" title="刷新项目">↻</button></div></div>`,
+  `<div class="recent-projects"><label for="recent-project">最近项目</label><div><select id="recent-project"><option value="">选择已保存项目…</option></select><button id="refresh-projects" title="刷新项目">↻</button><button id="delete-project" title="删除项目" disabled>删除</button></div></div>`,
 );
 let sourceBuffer: AudioBuffer | null = null,
   sourceFile: File | null = null,
@@ -226,6 +226,7 @@ async function refreshProjects() {
 }
 $<HTMLSelectElement>("#recent-project").addEventListener("change", async (event) => {
   const projectId = (event.currentTarget as HTMLSelectElement).value;
+  $<HTMLButtonElement>("#delete-project").disabled = !projectId;
   if (!projectId) return;
   try {
     status("正在打开已保存项目…", 20);
@@ -239,6 +240,28 @@ $<HTMLSelectElement>("#recent-project").addEventListener("change", async (event)
   }
 });
 $("#refresh-projects").addEventListener("click", () => void refreshProjects());
+$("#delete-project").addEventListener("click", async () => {
+  const projectId = $<HTMLSelectElement>("#recent-project").value;
+  if (!projectId || !confirm("确定删除这个项目、源音频和所有处理数据吗？此操作不可撤销。")) return;
+  try {
+    await api.deleteProject(projectId);
+    if (serverProject?.project_id === projectId) {
+      serverProject = null;
+      scoreHistory = null;
+      selectedNoteIndex = null;
+      rawNotes = [];
+      notes = [];
+      $("#staff").innerHTML = "";
+      $("#jianpu").innerHTML = "";
+      $("#empty").classList.remove("hidden");
+    }
+    $<HTMLButtonElement>("#delete-project").disabled = true;
+    await refreshProjects();
+    status("项目及关联数据已删除", 0);
+  } catch (error) {
+    status(`删除失败：${error instanceof Error ? error.message : "未知错误"}`, 0);
+  }
+});
 transcribe.addEventListener("click", async () => {
   if (!sourceBuffer) return;
   transcribe.disabled = true;

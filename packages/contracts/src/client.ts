@@ -57,6 +57,9 @@ export class VocalScoreApi {
   listProjects(): Promise<ProjectSummary[]> {
     return this.request("/v1/projects");
   }
+  deleteProject(id: string): Promise<void> {
+    return this.request(`/v1/projects/${id}`, { method: "DELETE" });
+  }
   updateProject(
     id: string,
     expectedRevision: number,
