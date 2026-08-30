@@ -1,4 +1,3 @@
-import ABCJS from "abcjs";
 import {
   JOB_STAGE_LABELS,
   type ScoreProject as ApiScoreProject,
@@ -6,7 +5,7 @@ import {
 import { VocalScoreApi } from "@vocal-score/contracts/client";
 import { ScoreHistory, type EditableNote } from "@vocal-score/score-core";
 import { analyzeMusic } from "./analysis";
-import { exportMidi, exportMusicXml, keyName, keyRootMidi } from "./export";
+import { keyName, keyRootMidi } from "./key";
 import { cleanAndQuantize, demoNotes, toAbc } from "./music";
 import { pianoRollMetrics, renderPianoRoll } from "./piano-roll";
 import { isolateCenterVocal, resampleAudio } from "./separation";
@@ -446,7 +445,7 @@ $("#example").addEventListener("click", () => {
   render();
   status("已载入完整示例 · 所有参数均可修改", 100);
 });
-function render() {
+async function render() {
   notes = cleanAndQuantize(
     rawNotes,
     analysis.bpm,
@@ -457,6 +456,7 @@ function render() {
   const abcKey =
     KEYS[analysis.keyPitchClass].replace("♯", "#") +
     (analysis.mode === "minor" ? "m" : "");
+  const { default: ABCJS } = await import("abcjs");
   ABCJS.renderAbc(
     "staff",
     toAbc(
@@ -748,10 +748,12 @@ function downloadServerExport(format: "midi" | "musicxml") {
   return true;
 }
 $("#midi").addEventListener("click", () => {
-  if (!downloadServerExport("midi")) exportMidi(notes, analysis);
+  if (!downloadServerExport("midi"))
+    void import("./export").then(({ exportMidi }) => exportMidi(notes, analysis));
 });
 $("#xml").addEventListener("click", () => {
-  if (!downloadServerExport("musicxml")) exportMusicXml(notes, analysis);
+  if (!downloadServerExport("musicxml"))
+    void import("./export").then(({ exportMusicXml }) => exportMusicXml(notes, analysis));
 });
 void refreshProjects();
 void resumeActiveJob();

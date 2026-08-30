@@ -1,11 +1,6 @@
 import { Midi } from "@tonejs/midi";
 import type { MusicalAnalysis, ScoreNote } from "./types";
 
-const NAMES = ["C", "C♯", "D", "E♭", "E", "F", "F♯", "G", "A♭", "A", "B♭", "B"];
-export const keyName = (pc: number, mode: "major" | "minor") =>
-  `${NAMES[pc]} ${mode === "major" ? "大调" : "小调"}`;
-export const keyRootMidi = (pc: number) => 60 + pc;
-
 function download(blob: Blob, name: string) {
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
