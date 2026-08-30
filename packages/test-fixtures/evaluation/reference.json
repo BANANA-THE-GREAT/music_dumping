@@ -1,0 +1,10 @@
+{
+  "license": "CC0-1.0",
+  "description": "Synthetic C-major scale annotation; no source recording required.",
+  "notes": [
+    {"start_seconds": 0.0, "end_seconds": 0.5, "pitch_midi": 60, "confidence": 1.0},
+    {"start_seconds": 0.5, "end_seconds": 1.0, "pitch_midi": 62, "confidence": 1.0},
+    {"start_seconds": 1.0, "end_seconds": 1.5, "pitch_midi": 64, "confidence": 1.0},
+    {"start_seconds": 1.5, "end_seconds": 2.0, "pitch_midi": 65, "confidence": 1.0}
+  ]
+}

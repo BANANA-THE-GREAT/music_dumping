@@ -1,0 +1,8 @@
+{
+  "notes": [
+    {"start_seconds": 0.01, "end_seconds": 0.49, "pitch_midi": 60, "confidence": 0.91},
+    {"start_seconds": 0.51, "end_seconds": 1.02, "pitch_midi": 62, "confidence": 0.87},
+    {"start_seconds": 1.02, "end_seconds": 1.49, "pitch_midi": 64, "confidence": 0.85},
+    {"start_seconds": 1.5, "end_seconds": 2.0, "pitch_midi": 66, "confidence": 0.72}
+  ]
+}
