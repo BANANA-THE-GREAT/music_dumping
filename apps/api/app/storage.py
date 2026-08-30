@@ -13,9 +13,17 @@ class UploadTooLargeError(Exception):
     pass
 
 
+def resolve_data_path(settings: Settings, object_key: str) -> Path:
+    root = settings.data_dir.resolve()
+    path = (root / object_key).resolve()
+    if root not in path.parents:
+        raise ValueError("Object key resolves outside the data directory")
+    return path
+
+
 def remove_project_files(settings: Settings, object_key: str, job_id: str) -> None:
     root = settings.data_dir.resolve()
-    source = (root / object_key).resolve()
+    source = resolve_data_path(settings, object_key)
     work = (root / "work" / job_id).resolve()
     if root not in source.parents or root not in work.parents:
         raise ValueError("Refusing to remove files outside the data directory")
@@ -30,7 +38,7 @@ async def save_upload(file: UploadFile, settings: Settings) -> tuple[str, int, s
     upload_id = str(uuid4())
     suffix = Path(file.filename or "audio.bin").suffix.lower()
     object_key = f"uploads/{upload_id}/source{suffix}"
-    target = settings.data_dir / object_key
+    target = resolve_data_path(settings, object_key)
     target.parent.mkdir(parents=True, exist_ok=True)
     digest = hashlib.sha256()
     size = 0

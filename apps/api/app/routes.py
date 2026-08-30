@@ -3,7 +3,7 @@ from collections.abc import Iterator
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile, status
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -25,7 +25,7 @@ from app.schemas import (
     ScoreProject,
     UploadResponse,
 )
-from app.storage import UploadTooLargeError, remove_project_files, save_upload
+from app.storage import UploadTooLargeError, remove_project_files, resolve_data_path, save_upload
 
 router = APIRouter(prefix="/v1")
 SessionDep = Annotated[Session, Depends(get_session)]
@@ -183,6 +183,26 @@ def export_project_musicxml(project_id: str, session: SessionDep) -> Response:
         content=content,
         media_type="application/vnd.recordare.musicxml+xml",
         headers={"Content-Disposition": f'attachment; filename="{project_id}.musicxml"'},
+    )
+
+
+@router.get("/projects/{project_id}/audio")
+def stream_project_audio(
+    project_id: str, session: SessionDep, settings: SettingsDep
+) -> FileResponse:
+    record = session.get(ProjectRecord, project_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    project = ScoreProject.model_validate(record.document)
+    path = resolve_data_path(settings, project.source.audio_object_key)
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="Project audio not found")
+    job = session.get(JobRecord, record.job_id)
+    upload = session.get(UploadRecord, job.upload_id) if job else None
+    return FileResponse(
+        path,
+        media_type=upload.content_type if upload else "application/octet-stream",
+        filename=project.source.file_name,
     )
 
 

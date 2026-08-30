@@ -84,6 +84,11 @@ def test_project_exports_standard_midi_and_musicxml() -> None:
     assert b'<score-partwise version="4.0">' in musicxml.content
     assert musicxml.content.count(b"<note>") >= len(project["notes"])
 
+    audio = client.get(f"/v1/projects/{project_id}/audio")
+    assert audio.status_code == 200
+    assert audio.content == b"RIFF-edit-audio"
+    assert audio.headers["content-type"].startswith("audio/wav")
+
 
 def test_projects_are_listed_for_reopening() -> None:
     project = create_project()
