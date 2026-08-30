@@ -42,6 +42,19 @@ def test_job_can_be_cancelled() -> None:
     assert response.status_code == 200
     assert response.json()["status"] == "cancelled"
 
+    retry = client.post(f"/v1/jobs/{job['id']}/retry")
+    assert retry.status_code == 202
+    assert retry.json()["upload_id"] == upload["id"]
+    assert retry.json()["status"] == "queued"
+
+
+def test_running_job_cannot_be_retried() -> None:
+    upload = create_test_upload()
+    job = client.post(
+        "/v1/jobs", json={"upload_id": upload["id"], "options": {"auto_start": False}}
+    ).json()
+    assert client.post(f"/v1/jobs/{job['id']}/retry").status_code == 409
+
 
 def test_rejects_unsupported_upload() -> None:
     response = client.post(
