@@ -10,7 +10,13 @@ class Settings(BaseSettings):
     environment: str = "development"
     api_title: str = "Vocal Score Studio API"
     api_version: str = "0.1.0"
-    cors_origins: list[str] = ["http://localhost:4173", "http://localhost:5173"]
+    cors_origins: list[str] = [
+        "http://localhost:4173",
+        "http://localhost:5173",
+        "http://127.0.0.1:4173",
+        "http://127.0.0.1:4174",
+        "http://127.0.0.1:5173",
+    ]
     data_dir: Path = Path("data")
     database_url: str = "sqlite:///data/vss.db"
     max_upload_bytes: int = 200 * 1024 * 1024
