@@ -17,6 +17,67 @@ const PITCH_NAMES = [
   "B",
 ];
 
+function decorateNote(
+  note: RawNote,
+  id: number,
+  startBeat: number,
+  durationBeats: number,
+  keyMidi: number,
+  mode: "major" | "minor",
+): ScoreNote {
+  const relative = note.pitchMidi - keyMidi;
+  const octave = Math.floor(relative / 12);
+  const pc = ((relative % 12) + 12) % 12;
+  let degreeIndex = 0;
+  let accidental = 99;
+  const scale = mode === "major" ? MAJOR_SCALE : MINOR_SCALE;
+  scale.forEach((value, index) => {
+    const difference = pc - value;
+    if (Math.abs(difference) < Math.abs(accidental)) {
+      degreeIndex = index;
+      accidental = difference;
+    }
+  });
+  return {
+    ...note,
+    id,
+    startBeat,
+    durationBeats,
+    degree: degreeIndex + 1,
+    accidental,
+    octave,
+  };
+}
+
+export function displayQuantizedNotes(
+  notes: Array<{
+    pitch_midi: number;
+    confidence: number;
+    quantized_start: number;
+    quantized_duration: number;
+  }>,
+  bpm: number,
+  keyMidi = 60,
+  mode: "major" | "minor" = "major",
+): ScoreNote[] {
+  const secondsPerBeat = 60 / bpm;
+  return notes.map((note, id) =>
+    decorateNote(
+      {
+        pitchMidi: note.pitch_midi,
+        amplitude: note.confidence,
+        startTimeSeconds: note.quantized_start * secondsPerBeat,
+        durationSeconds: note.quantized_duration * secondsPerBeat,
+      },
+      id,
+      note.quantized_start,
+      note.quantized_duration,
+      keyMidi,
+      mode,
+    ),
+  );
+}
+
 export function cleanAndQuantize(
   raw: RawNote[],
   bpm: number,
@@ -64,28 +125,7 @@ export function cleanAndQuantize(
       0.25,
       Math.round((note.durationSeconds / secondsPerBeat) * 4) / 4,
     );
-    const relative = note.pitchMidi - keyMidi;
-    const octave = Math.floor(relative / 12);
-    const pc = ((relative % 12) + 12) % 12;
-    let degreeIndex = 0;
-    let accidental = 99;
-    const scale = mode === "major" ? MAJOR_SCALE : MINOR_SCALE;
-    scale.forEach((v, i) => {
-      const diff = pc - v;
-      if (Math.abs(diff) < Math.abs(accidental)) {
-        degreeIndex = i;
-        accidental = diff;
-      }
-    });
-    return {
-      ...note,
-      id,
-      startBeat,
-      durationBeats,
-      degree: degreeIndex + 1,
-      accidental,
-      octave,
-    };
+    return decorateNote(note, id, startBeat, durationBeats, keyMidi, mode);
   });
 }
 

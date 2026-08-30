@@ -6,7 +6,12 @@ import { ApiError, VocalScoreApi } from "@vocal-score/contracts/client";
 import { ScoreHistory, type EditableNote } from "@vocal-score/score-core";
 import { analyzeMusic } from "./analysis";
 import { keyName, keyRootMidi } from "./key";
-import { cleanAndQuantize, demoNotes, toAbc } from "./music";
+import {
+  cleanAndQuantize,
+  demoNotes,
+  displayQuantizedNotes,
+  toAbc,
+} from "./music";
 import { pianoRollMetrics, renderPianoRoll } from "./piano-roll";
 import { isolateCenterVocal, resampleAudio } from "./separation";
 import type { MusicalAnalysis, RawNote, ScoreNote } from "./types";
@@ -61,6 +66,7 @@ const input = $<HTMLInputElement>("#file"),
   mode = $<HTMLSelectElement>("#mode"),
   play = $<HTMLButtonElement>("#play");
 meter.innerHTML = `<option value="2/4">2 / 4</option><option value="3/4">3 / 4</option><option value="4/4">4 / 4</option><option value="6/8">6 / 8</option>`;
+meter.value = "4/4";
 transcribe.insertAdjacentHTML(
   "afterend",
   `<button class="ghost" id="retry-job" disabled>重试上次失败任务</button>`,
@@ -457,12 +463,20 @@ $("#example").addEventListener("click", () => {
   status("已载入完整示例 · 所有参数均可修改", 100);
 });
 async function render() {
-  notes = cleanAndQuantize(
-    rawNotes,
-    analysis.bpm,
-    keyRootMidi(analysis.keyPitchClass),
-    analysis.mode,
-  );
+  const authoritativeNotes = scoreHistory?.value ?? serverProject?.notes;
+  notes = authoritativeNotes
+    ? displayQuantizedNotes(
+        authoritativeNotes,
+        analysis.bpm,
+        keyRootMidi(analysis.keyPitchClass),
+        analysis.mode,
+      )
+    : cleanAndQuantize(
+        rawNotes,
+        analysis.bpm,
+        keyRootMidi(analysis.keyPitchClass),
+        analysis.mode,
+      );
   $("#empty").classList.add("hidden");
   const abcKey =
     KEYS[analysis.keyPitchClass].replace("♯", "#") +
