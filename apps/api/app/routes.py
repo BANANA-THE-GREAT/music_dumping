@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.config import Settings, get_settings
 from app.database import SessionLocal, get_session
+from app.exporters import project_to_midi, project_to_musicxml
 from app.job_runner import dispatch_job
 from app.models import JobRecord, ProjectRecord, UploadRecord
 from app.project_service import requantize
@@ -116,6 +117,33 @@ def get_project(project_id: str, session: SessionDep) -> ScoreProject:
     if record is None:
         raise HTTPException(status_code=404, detail="Project not found")
     return ScoreProject.model_validate(record.document)
+
+
+def _project_document(project_id: str, session: Session) -> ScoreProject:
+    record = session.get(ProjectRecord, project_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return ScoreProject.model_validate(record.document)
+
+
+@router.get("/projects/{project_id}/exports/midi")
+def export_project_midi(project_id: str, session: SessionDep) -> Response:
+    content = project_to_midi(_project_document(project_id, session))
+    return Response(
+        content=content,
+        media_type="audio/midi",
+        headers={"Content-Disposition": f'attachment; filename="{project_id}.mid"'},
+    )
+
+
+@router.get("/projects/{project_id}/exports/musicxml")
+def export_project_musicxml(project_id: str, session: SessionDep) -> Response:
+    content = project_to_musicxml(_project_document(project_id, session))
+    return Response(
+        content=content,
+        media_type="application/vnd.recordare.musicxml+xml",
+        headers={"Content-Disposition": f'attachment; filename="{project_id}.musicxml"'},
+    )
 
 
 def _editable_project(

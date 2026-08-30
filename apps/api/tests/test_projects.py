@@ -66,3 +66,19 @@ def test_project_can_be_requantized() -> None:
     assert result["analysis"]["meter_map"][0]["numerator"] == 3
     assert result["analysis"]["key_map"][0]["tonic"] == 7
     assert result["pipeline"][-1]["stage"] == "requantize"
+
+
+def test_project_exports_standard_midi_and_musicxml() -> None:
+    project = create_project()
+    project_id = project["project_id"]
+
+    midi = client.get(f"/v1/projects/{project_id}/exports/midi")
+    assert midi.status_code == 200
+    assert midi.content.startswith(b"MThd")
+    assert b"MTrk" in midi.content
+    assert midi.headers["content-disposition"].endswith(f'"{project_id}.mid"')
+
+    musicxml = client.get(f"/v1/projects/{project_id}/exports/musicxml")
+    assert musicxml.status_code == 200
+    assert b'<score-partwise version="4.0">' in musicxml.content
+    assert musicxml.content.count(b"<note>") >= len(project["notes"])
