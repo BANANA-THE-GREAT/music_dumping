@@ -49,8 +49,11 @@ services:
     build:
       context: ..
       dockerfile: infra/docker/Dockerfile.worker
-    environment: *backend-env
-    volumes: [app-data:/data]
+    environment:
+      <<: *backend-env
+      TORCH_HOME: /models/torch
+      HF_HOME: /models/huggingface
+    volumes: [app-data:/data, model-cache:/models]
     depends_on:
       postgres: {condition: service_healthy}
       redis: {condition: service_healthy}
@@ -65,3 +68,4 @@ volumes:
   redis-data:
   minio-data:
   app-data:
+  model-cache:

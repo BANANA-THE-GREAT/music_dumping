@@ -1,5 +1,24 @@
 # 部署与运维
 
+## 依赖隔离与后端工具
+
+Docker 部署不使用宿主机的 Node.js、npm 或 Python 环境：
+
+- Web 在 Node.js 22 构建容器内执行 `npm ci`，生成的静态文件由 Nginx 容器提供。
+- API 镜像安装 FastAPI、数据库客户端和任务调度依赖；通过 Redis 将音频处理任务交给 Worker。
+- Worker 镜像安装 FFmpeg（含 FFprobe）、libsndfile、OpenMP 运行库、Demucs 和 Basic Pitch 及其 Python 依赖。默认使用 PyTorch 官方 CPU 安装源，与当前未配置 GPU 的 Compose 服务一致；需要 GPU 时应调整 PyTorch 安装源和容器 GPU 配置。构建时检查工具版本和主要模块导入。
+- API 与 Worker 共享 `app-data` 卷。Demucs 首次推理下载的权重写入 `model-cache` 卷，重建 Worker 后可复用；首次推理需要联网。
+
+只构建后端镜像并检查工具，不启动或停止服务：
+
+```bash
+docker compose -f infra/compose.yaml build api worker
+docker compose -f infra/compose.yaml run --rm --no-deps worker ffmpeg -version
+docker compose -f infra/compose.yaml run --rm --no-deps worker python -c "from basic_pitch.inference import Model; import demucs.separate; print('model dependencies OK')"
+```
+
+首次构建需要下载音频处理和机器学习依赖，耗时及镜像体积会明显大于普通 API。`.dockerignore` 会排除宿主机的 `node_modules`、`.venv`、本地配置和音频数据，避免将这些文件发送到构建环境。若本地 API 已占用 8000 端口，应先停止该进程，再启动 Compose 的 API 服务。
+
 ## 启动前检查
 
 生产环境应修改 Compose 中的数据库、MinIO 凭据，不把数据库和 Redis 端口暴露到公网，并在 Web/API 前配置 TLS 反向代理。应用数据位于 `app-data`，PostgreSQL 元数据位于 `postgres-data`；两者必须成组备份。

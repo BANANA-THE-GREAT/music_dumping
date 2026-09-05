@@ -1,8 +1,16 @@
 FROM python:3.11-slim
 WORKDIR /app
-RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg && rm -rf /var/lib/apt/lists/*
+ENV PIP_DEFAULT_TIMEOUT=120 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ffmpeg libsndfile1 libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+# Compose runs this worker on CPU; keep CUDA packages out of the default image.
+RUN pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu "torch>=2.1"
 COPY pyproject.toml ./
 COPY apps/api apps/api
 COPY workers/transcription workers/transcription
 RUN pip install --no-cache-dir ".[models]"
+RUN ffmpeg -version && ffprobe -version \
+    && python -c "from basic_pitch.inference import Model; import demucs.separate, soundfile, torch"
 CMD ["python", "-m", "celery", "-A", "vss_worker.celery_app:celery_app", "worker", "--loglevel=INFO", "--concurrency=1"]

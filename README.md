@@ -33,11 +33,15 @@ python -m pip install -e ".[models]"
 
 ## 容器部署
 
+宿主机只需要 Docker 和 Docker Compose，不需要安装或升级 Node.js、npm、Python、FFmpeg 或模型依赖。
+前端在 Node.js 22 构建容器中安装 npm 依赖；音频处理工具和模型运行依赖安装在后端 Worker 镜像中，与宿主机的其他项目隔离。
+
 ```bash
 docker compose -f infra/compose.yaml up --build
 ```
 
 Web 默认位于 `http://localhost:8080`，API 位于 `http://localhost:8000`。API 容器启动前自动执行 Alembic migration。
+如果已经运行本地 API，需先释放其 8000 端口。高质量模式由 Worker 内的 FFmpeg、Demucs 和 Basic Pitch 执行；首次使用 Demucs 时会联网下载模型权重，后续复用 `model-cache` 数据卷。
 
 生产部署、备份恢复、数据保留与故障排查见 [部署运维指南](docs/deployment.md)。
 
