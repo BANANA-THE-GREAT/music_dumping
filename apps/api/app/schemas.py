@@ -126,6 +126,7 @@ class ScoreProject(BaseModel):
     source: SourceAudio
     analysis: Analysis
     notes: list[ScoreNote]
+    raw_notes: list[ScoreNote] | None = None
     pipeline: list[PipelineStep]
     revision: int = Field(ge=1)
 
@@ -142,6 +143,13 @@ class ProjectSummary(BaseModel):
 class ProjectPatch(BaseModel):
     expected_revision: int = Field(ge=1)
     notes: list[ScoreNote] | None = None
+
+
+class MelodyRequest(BaseModel):
+    expected_revision: int = Field(ge=1)
+    mode: Literal["raw", "conservative", "balanced"] = "balanced"
+    low_pitch: int = Field(default=48, ge=0, le=127)
+    high_pitch: int = Field(default=84, ge=0, le=127)
 
 
 class RequantizeRequest(BaseModel):

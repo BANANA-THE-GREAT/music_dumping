@@ -57,6 +57,7 @@ export interface ScoreProject {
     confidence: Record<string, number>;
   };
   notes: ScoreProjectNote[];
+  raw_notes?: ScoreProjectNote[] | null;
   pipeline: Array<{
     stage: string;
     version: string;
@@ -80,6 +81,11 @@ export interface RequantizeRequest {
   tonic: number;
   mode: "major" | "minor";
   grid: number;
+}
+export interface MelodyOptions {
+  mode: "raw" | "conservative" | "balanced";
+  low_pitch: number;
+  high_pitch: number;
 }
 export const JOB_STAGE_LABELS: Record<JobStage, string> = {
   queued: "等待处理",

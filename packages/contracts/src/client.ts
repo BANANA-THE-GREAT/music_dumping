@@ -1,5 +1,6 @@
 import type {
   JobResponse,
+  MelodyOptions,
   ProjectSummary,
   RequantizeRequest,
   ScoreProject,
@@ -92,8 +93,14 @@ export class VocalScoreApi {
   exportUrl(id: string, format: "midi" | "musicxml"): string {
     return `${this.baseUrl}/v1/projects/${id}/exports/${format}`;
   }
-  audioUrl(id: string): string {
-    return `${this.baseUrl}/v1/projects/${id}/audio`;
+  audioUrl(id: string, variant: "source" | "vocals" = "source"): string {
+    return `${this.baseUrl}/v1/projects/${id}/audio${variant === "vocals" ? "?variant=vocals" : ""}`;
+  }
+  refineMelody(id: string, expectedRevision: number, options: MelodyOptions): Promise<ScoreProject> {
+    return this.request(`/v1/projects/${id}/melody`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ expected_revision: expectedRevision, ...options }),
+    });
   }
   cancelJob(id: string): Promise<JobResponse> {
     return this.request(`/v1/jobs/${id}/cancel`, { method: "POST" });

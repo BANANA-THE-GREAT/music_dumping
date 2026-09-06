@@ -287,6 +287,44 @@
         "title": "KeyPoint",
         "type": "object"
       },
+      "MelodyRequest": {
+        "properties": {
+          "expected_revision": {
+            "minimum": 1.0,
+            "title": "Expected Revision",
+            "type": "integer"
+          },
+          "high_pitch": {
+            "default": 84,
+            "maximum": 127.0,
+            "minimum": 0.0,
+            "title": "High Pitch",
+            "type": "integer"
+          },
+          "low_pitch": {
+            "default": 48,
+            "maximum": 127.0,
+            "minimum": 0.0,
+            "title": "Low Pitch",
+            "type": "integer"
+          },
+          "mode": {
+            "default": "balanced",
+            "enum": [
+              "raw",
+              "conservative",
+              "balanced"
+            ],
+            "title": "Mode",
+            "type": "string"
+          }
+        },
+        "required": [
+          "expected_revision"
+        ],
+        "title": "MelodyRequest",
+        "type": "object"
+      },
       "MeterPoint": {
         "properties": {
           "beat": {
@@ -581,6 +619,20 @@
           "project_id": {
             "title": "Project Id",
             "type": "string"
+          },
+          "raw_notes": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ScoreNote"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Raw Notes"
           },
           "revision": {
             "minimum": 1.0,
@@ -1134,6 +1186,20 @@
               "title": "Project Id",
               "type": "string"
             }
+          },
+          {
+            "in": "query",
+            "name": "variant",
+            "required": false,
+            "schema": {
+              "default": "source",
+              "enum": [
+                "source",
+                "vocals"
+              ],
+              "title": "Variant",
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -1231,6 +1297,55 @@
           }
         },
         "summary": "Export Project Musicxml"
+      }
+    },
+    "/v1/projects/{project_id}/melody": {
+      "post": {
+        "operationId": "refine_project_melody_v1_projects__project_id__melody_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MelodyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScoreProject"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Refine Project Melody"
       }
     },
     "/v1/projects/{project_id}/requantize": {

@@ -53,8 +53,11 @@ def test_real_pipeline_composes_adapters_and_quantizes(tmp_path: Path) -> None:
         "separate_vocals",
         "transcribe_notes",
         "analyze_music",
+        "melody_refinement",
     ]
     assert document["pipeline"][3]["parameters"]["detected_notes"] == 3
+    assert document["source"]["vocal_object_key"] == "work/work/stems/vocals.wav"
+    assert len(document["raw_notes"]) == 3
     assert stages == [
         "preprocessing",
         "separating",

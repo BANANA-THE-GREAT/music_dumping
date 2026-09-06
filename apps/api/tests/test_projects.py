@@ -150,3 +150,45 @@ def test_project_deletion_preserves_upload_used_by_another_job() -> None:
         assert session.get(JobRecord, job_id) is None
         assert session.get(JobRecord, other_job["id"]) is not None
         assert session.get(UploadRecord, upload_id) is not None
+
+
+def test_melody_refinement_preserves_raw_notes_and_revision() -> None:
+    project = create_project()
+    path = f"/v1/projects/{project['project_id']}/melody"
+    refined = client.post(path, json={"expected_revision": 1, "mode": "balanced"})
+    assert refined.status_code == 200
+    assert refined.json()["raw_notes"] == project["notes"]
+    assert client.post(path, json={"expected_revision": 1}).status_code == 409
+    restored = client.post(path, json={"expected_revision": 2, "mode": "raw"})
+    assert restored.status_code == 200
+    assert restored.json()["notes"] == project["notes"]
+    assert (
+        client.post(
+            path, json={"expected_revision": 3, "low_pitch": 90, "high_pitch": 50}
+        ).status_code
+        == 422
+    )
+
+
+def test_vocal_preview_serves_actual_stem_and_handles_legacy_path() -> None:
+    project = create_project()
+    path = f"/v1/projects/{project['project_id']}/audio?variant=vocals"
+    assert client.get(path).status_code == 404
+    with SessionLocal() as session:
+        record = session.get(ProjectRecord, project["project_id"])
+        stem = (
+            get_settings().data_dir
+            / "work"
+            / record.job_id
+            / "stems/htdemucs/normalized/vocals.wav"
+        )
+        stem.parent.mkdir(parents=True)
+        stem.write_bytes(b"RIFF-separated-vocals")
+        doc = dict(record.document)
+        doc["source"] = {**doc["source"], "vocal_object_key": "work/old-project/vocals.wav"}
+        record.document = doc
+        session.commit()
+    response = client.get(path)
+    assert response.status_code == 200
+    assert response.content == b"RIFF-separated-vocals"
+    assert response.headers["content-type"].startswith("audio/wav")

@@ -10,6 +10,7 @@ from vss_worker.adapters import (
     Progress,
     VocalSeparator,
 )
+from vss_worker.melody import quantized_notes, refine_melody
 
 
 def _estimate_bpm(notes: list[DetectedNote]) -> float:
@@ -133,9 +134,10 @@ def build_real_project(
     )
     progress("tracking_beats", 0.76)
     started = time.perf_counter()
-    bpm = _estimate_bpm(detected)
-    tonic, mode = _estimate_key(detected)
-    numerator, denominator, meter_confidence = estimate_meter(detected)
+    melody = refine_melody(detected)
+    bpm = _estimate_bpm(melody)
+    tonic, mode = _estimate_key(melody)
+    numerator, denominator, meter_confidence = estimate_meter(melody)
     pipeline_steps.append(
         {
             "stage": "analyze_music",
@@ -149,27 +151,20 @@ def build_real_project(
             },
         }
     )
-    seconds_per_beat = 60 / bpm
     progress("postprocessing", 0.86)
-    notes = []
-    for note in detected:
-        start = round(note.start_seconds / seconds_per_beat * 4) / 4
-        duration = max(
-            0.25,
-            round((note.end_seconds - note.start_seconds) / seconds_per_beat * 4) / 4,
-        )
-        notes.append(
-            {
-                "id": str(uuid4()),
-                "source_start_ms": round(note.start_seconds * 1000),
-                "source_end_ms": round(note.end_seconds * 1000),
-                "pitch_midi": note.pitch_midi,
-                "confidence": note.confidence,
-                "quantized_start": start,
-                "quantized_duration": duration,
-                "origin": "model",
-            }
-        )
+    notes = quantized_notes(melody, bpm)
+    pipeline_steps.append(
+        {
+            "stage": "melody_refinement",
+            "version": "1",
+            "parameters": {
+                "method": "confidence_continuity_viterbi",
+                "mode": "balanced",
+                "input_notes": len(detected),
+                "output_notes": len(notes),
+            },
+        }
+    )
     progress("rendering", 0.96)
     project_id = str(uuid4())
     duration_ms = round(max((note.end_seconds for note in detected), default=0) * 1000)
@@ -180,7 +175,7 @@ def build_real_project(
             "file_name": file_name,
             "duration_ms": duration_ms,
             "audio_object_key": object_key,
-            "vocal_object_key": f"work/{project_id}/stems/htdemucs/normalized/vocals.wav",
+            "vocal_object_key": f"work/{work_dir.name}/{vocal.relative_to(work_dir).as_posix()}",
         },
         "analysis": {
             "tempo_map": [{"time_ms": 0, "bpm": bpm}],
@@ -189,6 +184,7 @@ def build_real_project(
             "confidence": {"tempo": 0.65, "meter": meter_confidence, "key": 0.6},
         },
         "notes": notes,
+        "raw_notes": quantized_notes(detected, bpm, monophonic=False),
         "pipeline": [
             {
                 "stage": "audio_to_melody",

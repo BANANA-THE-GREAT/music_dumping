@@ -1,6 +1,6 @@
 import time
 from collections.abc import Iterator
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile, status
 from fastapi.responses import FileResponse, StreamingResponse
@@ -19,6 +19,7 @@ from app.schemas import (
     JobResponse,
     JobStage,
     JobStatus,
+    MelodyRequest,
     ProjectPatch,
     ProjectSummary,
     RequantizeRequest,
@@ -188,21 +189,38 @@ def export_project_musicxml(project_id: str, session: SessionDep) -> Response:
 
 @router.get("/projects/{project_id}/audio")
 def stream_project_audio(
-    project_id: str, session: SessionDep, settings: SettingsDep
+    project_id: str,
+    session: SessionDep,
+    settings: SettingsDep,
+    variant: Literal["source", "vocals"] = "source",
 ) -> FileResponse:
     record = session.get(ProjectRecord, project_id)
     if record is None:
         raise HTTPException(status_code=404, detail="Project not found")
     project = ScoreProject.model_validate(record.document)
-    path = resolve_data_path(settings, project.source.audio_object_key)
+    object_key = (
+        project.source.audio_object_key if variant == "source" else project.source.vocal_object_key
+    )
+    if not object_key:
+        raise HTTPException(status_code=404, detail="Separated vocals are not available")
+    path = resolve_data_path(settings, object_key)
+    if variant == "vocals" and not path.is_file():
+        # Older documents incorrectly used the project ID rather than the worker job ID.
+        path = resolve_data_path(
+            settings, f"work/{record.job_id}/stems/htdemucs/normalized/vocals.wav"
+        )
     if not path.is_file():
         raise HTTPException(status_code=404, detail="Project audio not found")
     job = session.get(JobRecord, record.job_id)
     upload = session.get(UploadRecord, job.upload_id) if job else None
     return FileResponse(
         path,
-        media_type=upload.content_type if upload else "application/octet-stream",
-        filename=project.source.file_name,
+        media_type="audio/wav"
+        if variant == "vocals"
+        else upload.content_type
+        if upload
+        else "application/octet-stream",
+        filename="vocals.wav" if variant == "vocals" else project.source.file_name,
     )
 
 
@@ -273,6 +291,49 @@ def delete_project(project_id: str, session: SessionDep, settings: SettingsDep) 
     if object_key is not None and other_job is None:
         remove_project_files(settings, object_key, job.id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/projects/{project_id}/melody", response_model=ScoreProject)
+def refine_project_melody(
+    project_id: str, request: MelodyRequest, session: SessionDep
+) -> ScoreProject:
+    from vss_worker.adapters import DetectedNote
+    from vss_worker.melody import quantized_notes, refine_melody
+
+    from app.schemas import PipelineStep, ScoreNote
+
+    if request.low_pitch > request.high_pitch:
+        raise HTTPException(status_code=422, detail="Invalid vocal pitch range")
+    record, project = _editable_project(project_id, request.expected_revision, session)
+    if project.raw_notes is None:
+        project.raw_notes = [n.model_copy(deep=True) for n in project.notes]
+    if request.mode == "raw":
+        project.notes = [n.model_copy(deep=True) for n in project.raw_notes]
+    else:
+        detected = [
+            DetectedNote(
+                n.source_start_ms / 1000, n.source_end_ms / 1000, n.pitch_midi, n.confidence
+            )
+            for n in project.raw_notes
+        ]
+        refined = refine_melody(detected, request.mode, request.low_pitch, request.high_pitch)
+        project.notes = [
+            ScoreNote.model_validate(n)
+            for n in quantized_notes(refined, project.analysis.tempo_map[0].bpm)
+        ]
+    project.pipeline.append(
+        PipelineStep(
+            stage="melody_refinement",
+            version="1",
+            parameters={
+                "method": "confidence_continuity_viterbi",
+                **request.model_dump(exclude={"expected_revision"}),
+                "input_notes": len(project.raw_notes),
+                "output_notes": len(project.notes),
+            },
+        )
+    )
+    return _save_project(record, project, session)
 
 
 @router.delete("/uploads/{upload_id}", status_code=status.HTTP_204_NO_CONTENT)
