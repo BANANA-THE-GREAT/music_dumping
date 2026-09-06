@@ -187,6 +187,10 @@ export class TaskProgressPanel {
     this.steps = stoppedProgress(this.steps, "failed", detail);
     this.render();
   }
+  cancel() {
+    this.steps = stoppedProgress(this.steps, "cancelled", "任务已取消");
+    this.render();
+  }
   interrupt() {
     this.steps = stoppedProgress(
       this.steps,

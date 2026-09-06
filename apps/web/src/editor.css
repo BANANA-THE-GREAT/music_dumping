@@ -124,6 +124,58 @@
   border: 1px solid #e5ded2;
 }
 
+.audio-modes {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+.audio-modes label {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  font-size: 13px;
+}
+#vocal-status {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  color: #50766e;
+}
+.melody-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 10px;
+  padding: 14px 0;
+  border-bottom: 1px solid #ded6ca;
+}
+.melody-controls label {
+  display: grid;
+  gap: 5px;
+  font-size: 12px;
+}
+.melody-controls input {
+  width: 90px;
+}
+.melody-controls select {
+  max-width: 160px;
+}
+.melody-controls button {
+  padding: 8px 12px;
+  border: 1px solid #c6d7d2;
+  color: #185f52;
+  background: #eaf4f0;
+  cursor: pointer;
+}
+.melody-controls output {
+  flex-basis: 100%;
+  color: #50766e;
+  font-size: 12px;
+}
+.empty {
+  pointer-events: none;
+}
+
 #staff .abcjs-staff {
   pointer-events: none;
 }

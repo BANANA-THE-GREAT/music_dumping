@@ -19,6 +19,8 @@ import { TaskProgressPanel } from "./task-progress";
 import { isolateCenterVocal, resampleAudio } from "./separation";
 import type { MusicalAnalysis, RawNote, ScoreNote } from "./types";
 import { drawWaveform } from "./waveform";
+import { VocalPreview, audioBlob } from "./vocal-preview";
+import { refineLocalMelody } from "./melody";
 import "./style.css";
 import "./editor.css";
 import "./task-progress.css";
@@ -76,6 +78,15 @@ transcribe.insertAdjacentHTML(
   "afterend",
   `<button class="ghost" id="retry-job" disabled>重试上次失败任务</button>`,
 );
+transcribe.insertAdjacentHTML(
+  "afterend",
+  `<button class="ghost hidden" id="cancel-job">取消任务</button>`,
+);
+$(".waveform-panel").insertAdjacentHTML(
+  "afterend",
+  `<section id="vocal-preview" class="waveform-panel"></section><section class="melody-controls"><label>旋律整理<select id="melody-mode"><option value="balanced">主旋律 · 均衡</option><option value="conservative">主旋律 · 保守</option><option value="raw">原始识别</option></select></label><label>最低音 MIDI<input id="melody-low" type="number" min="0" max="127" value="48"></label><label>最高音 MIDI<input id="melody-high" type="number" min="0" max="127" value="84"></label><button id="refine-melody" disabled>应用整理</button><output id="melody-result"></output></section>`,
+);
+const vocalPreview = new VocalPreview(audio, $("#vocal-preview"));
 audio.insertAdjacentHTML(
   "afterend",
   `<div class="field"><label>处理引擎</label><select id="engine"><option value="server-high">后端高质量 · Demucs</option><option value="server-demo">后端演示 · 快速</option><option value="local">浏览器本地模式</option></select><small>高质量模式需要部署模型 Worker</small></div>`,
@@ -104,7 +115,38 @@ let analysis: MusicalAnalysis = {
 const scorePlayer = new ScorePlayer();
 let playing = false;
 let transcriptionBusy = false;
+let taskAbort: AbortController | null = null;
+let activeJobId: string | null = null;
+let cancelRequested = false;
+let localOriginalNotes: RawNote[] = [];
+function checkTaskCancelled() {
+  if (cancelRequested || taskAbort?.signal.aborted)
+    throw new DOMException("任务已取消", "AbortError");
+}
+function handleCancellation(error: unknown) {
+  if (!(error instanceof DOMException && error.name === "AbortError"))
+    return false;
+  taskProgress.cancel();
+  status("任务已取消");
+  return true;
+}
+async function cancelSubmittedJob(id: string) {
+  if (!cancelRequested) return;
+  try {
+    await api.cancelJob(id);
+  } catch (error) {
+    if (!(error instanceof ApiError) || error.status !== 409) throw error;
+    cancelRequested = false;
+  }
+}
 function setTranscriptionBusy(busy: boolean) {
+  if (busy) {
+    taskAbort = new AbortController();
+    cancelRequested = false;
+  } else {
+    taskAbort = null;
+    activeJobId = null;
+  }
   transcriptionBusy = busy;
   transcribe.disabled = busy || !sourceBuffer;
   input.disabled = busy;
@@ -115,7 +157,38 @@ function setTranscriptionBusy(busy: boolean) {
     busy || !$<HTMLSelectElement>("#recent-project").value;
   $<HTMLButtonElement>("#retry-job").disabled =
     busy || !localStorage.getItem(FAILED_JOB_KEY);
+  $("#cancel-job").classList.toggle("hidden", !busy);
+  $<HTMLButtonElement>("#cancel-job").disabled = false;
+  $<HTMLButtonElement>("#refine-melody").disabled =
+    busy ||
+    (!notes.length &&
+      !localOriginalNotes.length &&
+      !serverProject?.raw_notes?.length);
 }
+$("#cancel-job").addEventListener("click", async () => {
+  cancelRequested = true;
+  $<HTMLButtonElement>("#cancel-job").disabled = true;
+  status("正在取消任务…");
+  try {
+    if (activeJobId) {
+      try {
+        taskProgress.updateJob(await api.cancelJob(activeJobId));
+      } catch (error) {
+        if (!(error instanceof ApiError) || error.status !== 409) throw error;
+        const current = await api.getJob(activeJobId);
+        if (current.status === "completed") {
+          cancelRequested = false;
+          status("任务已完成，正在载入结果…");
+          return;
+        }
+      }
+    } else taskAbort?.abort();
+  } catch (error) {
+    cancelRequested = false;
+    $<HTMLButtonElement>("#cancel-job").disabled = false;
+    status(`取消失败：${error instanceof Error ? error.message : "未知错误"}`);
+  }
+});
 function status(message: string) {
   $("#status").textContent = message;
 }
@@ -133,7 +206,8 @@ async function load(file: File) {
   status("正在解码音频…");
   sourceFile = file;
   serverProject = null;
-  audio.src = URL.createObjectURL(file);
+  vocalPreview.setSource(URL.createObjectURL(file));
+  localOriginalNotes = [];
   sourceBuffer = await new AudioContext().decodeAudioData(
     await file.arrayBuffer(),
   );
@@ -163,37 +237,49 @@ isolate.addEventListener(
   () => ($("#isolateValue").textContent = `${isolate.value}%`),
 );
 async function infer(buffer: AudioBuffer) {
-  const {
-    BasicPitch,
-    addPitchBendsToNoteEvents,
-    noteFramesToTime,
-    outputToNotesPoly,
-  } = await import("@spotify/basic-pitch");
-  const frames: number[][] = [],
-    onsets: number[][] = [],
-    contours: number[][] = [];
-  const model = new BasicPitch(
-    `${location.origin}/basic-pitch-model/model.json`,
-  );
-  await model.evaluateModel(
-    buffer,
-    (f, o, c) => {
-      frames.push(...f);
-      onsets.push(...o);
-      contours.push(...c);
-    },
-    (p) => {
-      taskProgress.start("transcribe", "正在识别人声旋律", p * 100);
-      status(`正在识别人声旋律… ${Math.min(99, Math.floor(p * 100))}%`);
-    },
-  );
-  const threshold = Number($<HTMLSelectElement>("#sensitivity").value);
-  return noteFramesToTime(
-    addPitchBendsToNoteEvents(
-      contours,
-      outputToNotesPoly(frames, onsets, threshold, 0.28, 5),
-    ),
-  ) as RawNote[];
+  checkTaskCancelled();
+  const signal = taskAbort!.signal;
+  const worker = new Worker(new URL("./inference.worker.ts", import.meta.url), {
+    type: "module",
+  });
+  return new Promise<RawNote[]>((resolve, reject) => {
+    const finish = () => {
+      worker.terminate();
+      signal.removeEventListener("abort", cancel);
+    };
+    const cancel = () => {
+      finish();
+      reject(new DOMException("任务已取消", "AbortError"));
+    };
+    signal.addEventListener("abort", cancel, { once: true });
+    worker.onerror = (event) => {
+      finish();
+      reject(new Error(event.message));
+    };
+    worker.onmessage = (event) => {
+      if (event.data.error) {
+        finish();
+        reject(new Error(event.data.error));
+      } else if (event.data.notes) {
+        finish();
+        resolve(event.data.notes);
+      } else
+        taskProgress.start(
+          "transcribe",
+          "正在识别人声旋律",
+          event.data.progress * 100,
+        );
+    };
+    const samples = buffer.getChannelData(0).slice();
+    worker.postMessage(
+      {
+        samples,
+        threshold: Number($<HTMLSelectElement>("#sensitivity").value),
+        modelUrl: `${location.origin}/basic-pitch-model/model.json`,
+      },
+      [samples.buffer],
+    );
+  });
 }
 async function runLocal() {
   if (!sourceBuffer) return;
@@ -207,15 +293,21 @@ async function runLocal() {
     sourceBuffer,
     Number(isolate.value) / 100,
   );
+  checkTaskCancelled();
+  vocalPreview.setVocals(URL.createObjectURL(audioBlob(isolated)), isolated);
   taskProgress.start("separate", "正在重采样人声");
   status("正在重采样人声…");
   const vocal = await resampleAudio(isolated);
+  checkTaskCancelled();
   taskProgress.start("transcribe", "正在加载音高模型");
   status("正在加载音高模型…");
   rawNotes = await infer(vocal);
+  checkTaskCancelled();
+  localOriginalNotes = rawNotes.map((n) => ({ ...n }));
   taskProgress.start("transcribe", "正在分析 BPM、拍号与调性");
   status("正在分析 BPM、拍号与调性…");
   analysis = analyzeMusic(sourceBuffer, rawNotes);
+  applyLocalRefinement();
 }
 function applyApiProject(project: ApiScoreProject) {
   stop();
@@ -247,14 +339,28 @@ function applyApiProject(project: ApiScoreProject) {
 }
 async function loadServerAudio(project: ApiScoreProject) {
   const url = api.audioUrl(project.project_id);
-  audio.src = url;
+  vocalPreview.setSource(url);
+  vocalPreview.setVocals(
+    project.source.vocal_object_key
+      ? api.audioUrl(project.project_id, "vocals")
+      : "",
+  );
   try {
-    sourceBuffer = await new AudioContext().decodeAudioData(
-      await (await fetch(url)).arrayBuffer(),
-    );
+    const response = await fetch(url);
+    if (!response.ok) throw new Error("源音频不可用");
+    const bytes = await response.arrayBuffer();
+    const decoded = await new AudioContext().decodeAudioData(bytes.slice(0));
+    if (serverProject?.project_id !== project.project_id) return;
+    sourceFile = new File([bytes], project.source.file_name, {
+      type: response.headers.get("content-type") || "audio/wav",
+    });
+    sourceBuffer = decoded;
+    transcribe.disabled = transcriptionBusy;
     drawWaveform($<HTMLCanvasElement>("#waveform"), sourceBuffer);
   } catch {
     sourceBuffer = null;
+    sourceFile = null;
+    transcribe.disabled = true;
   }
 }
 async function recoverRevisionConflict(error: unknown) {
@@ -271,11 +377,14 @@ async function runServer(quality: "demo" | "high") {
   if (!sourceFile) return;
   taskProgress.start("prepare", "正在上传音频");
   status("正在上传音频…");
-  const upload = await api.upload(sourceFile);
+  const upload = await api.upload(sourceFile, taskAbort?.signal);
+  checkTaskCancelled();
   taskProgress.start("prepare", "正在提交处理任务");
   status("已进入后端处理队列…");
   const submitted = await api.createJob(upload.id, quality);
   localStorage.setItem(ACTIVE_JOB_KEY, submitted.id);
+  activeJobId = submitted.id;
+  await cancelSubmittedJob(submitted.id);
   const job = await waitForServerJob(submitted.id);
   if (!job.project_id) throw new Error("后端未返回乐谱项目");
   serverProject = await api.getProject(job.project_id);
@@ -284,10 +393,13 @@ async function runServer(quality: "demo" | "high") {
   void refreshProjects();
 }
 async function waitForServerJob(jobId: string) {
+  activeJobId = jobId;
   let terminal = false;
+  let cancelled = false;
   try {
     const job = await api.waitForJobEvents(jobId, (current) => {
       terminal = ["completed", "failed", "cancelled"].includes(current.status);
+      cancelled = current.status === "cancelled";
       if (current.status === "completed")
         taskProgress.start("transcribe", "正在载入乐谱");
       else taskProgress.updateJob(current);
@@ -301,6 +413,10 @@ async function waitForServerJob(jobId: string) {
     $<HTMLButtonElement>("#retry-job").disabled = true;
     return job;
   } catch (error) {
+    if (cancelled) {
+      localStorage.removeItem(FAILED_JOB_KEY);
+      throw new DOMException("任务已取消", "AbortError");
+    }
     if (error instanceof ApiError && error.status === 404) {
       terminal = true;
       taskProgress.fail("原任务已不存在，请重新开始");
@@ -326,6 +442,8 @@ $("#retry-job").addEventListener("click", async () => {
     status("正在重新提交任务…");
     const submitted = await api.retryJob(failedJobId);
     localStorage.setItem(ACTIVE_JOB_KEY, submitted.id);
+    activeJobId = submitted.id;
+    await cancelSubmittedJob(submitted.id);
     const job = await waitForServerJob(submitted.id);
     if (!job.project_id) throw new Error("重试任务没有乐谱项目");
     serverProject = await api.getProject(job.project_id);
@@ -337,6 +455,7 @@ $("#retry-job").addEventListener("click", async () => {
     void refreshProjects();
     status("重试任务已完成");
   } catch (error) {
+    if (handleCancellation(error)) return;
     taskProgress.fail(error instanceof Error ? error.message : "未知错误");
     status(`重试失败：${error instanceof Error ? error.message : "未知错误"}`);
   } finally {
@@ -362,6 +481,7 @@ async function resumeActiveJob() {
       `任务已恢复 · ${serverProject.source.file_name} · ${serverProject.notes.length} 个音符`,
     );
   } catch (error) {
+    if (handleCancellation(error)) return;
     taskProgress.fail(error instanceof Error ? error.message : "未知错误");
     status(
       `任务恢复失败：${error instanceof Error ? error.message : "未知错误"}`,
@@ -459,6 +579,7 @@ transcribe.addEventListener("click", async () => {
       `完成 · ${analysis.bpm} BPM · ${analysis.meter}/${analysis.meterDenominator} · ${keyName(analysis.keyPitchClass, analysis.mode)} · ${notes.length} 个音符`,
     );
   } catch (e) {
+    if (handleCancellation(e)) return;
     console.error(e);
     taskProgress.fail(e instanceof Error ? e.message : "未知错误");
     status(`处理未完成：${e instanceof Error ? e.message : "未知错误"}`);
@@ -475,6 +596,109 @@ function sync() {
   $("#meterConfidence").textContent = conf(analysis.confidence.meter);
   $("#keyConfidence").textContent = conf(analysis.confidence.key);
 }
+function melodyOptions() {
+  const low = $<HTMLInputElement>("#melody-low"),
+    high = $<HTMLInputElement>("#melody-high");
+  if (
+    !low.checkValidity() ||
+    !high.checkValidity() ||
+    !low.value ||
+    !high.value ||
+    Number(low.value) > Number(high.value)
+  )
+    throw new Error("请设置有效音域，最低音不能高于最高音");
+  return {
+    mode: $<HTMLSelectElement>("#melody-mode").value as
+      "raw" | "balanced" | "conservative",
+    low_pitch: Number(low.value),
+    high_pitch: Number(high.value),
+  };
+}
+function applyLocalRefinement() {
+  const options = melodyOptions();
+  rawNotes = refineLocalMelody(localOriginalNotes, options);
+  const beat = 60 / analysis.bpm;
+  let updated: EditableNote[] = rawNotes.map((n) => ({
+    id: crypto.randomUUID(),
+    source_start_ms: Math.round(n.startTimeSeconds * 1000),
+    source_end_ms: Math.round((n.startTimeSeconds + n.durationSeconds) * 1000),
+    pitch_midi: n.pitchMidi,
+    confidence: n.amplitude,
+    quantized_start: Math.round((n.startTimeSeconds / beat) * 4) / 4,
+    quantized_duration: Math.max(
+      0.25,
+      Math.round(((n.startTimeSeconds + n.durationSeconds) / beat) * 4) / 4 -
+        Math.round((n.startTimeSeconds / beat) * 4) / 4,
+    ),
+    origin: "model",
+  }));
+  if (options.mode !== "raw") {
+    const starts = new Map<number, EditableNote>();
+    for (const n of updated) {
+      const previous = starts.get(n.quantized_start);
+      if (!previous || n.confidence > previous.confidence)
+        starts.set(n.quantized_start, n);
+    }
+    updated = [...starts.values()].sort(
+      (a, b) => a.quantized_start - b.quantized_start,
+    );
+    updated.forEach((n, i) => {
+      const next = updated[i + 1];
+      if (next)
+        n.quantized_duration = Math.min(
+          n.quantized_duration,
+          next.quantized_start - n.quantized_start,
+        );
+    });
+  }
+  scoreHistory = new ScoreHistory(updated);
+  selectedNoteIndex = null;
+  $("#melody-result").textContent =
+    `${localOriginalNotes.length} → ${updated.length} 个音符`;
+}
+$("#refine-melody").addEventListener("click", async () => {
+  if (
+    transcriptionBusy ||
+    editSaving ||
+    (!notes.length &&
+      !localOriginalNotes.length &&
+      !serverProject?.raw_notes?.length)
+  )
+    return;
+  if (
+    scoreHistory?.canUndo &&
+    !confirm("重新整理会替换当前音符编辑，是否继续？")
+  )
+    return;
+  try {
+    const options = melodyOptions();
+    stop();
+    editSaving = true;
+    refreshSelection();
+    $<HTMLButtonElement>("#refine-melody").disabled = true;
+    if (serverProject) {
+      serverProject = await api.refineMelody(
+        serverProject.project_id,
+        serverProject.revision,
+        options,
+      );
+      applyApiProject(serverProject);
+      $("#melody-result").textContent =
+        `${serverProject.raw_notes?.length ?? 0} → ${serverProject.notes.length} 个音符`;
+    } else applyLocalRefinement();
+    await render();
+    status(options.mode === "raw" ? "已恢复原始识别" : "主旋律整理已完成");
+  } catch (error) {
+    if (!(await recoverRevisionConflict(error)))
+      status(
+        `整理失败：${error instanceof Error ? error.message : "未知错误"}`,
+      );
+  } finally {
+    editSaving = false;
+    refreshSelection();
+    $<HTMLButtonElement>("#refine-melody").disabled = false;
+  }
+});
 async function update() {
   stop();
   if (!bpm.checkValidity() || !Number.isFinite(Number(bpm.value))) {
@@ -521,6 +745,10 @@ $("#example").addEventListener("click", () => {
   taskProgress.reset();
   serverProject = null;
   rawNotes = demoNotes();
+  localOriginalNotes = rawNotes.map((n) => ({ ...n }));
+  $("#melody-result").textContent = "";
+  $<HTMLSelectElement>("#recent-project").value = "";
+  $<HTMLButtonElement>("#delete-project").disabled = true;
   analysis = {
     bpm: 120,
     meter: 4,
@@ -551,6 +779,12 @@ async function render() {
         keyRootMidi(analysis.keyPitchClass),
         analysis.mode,
       );
+  $<HTMLButtonElement>("#refine-melody").disabled =
+    transcriptionBusy ||
+    editSaving ||
+    (!notes.length &&
+      !localOriginalNotes.length &&
+      !serverProject?.raw_notes?.length);
   if (!scoreHistory) {
     scoreHistory = new ScoreHistory(
       notes.map((n) => ({

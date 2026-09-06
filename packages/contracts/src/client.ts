@@ -36,10 +36,10 @@ export class VocalScoreApi {
       ? (undefined as T)
       : (response.json() as Promise<T>);
   }
-  upload(file: File): Promise<UploadResponse> {
+  upload(file: File, signal?: AbortSignal): Promise<UploadResponse> {
     const body = new FormData();
     body.append("file", file);
-    return this.request("/v1/uploads", { method: "POST", body });
+    return this.request("/v1/uploads", { method: "POST", body, signal });
   }
   createJob(
     uploadId: string,
@@ -96,9 +96,14 @@ export class VocalScoreApi {
   audioUrl(id: string, variant: "source" | "vocals" = "source"): string {
     return `${this.baseUrl}/v1/projects/${id}/audio${variant === "vocals" ? "?variant=vocals" : ""}`;
   }
-  refineMelody(id: string, expectedRevision: number, options: MelodyOptions): Promise<ScoreProject> {
+  refineMelody(
+    id: string,
+    expectedRevision: number,
+    options: MelodyOptions,
+  ): Promise<ScoreProject> {
     return this.request(`/v1/projects/${id}/melody`, {
-      method: "POST", headers: { "content-type": "application/json" },
+      method: "POST",
+      headers: { "content-type": "application/json" },
       body: JSON.stringify({ expected_revision: expectedRevision, ...options }),
     });
   }
