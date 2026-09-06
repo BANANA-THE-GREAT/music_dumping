@@ -10,8 +10,9 @@ import {
   cleanAndQuantize,
   demoNotes,
   displayQuantizedNotes,
-  toAbc,
+  mappedAbc,
 } from "./music";
+import { renderJianpu } from "./notation";
 import { pianoRollMetrics, renderPianoRoll } from "./piano-roll";
 import { TaskProgressPanel } from "./task-progress";
 import { isolateCenterVocal, resampleAudio } from "./separation";
@@ -31,7 +32,7 @@ document
   .querySelector(".toolbar")!
   .insertAdjacentHTML(
     "afterend",
-    `<div class="edit-actions"><button id="undo" disabled>↶ 撤销</button><button id="redo" disabled>↷ 重做</button><button id="shorter" disabled>缩短</button><button id="longer" disabled>延长</button><button id="split" disabled>拆分</button><button id="merge" disabled>与后音合并</button><button id="delete-note" disabled>删除</button></div>`,
+    `<div class="edit-actions"><button id="undo" title="撤销" disabled>↶</button><button id="redo" title="重做" disabled>↷</button><button id="pitch-up" title="升高半音" disabled>↑</button><button id="pitch-down" title="降低半音" disabled>↓</button><button id="shorter" disabled>缩短</button><button id="longer" disabled>延长</button><button id="split" disabled>拆分</button><button id="merge" disabled>与后音合并</button><button id="delete-note" disabled>删除</button></div>`,
   );
 document
   .querySelector(".edit-actions")!
@@ -55,7 +56,7 @@ document
   .querySelector("#piano")!
   .insertAdjacentHTML(
     "beforebegin",
-    `<small class="roll-help">拖动音符可调整起点和音高；Shift + 拖动调整时值</small>`,
+    `<div id="roll-zoom" class="hidden"><label>缩放 <input id="zoom" type="range" min="1" max="8" step="0.1" value="1"></label><output id="zoom-value">100%</output></div>`,
   );
 
 const $ = <T extends HTMLElement>(s: string) => document.querySelector<T>(s)!;
@@ -121,6 +122,12 @@ const conf = (v: number) =>
   v < 0.4 ? "低置信度 · 建议校正" : v < 0.7 ? "中等置信度" : "高置信度";
 async function load(file: File) {
   if (transcriptionBusy) return;
+  stop();
+  scoreHistory = null;
+  selectedNoteIndex = null;
+  rawNotes = [];
+  notes = [];
+  void render();
   taskProgress.reset();
   status("正在解码音频…");
   sourceFile = file;
@@ -189,6 +196,10 @@ async function infer(buffer: AudioBuffer) {
 }
 async function runLocal() {
   if (!sourceBuffer) return;
+  stop();
+  serverProject = null;
+  scoreHistory = null;
+  selectedNoteIndex = null;
   taskProgress.start("separate", "提取中心人声与增强语音频段");
   status("正在提取中心人声与增强语音频段…");
   const isolated = await isolateCenterVocal(
@@ -206,6 +217,7 @@ async function runLocal() {
   analysis = analyzeMusic(sourceBuffer, rawNotes);
 }
 function applyApiProject(project: ApiScoreProject) {
+  stop();
   selectedNoteIndex = null;
   scoreHistory = new ScoreHistory(project.notes);
   const tempo = project.analysis.tempo_map[0];
@@ -410,11 +422,13 @@ $("#delete-project").addEventListener("click", async () => {
   try {
     await api.deleteProject(projectId);
     if (serverProject?.project_id === projectId) {
+      stop();
       serverProject = null;
       scoreHistory = null;
       selectedNoteIndex = null;
       rawNotes = [];
       notes = [];
+      void render();
       $("#staff").innerHTML = "";
       $("#jianpu").innerHTML = "";
       $("#empty").classList.remove("hidden");
@@ -461,6 +475,11 @@ function sync() {
   $("#keyConfidence").textContent = conf(analysis.confidence.key);
 }
 async function update() {
+  stop();
+  if (!bpm.checkValidity() || !Number.isFinite(Number(bpm.value))) {
+    bpm.value = String(analysis.bpm);
+    return;
+  }
   const [numerator, denominator] = meter.value.split("/").map(Number);
   analysis = {
     ...analysis,
@@ -495,6 +514,9 @@ async function update() {
 }
 [bpm, meter, key, mode].forEach((el) => el.addEventListener("change", update));
 $("#example").addEventListener("click", () => {
+  stop();
+  scoreHistory = null;
+  selectedNoteIndex = null;
   taskProgress.reset();
   serverProject = null;
   rawNotes = demoNotes();
@@ -510,7 +532,10 @@ $("#example").addEventListener("click", () => {
   render();
   status("已载入完整示例 · 所有参数均可修改");
 });
+let renderVersion = 0;
+let rollZoom = 1;
 async function render() {
+  const version = ++renderVersion;
   const authoritativeNotes = scoreHistory?.value ?? serverProject?.notes;
   notes = authoritativeNotes
     ? displayQuantizedNotes(
@@ -525,128 +550,235 @@ async function render() {
         keyRootMidi(analysis.keyPitchClass),
         analysis.mode,
       );
-  $("#empty").classList.add("hidden");
+  if (!scoreHistory) {
+    scoreHistory = new ScoreHistory(
+      notes.map((n) => ({
+        id: crypto.randomUUID(),
+        source_start_ms: Math.round(n.startTimeSeconds * 1000),
+        source_end_ms: Math.round(
+          (n.startTimeSeconds + n.durationSeconds) * 1000,
+        ),
+        pitch_midi: n.pitchMidi,
+        confidence: n.amplitude,
+        quantized_start: n.startBeat,
+        quantized_duration: n.durationBeats,
+        origin: "model" as const,
+      })),
+    );
+  }
+  $("#empty").classList.toggle("hidden", notes.length > 0);
   const abcKey =
-    KEYS[analysis.keyPitchClass].replace("♯", "#") +
+    KEYS[analysis.keyPitchClass].replace("♯", "#").replace("♭", "b") +
     (analysis.mode === "minor" ? "m" : "");
   const { default: ABCJS } = await import("abcjs");
-  ABCJS.renderAbc(
-    "staff",
-    toAbc(
-      notes,
-      analysis.bpm,
-      analysis.meter,
-      analysis.meterDenominator,
-      abcKey,
-    ),
-    {
-      responsive: "resize",
-      add_classes: true,
-      staffwidth: 860,
-      wrap: {
-        minSpacing: 1.7,
-        maxSpacing: 2.7,
-        preferredMeasuresPerLine: analysis.meter === 3 ? 6 : 4,
-      },
-    },
+  if (version !== renderVersion) return;
+  const score = mappedAbc(
+    notes,
+    analysis.bpm,
+    analysis.meter,
+    analysis.meterDenominator,
+    abcKey,
   );
+  const [tune] = ABCJS.renderAbc("staff", score.abc, {
+    responsive: "resize",
+    add_classes: true,
+    staffwidth: 860,
+    wrap: {
+      minSpacing: 1.7,
+      maxSpacing: 2.7,
+      preferredMeasuresPerLine: analysis.meter === 3 ? 6 : 4,
+    },
+  });
+  for (const { offset, index } of score.mapping) {
+    const item = tune?.getElementFromChar(offset) as {
+      abselem?: import("abcjs").AbsoluteElement;
+    } | null;
+    const elements = item?.abselem?.elemset;
+    for (const element of elements ?? []) {
+      element.dataset.note = String(index);
+      element.setAttribute("tabindex", "0");
+      element.setAttribute("role", "button");
+      element.setAttribute("aria-label", `音符 ${index + 1}`);
+    }
+  }
   $("#jianpu").innerHTML =
-    `<div class="jianpu-meta">1 = ${KEYS[analysis.keyPitchClass]}　${analysis.meter}/${analysis.meterDenominator}　♩ = ${analysis.bpm}<small>点击音符后按 ↑ / ↓ 升降半音</small></div>` +
-    notes
-      .map(
-        (n, i) =>
-          `<span class="jp-note${selectedNoteIndex === i ? " selected" : ""}" data-note="${i}" tabindex="0"><b>${n.accidental === 1 ? "♯" : n.accidental === -1 ? "♭" : ""}${n.degree}</b><em>${n.octave > 0 ? "·".repeat(n.octave) : ""}</em><i>${n.octave < 0 ? "·".repeat(-n.octave) : ""}</i><small>${n.durationBeats < 1 ? "━".repeat(Math.round(Math.log2(1 / n.durationBeats))) : n.durationBeats >= 2 ? "—" : ""}</small></span>`,
-      )
-      .join("");
+    `<div class="jianpu-meta">1 = ${KEYS[analysis.keyPitchClass]}　${analysis.meter}/${analysis.meterDenominator}　♩ = ${analysis.bpm}</div>` +
+    renderJianpu(notes, (analysis.meter * 4) / analysis.meterDenominator);
   $("#piano").innerHTML = renderPianoRoll(notes, selectedNoteIndex);
+  applyRollZoom();
+  refreshSelection();
   [play, $<HTMLButtonElement>("#midi"), $<HTMLButtonElement>("#xml")].forEach(
     (b) => (b.disabled = !notes.length),
   );
+}
+function refreshSelection() {
+  editableSelectionId =
+    selectedNoteIndex === null
+      ? undefined
+      : scoreHistory?.value[selectedNoteIndex]?.id;
+  document
+    .querySelectorAll<HTMLElement | SVGElement>("[data-note]")
+    .forEach((el) => {
+      const selected = Number(el.dataset.note) === selectedNoteIndex;
+      el.classList.toggle("selected", selected);
+      el.setAttribute("aria-pressed", String(selected));
+    });
   const selected =
     selectedNoteIndex !== null && Boolean(notes[selectedNoteIndex]);
-  ["#shorter", "#longer", "#split", "#merge", "#delete-note"].forEach(
+  [
+    "#pitch-up",
+    "#pitch-down",
+    "#shorter",
+    "#longer",
+    "#split",
+    "#merge",
+    "#delete-note",
+  ].forEach(
     (selector) =>
-      ($<HTMLButtonElement>(selector).disabled = !selected || !scoreHistory),
+      ($<HTMLButtonElement>(selector).disabled =
+        !selected || !scoreHistory || editSaving),
   );
-  $<HTMLButtonElement>("#undo").disabled = !scoreHistory?.canUndo;
-  $<HTMLButtonElement>("#redo").disabled = !scoreHistory?.canRedo;
+  $<HTMLButtonElement>("#undo").disabled = !scoreHistory?.canUndo || editSaving;
+  $<HTMLButtonElement>("#redo").disabled = !scoreHistory?.canRedo || editSaving;
+  [bpm, meter, key, mode].forEach((el) => {
+    el.disabled = editSaving;
+  });
+  for (const selector of [
+    "#example",
+    "#recent-project",
+    "#file",
+    "#delete-project",
+    "#transcribe",
+  ]) {
+    const el = $<HTMLButtonElement>(selector);
+    if (editSaving) {
+      if (!el.hasAttribute("data-save-disabled"))
+        el.dataset.saveDisabled = String(el.disabled);
+      el.disabled = true;
+    } else if (el.hasAttribute("data-save-disabled")) {
+      el.disabled = el.dataset.saveDisabled === "true";
+      delete el.dataset.saveDisabled;
+    }
+  }
 }
-$<HTMLDivElement>("#jianpu").addEventListener("click", (event) => {
-  const target = (event.target as HTMLElement).closest<HTMLElement>(
-    "[data-note]",
-  );
-  if (!target) return;
-  selectedNoteIndex = Number(target.dataset.note);
-  render();
-  document
-    .querySelector<HTMLElement>(`[data-note="${selectedNoteIndex}"]`)
-    ?.focus();
-});
-$<HTMLDivElement>("#piano").addEventListener("click", (event) => {
-  const target = (event.target as Element).closest<SVGElement>("[data-note]");
-  if (!target) return;
-  selectedNoteIndex = Number(target.dataset.note);
-  render();
-});
-let rollDrag: { index: number; resize: boolean } | null = null;
+for (const selector of ["#staff", "#jianpu", "#piano"]) {
+  $(selector).addEventListener("click", (event) => {
+    const target = (event.target as Element).closest<HTMLElement | SVGElement>(
+      "[data-note]",
+    );
+    if (!target) return;
+    selectedNoteIndex = Number(target.dataset.note);
+    refreshSelection();
+    document
+      .querySelectorAll(`[data-note="${selectedNoteIndex}"]`)
+      .forEach((el) => {
+        el.classList.remove("note-hit");
+        void el.getBoundingClientRect();
+        el.classList.add("note-hit");
+      });
+    target.focus();
+  });
+}
+function applyRollZoom() {
+  const svg = $("#piano").querySelector("svg");
+  if (svg) {
+    svg.style.width = `${rollZoom * 100}%`;
+    svg.style.height = "280px";
+    svg.setAttribute("preserveAspectRatio", "none");
+  }
+  $<HTMLInputElement>("#zoom").value = String(rollZoom);
+  $("#zoom-value").textContent = `${Math.round(rollZoom * 100)}%`;
+}
+function zoomRoll(next: number, anchor: number) {
+  const pane = $("#piano");
+  const oldWidth =
+    pane.querySelector("svg")?.getBoundingClientRect().width ??
+    pane.clientWidth;
+  const position = (pane.scrollLeft + anchor) / oldWidth;
+  rollZoom = Math.max(1, Math.min(8, next));
+  applyRollZoom();
+  pane.scrollLeft =
+    position *
+      (pane.querySelector("svg")?.getBoundingClientRect().width ?? oldWidth) -
+    anchor;
+}
+$("#piano").addEventListener(
+  "wheel",
+  (event) => {
+    if (!event.ctrlKey) return;
+    event.preventDefault();
+    const delta =
+      event.deltaY *
+      (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? 280 : 1);
+    zoomRoll(
+      rollZoom * Math.exp(-delta * 0.002),
+      event.clientX - $("#piano").getBoundingClientRect().left,
+    );
+  },
+  { passive: false },
+);
+$("#zoom").addEventListener("input", () =>
+  zoomRoll(
+    Number($<HTMLInputElement>("#zoom").value),
+    $("#piano").clientWidth / 2,
+  ),
+);
+let rollDrag: { index: number; resize: boolean; x: number; y: number } | null =
+  null;
 $<HTMLDivElement>("#piano").addEventListener("pointerdown", (event) => {
   const target = (event.target as Element).closest<SVGElement>("[data-note]");
   if (!target) return;
-  rollDrag = { index: Number(target.dataset.note), resize: event.shiftKey };
+  rollDrag = {
+    index: Number(target.dataset.note),
+    resize: event.shiftKey,
+    x: event.clientX,
+    y: event.clientY,
+  };
   selectedNoteIndex = rollDrag.index;
-  target.setPointerCapture(event.pointerId);
+  $("#piano").setPointerCapture(event.pointerId);
+  refreshSelection();
+});
+$("#piano").addEventListener("pointercancel", () => {
+  rollDrag = null;
 });
 $<HTMLDivElement>("#piano").addEventListener("pointerup", (event) => {
-  if (!rollDrag || !scoreHistory || !serverProject) return;
+  const drag = rollDrag;
+  rollDrag = null;
+  if (!drag || !scoreHistory || editSaving) return;
+  if (Math.hypot(event.clientX - drag.x, event.clientY - drag.y) < 4) return;
   const svg = $<HTMLDivElement>("#piano").querySelector("svg");
-  const note = serverProject.notes[rollDrag.index];
+  const note = scoreHistory.value[drag.index];
   if (!svg || !note) return;
   const bounds = svg.getBoundingClientRect();
-  const x = Math.max(
-    0,
-    Math.min(1, (event.clientX - bounds.left) / bounds.width),
-  );
-  const y = Math.max(
-    0,
-    Math.min(1, (event.clientY - bounds.top) / bounds.height),
-  );
+  const x = (event.clientX - drag.x) / bounds.width;
+  const y = (event.clientY - drag.y) / bounds.height;
   const metrics = pianoRollMetrics(notes);
-  if (rollDrag.resize) {
-    const end = Math.round(x * metrics.endBeat * 4) / 4;
+  if (drag.resize) {
+    const duration =
+      Math.round((note.quantized_duration + x * metrics.endBeat) * 4) / 4;
     void saveEditedNotes(
       scoreHistory.execute({
         type: "resize",
         noteId: note.id,
-        duration: end - note.quantized_start,
+        duration,
       }),
       "时值拖动",
     );
   } else {
-    const start = Math.round(x * metrics.endBeat * 4) / 4;
+    const start =
+      Math.round((note.quantized_start + x * metrics.endBeat) * 4) / 4;
     const pitch = Math.round(
-      metrics.highPitch - y * (metrics.highPitch - metrics.lowPitch),
+      note.pitch_midi - y * (metrics.highPitch - metrics.lowPitch + 1),
     );
     void saveEditedNotes(
       scoreHistory.execute({ type: "move", noteId: note.id, start, pitch }),
       "音符拖动",
     );
   }
-  rollDrag = null;
 });
 async function transposeSelected(semitones: number) {
-  if (selectedNoteIndex === null || !notes[selectedNoteIndex]) return;
-  const scoreNote = notes[selectedNoteIndex];
-  const rawNote = rawNotes[scoreNote.id];
-  if (!rawNote) return;
-  if (!scoreHistory || !serverProject?.notes[selectedNoteIndex]) {
-    rawNote.pitchMidi = Math.max(
-      0,
-      Math.min(127, rawNote.pitchMidi + semitones),
-    );
-    render();
-    return;
-  }
-  const current = serverProject.notes[selectedNoteIndex];
+  const current = selectedEditableNote();
+  if (!current || !scoreHistory) return;
   const updated = scoreHistory.execute({
     type: "move",
     noteId: current.id,
@@ -669,8 +801,20 @@ function useEditedNotes(updated: EditableNote[]) {
   render();
 }
 async function saveEditedNotes(updated: EditableNote[], label: string) {
-  if (!serverProject) return;
+  stop();
+  const selectedId =
+    selectedNoteIndex === null ? undefined : editableSelectionId;
+  if (selectedId) {
+    const index = updated.findIndex((n) => n.id === selectedId);
+    if (index >= 0) selectedNoteIndex = index;
+  }
   useEditedNotes(updated);
+  if (!serverProject) {
+    status(`${label}已更新`);
+    return;
+  }
+  editSaving = true;
+  refreshSelection();
   try {
     status(`正在保存${label}…`);
     serverProject = await api.updateProject(
@@ -682,9 +826,30 @@ async function saveEditedNotes(updated: EditableNote[], label: string) {
   } catch (error) {
     if (await recoverRevisionConflict(error)) return;
     status(`保存失败：${error instanceof Error ? error.message : "未知错误"}`);
+  } finally {
+    editSaving = false;
+    refreshSelection();
   }
 }
+let editSaving = false;
+let editableSelectionId: string | undefined;
 document.addEventListener("keydown", (event) => {
+  if (
+    (event.target as Element).closest(
+      "input, select, textarea, [contenteditable=true]",
+    )
+  )
+    return;
+  if (
+    ["Enter", " "].includes(event.key) &&
+    (event.target as Element).closest("[data-note]")
+  ) {
+    event.preventDefault();
+    (event.target as HTMLElement).dispatchEvent(
+      new MouseEvent("click", { bubbles: true }),
+    );
+    return;
+  }
   if (
     selectedNoteIndex === null ||
     !["ArrowUp", "ArrowDown"].includes(event.key)
@@ -694,10 +859,12 @@ document.addEventListener("keydown", (event) => {
   void transposeSelected(event.key === "ArrowUp" ? 1 : -1);
 });
 function selectedEditableNote() {
-  return selectedNoteIndex === null
+  return selectedNoteIndex === null || editSaving
     ? undefined
-    : serverProject?.notes[selectedNoteIndex];
+    : scoreHistory?.value[selectedNoteIndex];
 }
+$("#pitch-up").addEventListener("click", () => void transposeSelected(1));
+$("#pitch-down").addEventListener("click", () => void transposeSelected(-1));
 $("#delete-note").addEventListener("click", () => {
   const note = selectedEditableNote();
   if (note && scoreHistory)
@@ -738,7 +905,7 @@ $("#merge").addEventListener("click", () => {
   const right =
     selectedNoteIndex === null
       ? undefined
-      : serverProject?.notes[selectedNoteIndex + 1];
+      : scoreHistory?.value[selectedNoteIndex + 1];
   if (note && right && scoreHistory)
     void saveEditedNotes(
       scoreHistory.execute({
@@ -750,10 +917,12 @@ $("#merge").addEventListener("click", () => {
     );
 });
 $("#undo").addEventListener("click", () => {
-  if (scoreHistory) void saveEditedNotes(scoreHistory.undo(), "撤销");
+  if (scoreHistory && !editSaving)
+    void saveEditedNotes(scoreHistory.undo(), "撤销");
 });
 $("#redo").addEventListener("click", () => {
-  if (scoreHistory) void saveEditedNotes(scoreHistory.redo(), "重做");
+  if (scoreHistory && !editSaving)
+    void saveEditedNotes(scoreHistory.redo(), "重做");
 });
 document.querySelectorAll<HTMLButtonElement>("[data-view]").forEach((btn) =>
   btn.addEventListener("click", () => {
@@ -764,6 +933,7 @@ document.querySelectorAll<HTMLButtonElement>("[data-view]").forEach((btn) =>
     $("#staff").classList.toggle("hidden", btn.dataset.view !== "staff");
     $("#jianpu").classList.toggle("hidden", btn.dataset.view !== "jianpu");
     $("#piano").classList.toggle("hidden", btn.dataset.view !== "piano");
+    $("#roll-zoom").classList.toggle("hidden", btn.dataset.view !== "piano");
   }),
 );
 function stop() {

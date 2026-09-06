@@ -123,3 +123,90 @@
   height: 80px;
   border: 1px solid #e5ded2;
 }
+
+#staff .abcjs-staff {
+  pointer-events: none;
+}
+#staff [data-note] {
+  cursor: pointer;
+  pointer-events: bounding-box;
+}
+#staff [data-note].selected {
+  color: #b24c2d;
+  fill: #b24c2d;
+}
+#staff [data-note].playing,
+#piano [data-note].playing {
+  color: #168577;
+  fill: #168577;
+}
+.jp-note.playing {
+  background: #d5eee7;
+  color: #12665b;
+  transform: none;
+}
+[data-note]:focus-visible {
+  outline: 2px solid #168577;
+  outline-offset: 3px;
+}
+.note-hit {
+  animation: note-hit 300ms ease-out;
+}
+@keyframes note-hit {
+  from {
+    filter: drop-shadow(0 0 4px #168577);
+  }
+  to {
+    filter: none;
+  }
+}
+.jp-measure {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  border-right: 2px solid #777;
+  padding: 0 16px 0 0;
+  max-width: 100%;
+}
+.jp-measure:last-child {
+  border-right-style: double;
+  border-right-width: 5px;
+}
+.jp-extension {
+  font-size: 22px;
+}
+.jp-tie {
+  position: absolute;
+  top: -18px;
+  right: -12px;
+}
+#roll-zoom {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-top: 12px;
+}
+#roll-zoom label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+#zoom-value {
+  min-width: 48px;
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 800px) {
+  .toolbar,
+  .tabs {
+    flex-wrap: wrap;
+  }
+  .analysis-panel {
+    grid-template-columns: 1fr;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .note-hit {
+    animation: none;
+  }
+}
