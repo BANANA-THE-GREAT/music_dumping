@@ -9,7 +9,7 @@ root = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(root / "workers" / "transcription"))
 
 from vss_worker.adapters import DetectedNote  # noqa: E402
-from vss_worker.evaluation import evaluate_notes  # noqa: E402
+from vss_worker.evaluation import evaluate_transcription  # noqa: E402
 
 
 def read_notes(path: Path) -> list[DetectedNote]:
@@ -32,12 +32,16 @@ parser = argparse.ArgumentParser(description="Evaluate note-level melody transcr
 parser.add_argument("reference", type=Path)
 parser.add_argument("prediction", type=Path)
 parser.add_argument("--onset-ms", type=float, default=50)
-parser.add_argument("--offset-ms", type=float, default=100)
+parser.add_argument("--offset-ms", type=float, default=50)
+parser.add_argument("--offset-ratio", type=float, default=0.2)
+parser.add_argument("--pitch-cents", type=float, default=50)
 arguments = parser.parse_args()
-result = evaluate_notes(
+result = evaluate_transcription(
     read_notes(arguments.reference),
     read_notes(arguments.prediction),
+    pitch_tolerance_cents=arguments.pitch_cents,
     onset_tolerance_seconds=arguments.onset_ms / 1000,
     offset_tolerance_seconds=arguments.offset_ms / 1000,
+    offset_tolerance_ratio=arguments.offset_ratio,
 )
 print(json.dumps(asdict(result), indent=2))

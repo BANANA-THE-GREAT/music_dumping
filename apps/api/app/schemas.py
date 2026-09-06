@@ -107,6 +107,7 @@ class ScoreNote(BaseModel):
     id: str
     source_start_ms: int = Field(ge=0)
     source_end_ms: int = Field(ge=0)
+    source_note_ids: list[str] = Field(default_factory=list)
     pitch_midi: int = Field(ge=0, le=127)
     confidence: float = Field(ge=0, le=1)
     quantized_start: float = Field(ge=0)

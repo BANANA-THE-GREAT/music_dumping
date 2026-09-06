@@ -1,0 +1,31 @@
+{
+  "schema_version": "1.0",
+  "recorded_at": "2026-09-06",
+  "pipeline": {
+    "separator": "demucs",
+    "separator_version": "unfixed_existing_dependency_demucs_4_x",
+    "transcriber": "basic_pitch",
+    "transcriber_version": "unfixed_existing_dependency_basic_pitch_0_4_x",
+    "refinement": {
+      "mode": "balanced",
+      "low_pitch": 48,
+      "high_pitch": 84,
+      "minimum_duration_ms": 60,
+      "minimum_confidence": 0.2,
+      "continuity_penalty": 0.05,
+      "stitch_gap_ms": 80
+    },
+    "quantization": {
+      "grid_beats": 0.25,
+      "monophonic": true,
+      "resolve_same_start_by_confidence": true
+    }
+  },
+  "environment_preflight": {
+    "python": "3.12.3",
+    "gpu": "NVIDIA GeForce RTX 5060 Ti, 16311 MiB",
+    "ffmpeg": "missing_from_path",
+    "basic_pitch": "not_installed",
+    "demucs": "not_installed"
+  }
+}

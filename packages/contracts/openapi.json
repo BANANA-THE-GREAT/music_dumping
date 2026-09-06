@@ -578,6 +578,13 @@
             "title": "Source End Ms",
             "type": "integer"
           },
+          "source_note_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Source Note Ids",
+            "type": "array"
+          },
           "source_start_ms": {
             "minimum": 0.0,
             "title": "Source Start Ms",

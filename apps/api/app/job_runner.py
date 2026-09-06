@@ -1,8 +1,10 @@
 import time
 from concurrent.futures import ThreadPoolExecutor
 from functools import lru_cache
+from typing import Any, cast
 
 from sqlalchemy import update
+from sqlalchemy.engine import CursorResult
 from vss_worker.adapters import AudioNormalizer, MelodyTranscriber, VocalSeparator
 from vss_worker.fake import build_fake_project
 
@@ -160,12 +162,16 @@ def _check_cancelled(job_id: str) -> None:
 
 def _progress(job_id: str, stage: str, value: float) -> None:
     with SessionLocal() as session:
-        result = session.execute(
-            update(JobRecord)
-            .where(
-                JobRecord.id == job_id, JobRecord.status.in_([JobStatus.QUEUED, JobStatus.RUNNING])
-            )
-            .values(status=JobStatus.RUNNING, stage=stage, progress=value)
+        result = cast(
+            CursorResult[Any],
+            session.execute(
+                update(JobRecord)
+                .where(
+                    JobRecord.id == job_id,
+                    JobRecord.status.in_([JobStatus.QUEUED, JobStatus.RUNNING]),
+                )
+                .values(status=JobStatus.RUNNING, stage=stage, progress=value)
+            ),
         )
         if result.rowcount != 1:
             raise InterruptedError("Task cancelled")
@@ -174,16 +180,20 @@ def _progress(job_id: str, stage: str, value: float) -> None:
 
 def _complete(job_id: str, document: ScoreProject) -> None:
     with SessionLocal() as session:
-        result = session.execute(
-            update(JobRecord)
-            .where(
-                JobRecord.id == job_id, JobRecord.status.in_([JobStatus.QUEUED, JobStatus.RUNNING])
-            )
-            .values(
-                project_id=document.project_id,
-                status=JobStatus.COMPLETED,
-                stage=JobStage.COMPLETED,
-                progress=1,
+        result = cast(
+            CursorResult[Any],
+            session.execute(
+                update(JobRecord)
+                .where(
+                    JobRecord.id == job_id,
+                    JobRecord.status.in_([JobStatus.QUEUED, JobStatus.RUNNING]),
+                )
+                .values(
+                    project_id=document.project_id,
+                    status=JobStatus.COMPLETED,
+                    stage=JobStage.COMPLETED,
+                    progress=1,
+                )
             )
         )
         if result.rowcount != 1:

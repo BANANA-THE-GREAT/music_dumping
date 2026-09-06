@@ -90,3 +90,5 @@ npm run build
 ```
 
 更多说明见 [架构](docs/architecture.md)、[API](docs/api.md)、[评测](docs/evaluation.md) 和 [模型许可](docs/model-licenses.md)。
+
+P0 评测与损失定位工具已提供，但当前仓库只有 CC0 合成 fixture，尚未完成授权真实歌声基线。运行方法、固定容差和标注要求见[转录质量评测](docs/evaluation.md)与[人声转录标注规范](docs/transcription-annotation.md)。

@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0",
+  "dataset_status": "synthetic_scaffold_only",
+  "description": "CC0 synthetic fixture used to validate the P0 tooling. Add authorized real vocal clips locally before making quality claims.",
+  "tolerances": {
+    "pitch_cents": 50,
+    "onset_ms": 50,
+    "minimum_offset_ms": 50,
+    "offset_duration_ratio": 0.2
+  },
+  "quality_gate": {
+    "status": "preregistered_pending_authorized_holdout",
+    "candidate_onset_offset_f1_improvement": 0.03,
+    "candidate_recall_improvement": 0.05,
+    "maximum_precision_regression": 0.02,
+    "maximum_failure_rate": 0.02,
+    "notes": "The gate applies to the future authorized holdout split and must not be tuned after candidate results are inspected. Manual edit time and operation count must also show no material regression."
+  },
+  "clips": [
+    {
+      "id": "cc0-synthetic-scale",
+      "split": "tooling",
+      "tags": ["synthetic", "scale", "cc0"],
+      "audio": null,
+      "audio_license": "CC0-1.0; no recording is required",
+      "reference": "../packages/test-fixtures/evaluation/reference.json",
+      "predictions": {
+        "basic_pitch_raw_fixture": "../packages/test-fixtures/evaluation/prediction.json"
+      }
+    }
+  ]
+}

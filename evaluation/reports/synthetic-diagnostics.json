@@ -1,0 +1,171 @@
+{
+  "schema_version": "1.0",
+  "bpm": 120.0,
+  "refinement_config": {
+    "mode": "balanced",
+    "low_pitch": 48,
+    "high_pitch": 84,
+    "minimum_duration_seconds": 0.06,
+    "minimum_confidence": 0.2,
+    "apply_pitch_range": true,
+    "apply_continuity": true,
+    "stitch_short_fragments": true
+  },
+  "quantization_config": {
+    "grid": 0.25,
+    "monophonic": true,
+    "resolve_start_conflicts": true
+  },
+  "raw_notes": [
+    {
+      "start_seconds": 0.01,
+      "end_seconds": 0.49,
+      "pitch_midi": 60,
+      "confidence": 0.91,
+      "source_id": "raw-000000",
+      "pitch_cents": null
+    },
+    {
+      "start_seconds": 0.51,
+      "end_seconds": 1.02,
+      "pitch_midi": 62,
+      "confidence": 0.87,
+      "source_id": "raw-000001",
+      "pitch_cents": null
+    },
+    {
+      "start_seconds": 1.02,
+      "end_seconds": 1.49,
+      "pitch_midi": 64,
+      "confidence": 0.85,
+      "source_id": "raw-000002",
+      "pitch_cents": null
+    },
+    {
+      "start_seconds": 1.5,
+      "end_seconds": 2.0,
+      "pitch_midi": 66,
+      "confidence": 0.72,
+      "source_id": "raw-000003",
+      "pitch_cents": null
+    }
+  ],
+  "refined_notes": [
+    {
+      "start_seconds": 0.01,
+      "end_seconds": 0.49,
+      "pitch_midi": 60,
+      "confidence": 0.91,
+      "source_id": "raw-000000",
+      "pitch_cents": null
+    },
+    {
+      "start_seconds": 0.51,
+      "end_seconds": 1.02,
+      "pitch_midi": 62,
+      "confidence": 0.87,
+      "source_id": "raw-000001",
+      "pitch_cents": null
+    },
+    {
+      "start_seconds": 1.02,
+      "end_seconds": 1.49,
+      "pitch_midi": 64,
+      "confidence": 0.85,
+      "source_id": "raw-000002",
+      "pitch_cents": null
+    },
+    {
+      "start_seconds": 1.5,
+      "end_seconds": 2.0,
+      "pitch_midi": 66,
+      "confidence": 0.72,
+      "source_id": "raw-000003",
+      "pitch_cents": null
+    }
+  ],
+  "quantized_notes": [
+    {
+      "id": "cf32a703-093e-5820-9575-90318af7893f",
+      "source_start_ms": 10,
+      "source_end_ms": 490,
+      "source_note_ids": [
+        "raw-000000"
+      ],
+      "pitch_midi": 60,
+      "confidence": 0.91,
+      "quantized_start": 0.0,
+      "quantized_duration": 1.0,
+      "origin": "model"
+    },
+    {
+      "id": "b2532da8-8934-5884-aeaf-86a0254921b9",
+      "source_start_ms": 510,
+      "source_end_ms": 1020,
+      "source_note_ids": [
+        "raw-000001"
+      ],
+      "pitch_midi": 62,
+      "confidence": 0.87,
+      "quantized_start": 1.0,
+      "quantized_duration": 1.0,
+      "origin": "model"
+    },
+    {
+      "id": "92072af5-649a-58ee-abfd-2e79050356d7",
+      "source_start_ms": 1020,
+      "source_end_ms": 1490,
+      "source_note_ids": [
+        "raw-000002"
+      ],
+      "pitch_midi": 64,
+      "confidence": 0.85,
+      "quantized_start": 2.0,
+      "quantized_duration": 1.0,
+      "origin": "model"
+    },
+    {
+      "id": "18bed7d2-477c-5e39-bce9-a2f4849af339",
+      "source_start_ms": 1500,
+      "source_end_ms": 2000,
+      "source_note_ids": [
+        "raw-000003"
+      ],
+      "pitch_midi": 66,
+      "confidence": 0.72,
+      "quantized_start": 3.0,
+      "quantized_duration": 1.0,
+      "origin": "model"
+    }
+  ],
+  "decisions": [
+    {
+      "source_ids": [
+        "raw-000000"
+      ],
+      "action": "keep",
+      "reason": "continuity_path"
+    },
+    {
+      "source_ids": [
+        "raw-000001"
+      ],
+      "action": "keep",
+      "reason": "continuity_path"
+    },
+    {
+      "source_ids": [
+        "raw-000002"
+      ],
+      "action": "keep",
+      "reason": "continuity_path"
+    },
+    {
+      "source_ids": [
+        "raw-000003"
+      ],
+      "action": "keep",
+      "reason": "continuity_path"
+    }
+  ]
+}

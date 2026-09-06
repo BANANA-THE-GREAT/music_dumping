@@ -10,6 +10,8 @@ class DetectedNote:
     end_seconds: float
     pitch_midi: int
     confidence: float
+    source_id: str | None = None
+    pitch_cents: float | None = None
 
 
 @dataclass(frozen=True)

@@ -35,6 +35,7 @@ export interface ScoreProjectNote {
   id: string;
   source_start_ms: number;
   source_end_ms: number;
+  source_note_ids?: string[];
   pitch_midi: number;
   confidence: number;
   quantized_start: number;
