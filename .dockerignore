@@ -4,6 +4,7 @@
 .venv
 **/node_modules
 **/dist
+apps/web/public/basic-pitch-model
 **/__pycache__
 **/*.egg-info
 **/*.py[cod]

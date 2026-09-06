@@ -37,11 +37,21 @@ python -m pip install -e ".[models]"
 前端在 Node.js 22 构建容器中安装 npm 依赖；音频处理工具和模型运行依赖安装在后端 Worker 镜像中，与宿主机的其他项目隔离。
 
 ```bash
-docker compose -f infra/compose.yaml up --build
+docker compose -f infra/compose.yaml up -d --build --wait web worker
 ```
 
 Web 默认位于 `http://localhost:8080`，API 位于 `http://localhost:8000`。API 容器启动前自动执行 Alembic migration。
+浏览器通过同一站点的 `/api` 请求后端；上传、SSE 进度和导出均由 Nginx 转发。上述命令同时启动所需的 PostgreSQL、Redis 和 API，当前本地文件存储不需要 MinIO。
 如果已经运行本地 API，需先释放其 8000 端口。高质量模式由 Worker 内的 FFmpeg、Demucs 和 Basic Pitch 执行；首次使用 Demucs 时会联网下载模型权重，后续复用 `model-cache` 数据卷。
+
+日常启动和修改前端后重新构建：
+
+```bash
+docker compose -f infra/compose.yaml up -d --wait web worker
+docker compose -f infra/compose.yaml up -d --build --wait web
+```
+
+前端采用构建后由 Nginx 提供静态文件的方式，修改源代码后需重新构建 Web 镜像；运行和构建均不依赖宿主机或 `/tmp` 中的 Node/npm。容器数据保存到 Docker 卷，与本地开发的 `data/` 目录独立。
 
 生产部署、备份恢复、数据保留与故障排查见 [部署运维指南](docs/deployment.md)。
 

@@ -16,7 +16,7 @@ export class ApiError extends Error {
   }
 }
 export class VocalScoreApi {
-  constructor(private baseUrl = "http://localhost:8000") {}
+  constructor(private baseUrl = "/api") {}
   private async request<T>(path: string, init?: RequestInit): Promise<T> {
     const response = await fetch(`${this.baseUrl}${path}`, init);
     if (!response.ok) {

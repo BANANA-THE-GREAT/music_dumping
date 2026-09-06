@@ -4,7 +4,8 @@
 
 Docker 部署不使用宿主机的 Node.js、npm 或 Python 环境：
 
-- Web 在 Node.js 22 构建容器内执行 `npm ci`，生成的静态文件由 Nginx 容器提供。
+- Web 在 Node.js 22 构建容器内执行 `npm ci`、测试和构建，生成的静态文件及浏览器模型由 Nginx 容器提供。最终 Web 镜像运行 Nginx，无需宿主机 Node/npm 或 `/tmp` 中的依赖。
+- 浏览器 API 客户端默认访问同源 `/api`。容器内 Nginx 转发至 API，并支持 200 MiB 音频上传、流式进度和长任务；本地 Vite 开发及预览使用相同路径代理到 `127.0.0.1:8000`。
 - API 镜像安装 FastAPI、数据库客户端和任务调度依赖；通过 Redis 将音频处理任务交给 Worker。
 - Worker 镜像安装 FFmpeg（含 FFprobe）、libsndfile、OpenMP 运行库、Demucs 和 Basic Pitch 及其 Python 依赖。默认使用 PyTorch 官方 CPU 安装源，与当前未配置 GPU 的 Compose 服务一致；需要 GPU 时应调整 PyTorch 安装源和容器 GPU 配置。构建时检查工具版本和主要模块导入。
 - API 与 Worker 共享 `app-data` 卷。Demucs 首次推理下载的权重写入 `model-cache` 卷，重建 Worker 后可复用；首次推理需要联网。
@@ -25,13 +26,17 @@ docker compose -f infra/compose.yaml run --rm --no-deps worker python -c "from b
 
 ```bash
 docker compose -f infra/compose.yaml config
-docker compose -f infra/compose.yaml build
-docker compose -f infra/compose.yaml up -d
+docker compose -f infra/compose.yaml build api worker web
+docker compose -f infra/compose.yaml up -d --wait web worker
+curl --fail http://localhost:8080/api/health/ready
 curl --fail http://localhost:8000/health/live
 curl --fail http://localhost:8000/health/ready
 ```
 
 API 启动时先执行 Alembic migration。`ready` 失败时不要继续切换流量，应先检查 API 日志、数据库连接和 Redis 健康状态。
+Compose 会等待 API 和数据库健康后再启动 Web 与 Worker。此启动方式使用 PostgreSQL、Redis 和共享文件卷，不启动尚未接入应用的 MinIO 服务。默认 Web/API 端口仅绑定宿主机回环地址。
+
+前端代码修改后运行 `docker compose -f infra/compose.yaml up -d --build --wait web`；日常启动不需要 `--build`。当前为静态文件服务模式，不提供热更新。本地开发的 SQLite 和 `data/` 文件不会自动迁入容器的数据卷，切换前应按需要迁移或保留本地数据。
 
 ## 备份与恢复
 
