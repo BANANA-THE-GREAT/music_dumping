@@ -10,6 +10,41 @@ const browser = await chromium.launch({
 });
 const page = await browser.newPage({ viewport: { width: 1300, height: 1000 } });
 const errors = [];
+await page.addInitScript(() => {
+  const NativeContext = window.AudioContext;
+  window.audioProbe = { contexts: 0, starts: [], stops: [], analyser: null };
+  window.AudioContext = class extends NativeContext {
+    constructor(options) {
+      super(options);
+      window.audioProbe.contexts++;
+    }
+    createOscillator() {
+      const node = super.createOscillator();
+      const start = node.start.bind(node),
+        stop = node.stop.bind(node);
+      node.start = (time) => {
+        window.audioProbe.starts.push(time);
+        start(time);
+      };
+      node.stop = (time) => {
+        window.audioProbe.stops.push(time);
+        stop(time);
+      };
+      return node;
+    }
+    createDynamicsCompressor() {
+      const node = super.createDynamicsCompressor();
+      const connect = node.connect.bind(node);
+      const analyser = this.createAnalyser();
+      window.audioProbe.analyser = analyser;
+      node.connect = (destination) => {
+        connect(analyser);
+        return analyser.connect(destination);
+      };
+      return node;
+    }
+  };
+});
 page.on("pageerror", (error) => errors.push(error.message));
 await page.route("https://fonts.googleapis.com/**", (route) => route.abort());
 try {
@@ -75,6 +110,64 @@ try {
     () => document.querySelector("#undo").disabled === false,
   );
   await page.click('[data-view="staff"]');
+  await page.click("#example");
+  await page.waitForFunction(
+    () => document.querySelectorAll("#piano rect").length === 14,
+  );
+  await page.click("#play");
+  await page.waitForFunction(
+    () =>
+      document.querySelector("#staff .playing") &&
+      document.querySelector("#jianpu .playing") &&
+      document.querySelector("#piano .playing"),
+  );
+  assert.equal(await page.evaluate(() => window.audioProbe.starts.length), 14);
+  const rms = await page.evaluate(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 180));
+    const samples = new Float32Array(2048);
+    window.audioProbe.analyser.getFloatTimeDomainData(samples);
+    return Math.sqrt(
+      samples.reduce((sum, x) => sum + x * x, 0) / samples.length,
+    );
+  });
+  assert.ok(rms > 0.01, `Expected audible sustained signal, RMS=${rms}`);
+  await page.evaluate(() => {
+    const until = performance.now() + 650;
+    while (performance.now() < until) {}
+  });
+  await page.waitForFunction(
+    () =>
+      document.querySelector('#staff [data-note="1"].playing') ||
+      document.querySelector('#staff [data-note="2"].playing'),
+  );
+  await page.click("#play");
+  assert.equal(await page.locator(".playing").count(), 0);
+  assert.equal(await page.evaluate(() => window.audioProbe.stops.length), 28);
+  await page.click("#play");
+  await page.waitForFunction(() => window.audioProbe.starts.length === 28);
+  assert.equal(await page.evaluate(() => window.audioProbe.contexts), 1);
+  await page.click("#play");
+  console.log(
+    "PASS: synchronized highlights, sustained audio output, pre-scheduling during main-thread blocking, stop and context reuse",
+  );
+  await page.locator("#bpm").fill("240");
+  await page.locator("#bpm").dispatchEvent("change");
+  await page.click("#play");
+  await page.waitForFunction(() => window.audioProbe.starts.length === 42);
+  await page.waitForFunction(() =>
+    document.querySelector("#play").textContent.includes("演奏"),
+  );
+  assert.equal(await page.locator(".playing").count(), 0);
+  await page.waitForTimeout(100);
+  assert.equal(
+    await page.evaluate(() => {
+      const samples = new Float32Array(2048);
+      window.audioProbe.analyser.getFloatTimeDomainData(samples);
+      return samples.some((value) => Math.abs(value) > 0.0001);
+    }),
+    false,
+  );
+  console.log("PASS: natural completion and silent cleanup");
   await page.screenshot({
     path: `${process.env.SCREENSHOT_DIR || "/tmp"}/score-desktop.png`,
     fullPage: true,

@@ -13,6 +13,7 @@ import {
   mappedAbc,
 } from "./music";
 import { renderJianpu } from "./notation";
+import { ScorePlayer } from "./playback";
 import { pianoRollMetrics, renderPianoRoll } from "./piano-roll";
 import { TaskProgressPanel } from "./task-progress";
 import { isolateCenterVocal, resampleAudio } from "./separation";
@@ -100,8 +101,8 @@ let analysis: MusicalAnalysis = {
   mode: "major",
   confidence: { bpm: 0, meter: 0, key: 0 },
 };
-let timers: number[] = [],
-  playing = false;
+const scorePlayer = new ScorePlayer();
+let playing = false;
 let transcriptionBusy = false;
 function setTranscriptionBusy(busy: boolean) {
   transcriptionBusy = busy;
@@ -937,8 +938,7 @@ document.querySelectorAll<HTMLButtonElement>("[data-view]").forEach((btn) =>
   }),
 );
 function stop() {
-  timers.forEach(clearTimeout);
-  timers = [];
+  scorePlayer.stop();
   playing = false;
   play.textContent = "▶ 演奏";
   document
@@ -947,42 +947,42 @@ function stop() {
 }
 play.addEventListener("click", async () => {
   if (playing) return stop();
+  if (!notes.length) return;
   playing = true;
   play.textContent = "■ 停止";
-  const ctx = new AudioContext();
-  await ctx.resume();
-  const beatMs = 60000 / analysis.bpm;
-  notes.forEach((n, i) =>
-    timers.push(
-      window.setTimeout(() => {
-        document
-          .querySelectorAll(".playing")
-          .forEach((e) => e.classList.remove("playing"));
-        document.querySelector(`[data-note="${i}"]`)?.classList.add("playing");
-        const osc = ctx.createOscillator(),
-          gain = ctx.createGain();
-        osc.type = "triangle";
-        osc.frequency.value = 440 * 2 ** ((n.pitchMidi - 69) / 12);
-        gain.gain.setValueAtTime(0, ctx.currentTime);
-        gain.gain.linearRampToValueAtTime(0.16, ctx.currentTime + 0.02);
-        gain.gain.exponentialRampToValueAtTime(
-          0.001,
-          ctx.currentTime + Math.max(0.08, (n.durationBeats * beatMs) / 1000),
-        );
-        osc.connect(gain).connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + (n.durationBeats * beatMs) / 1000 + 0.05);
-      }, n.startBeat * beatMs),
-    ),
-  );
-  timers.push(
-    window.setTimeout(
+  audio.pause();
+  try {
+    const elements = [
+      ...document.querySelectorAll<HTMLElement | SVGElement>("[data-note]"),
+    ];
+    let previousActive = "";
+    await scorePlayer.play(
+      notes,
+      analysis.bpm,
+      (indices) => {
+        const key = indices.join(",");
+        if (key === previousActive) return;
+        previousActive = key;
+        const active = new Set(indices);
+        elements.forEach((el) => {
+          const hit = active.has(Number(el.dataset.note));
+          if (hit && !el.classList.contains("playing")) {
+            el.classList.remove("note-hit");
+            void el.getBoundingClientRect();
+            el.classList.add("note-hit");
+          }
+          el.classList.toggle("playing", hit);
+        });
+      },
       stop,
-      Math.max(...notes.map((n) => n.startBeat + n.durationBeats)) * beatMs +
-        100,
-    ),
-  );
+    );
+  } catch (error) {
+    stop();
+    status(`播放失败：${error instanceof Error ? error.message : "未知错误"}`);
+  }
 });
+audio.addEventListener("play", stop);
+window.addEventListener("pagehide", stop);
 function downloadServerExport(format: "midi" | "musicxml") {
   if (!serverProject) return false;
   const link = document.createElement("a");
