@@ -1,9 +1,19 @@
+import json
+import sys
 from collections.abc import Callable
 from pathlib import Path
 from threading import Lock
 from typing import Any
 
 from vss_worker.adapters import DetectedNote
+from vss_worker.command import run_command
+
+
+class BasicPitchSubprocessTranscriber:
+    def transcribe(self, vocal_path: Path) -> list[DetectedNote]:
+        output = vocal_path.parent / "note-events.json"
+        run_command([sys.executable, "-m", "vss_worker.predict_cli", str(vocal_path), str(output)])
+        return [DetectedNote(**note) for note in json.loads(output.read_text(encoding="utf-8"))]
 
 
 class BasicPitchTranscriber:

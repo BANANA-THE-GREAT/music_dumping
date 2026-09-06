@@ -103,7 +103,7 @@ def job_events(job_id: str, session: SessionDep) -> StreamingResponse:
 
 @router.post("/jobs/{job_id}/cancel", response_model=JobResponse)
 def cancel_job(job_id: str, session: SessionDep) -> JobResponse:
-    record = session.get(JobRecord, job_id)
+    record = session.scalar(select(JobRecord).where(JobRecord.id == job_id).with_for_update())
     if record is None:
         raise HTTPException(status_code=404, detail="Job not found")
     if record.status in {JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED}:

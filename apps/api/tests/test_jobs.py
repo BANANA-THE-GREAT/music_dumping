@@ -1,6 +1,7 @@
 import time
 from io import BytesIO
 
+import pytest
 from app.job_runner import recover_interrupted_thread_jobs
 from app.main import app
 from fastapi.testclient import TestClient
@@ -89,3 +90,33 @@ def test_job_events_end_with_completed_state() -> None:
     assert response.status_code == 200
     assert "event: progress" in body
     assert '"status":"completed"' in body
+
+
+def test_cancelled_job_cannot_be_overwritten_by_late_worker() -> None:
+    from app.database import SessionLocal
+    from app.job_runner import _complete, _fail, _progress
+    from app.models import ProjectRecord
+    from app.schemas import ScoreProject
+    from vss_worker.fake import build_fake_project
+
+    upload = create_test_upload()
+    job = client.post(
+        "/v1/jobs", json={"upload_id": upload["id"], "options": {"auto_start": False}}
+    ).json()
+    assert client.post(f"/v1/jobs/{job['id']}/cancel").status_code == 200
+    document = ScoreProject.model_validate(
+        build_fake_project(
+            upload_id=upload["id"],
+            file_name="test.wav",
+            object_key="uploads/test.wav",
+            progress=lambda *_: None,
+        )
+    )
+    with pytest.raises(InterruptedError):
+        _complete(job["id"], document)
+    with pytest.raises(InterruptedError):
+        _progress(job["id"], "rendering", 0.99)
+    _fail(job["id"], "LATE_ERROR", "ignored")
+    assert client.get(f"/v1/jobs/{job['id']}").json()["status"] == "cancelled"
+    with SessionLocal() as session:
+        assert session.get(ProjectRecord, document.project_id) is None
