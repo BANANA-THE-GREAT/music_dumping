@@ -13,18 +13,20 @@ import {
   toAbc,
 } from "./music";
 import { pianoRollMetrics, renderPianoRoll } from "./piano-roll";
+import { TaskProgressPanel } from "./task-progress";
 import { isolateCenterVocal, resampleAudio } from "./separation";
 import type { MusicalAnalysis, RawNote, ScoreNote } from "./types";
 import { drawWaveform } from "./waveform";
 import "./style.css";
 import "./editor.css";
+import "./task-progress.css";
 
 const KEYS = ["C", "C♯", "D", "E♭", "E", "F", "F♯", "G", "A♭", "A", "B♭", "B"];
 const api = new VocalScoreApi();
 const ACTIVE_JOB_KEY = "vocal-score.active-job";
 const FAILED_JOB_KEY = "vocal-score.failed-job";
 document.querySelector<HTMLDivElement>("#app")!.innerHTML =
-  `<main><header><div><span class="eyebrow">VOCAL SCORE STUDIO</span><h1>拾音</h1></div><p>从一首歌里分离人声，自动识别速度、拍号与调性，生成可演奏的简谱和五线谱。</p></header><section class="workbench"><aside><label class="drop" id="drop"><input id="file" type="file" accept="audio/*"><span class="drop-icon">↥</span><strong>放入歌曲或人声</strong><small>MP3 · WAV · OGG · FLAC</small></label><audio id="audio" controls></audio><div class="field"><label>人声分离 <output id="isolateValue">82%</output></label><input id="isolate" type="range" min="0" max="100" value="82"><small>适合主唱居中的立体声歌曲</small></div><div class="field"><label>识别灵敏度</label><select id="sensitivity"><option value="0.35">均衡</option><option value="0.48">保守</option><option value="0.25">灵敏</option></select></div><button class="primary" id="transcribe" disabled>自动分析并扒谱</button><button class="ghost" id="example">载入完整示例</button><div class="progress"><i id="progress"></i></div><p class="status" id="status">等待音频</p></aside><article><section class="analysis-panel"><div><span>速度 BPM</span><input id="bpm" type="number" min="40" max="240" value="120"><small id="bpmConfidence">待分析</small></div><div><span>拍号</span><select id="meter"><option value="4">4 / 4</option><option value="3">3 / 4</option></select><small id="meterConfidence">待分析</small></div><div><span>调性</span><section><select id="key">${KEYS.map((k, i) => `<option value="${i}">${k}</option>`).join("")}</select><select id="mode"><option value="major">大调</option><option value="minor">小调</option></select></section><small id="keyConfidence">待分析</small></div></section><div class="toolbar"><div class="tabs"><button class="active" data-view="staff">五线谱</button><button data-view="jianpu">简谱</button></div><div class="actions"><button id="play" disabled>▶ 演奏</button><button id="midi" disabled>导出 MIDI</button><button id="xml" disabled>导出 MusicXML</button></div></div><div id="staff" class="score"></div><div id="jianpu" class="score hidden"></div><div class="empty" id="empty"><div>♪</div><strong>完整乐谱会出现在这里</strong><span>导入歌曲后，一次完成分离、分析与转谱</span></div></article></section><footer>本地处理 · 不上传音频 · 自动识别结果可手动修正</footer></main>`;
+  `<main><header><div><span class="eyebrow">VOCAL SCORE STUDIO</span><h1>拾音</h1></div><p>从一首歌里分离人声，自动识别速度、拍号与调性，生成可演奏的简谱和五线谱。</p></header><section class="workbench"><aside><label class="drop" id="drop"><input id="file" type="file" accept="audio/*"><span class="drop-icon">↥</span><strong>放入歌曲或人声</strong><small>MP3 · WAV · OGG · FLAC</small></label><audio id="audio" controls></audio><div class="field"><label>人声分离 <output id="isolateValue">82%</output></label><input id="isolate" type="range" min="0" max="100" value="82"><small>适合主唱居中的立体声歌曲</small></div><div class="field"><label>识别灵敏度</label><select id="sensitivity"><option value="0.35">均衡</option><option value="0.48">保守</option><option value="0.25">灵敏</option></select></div><button class="primary" id="transcribe" disabled>自动分析并扒谱</button><button class="ghost" id="example">载入完整示例</button><section id="task-progress" aria-label="转录任务进度"></section><p class="status" id="status" role="status">等待音频</p></aside><article><section class="analysis-panel"><div><span>速度 BPM</span><input id="bpm" type="number" min="40" max="240" value="120"><small id="bpmConfidence">待分析</small></div><div><span>拍号</span><select id="meter"><option value="4">4 / 4</option><option value="3">3 / 4</option></select><small id="meterConfidence">待分析</small></div><div><span>调性</span><section><select id="key">${KEYS.map((k, i) => `<option value="${i}">${k}</option>`).join("")}</select><select id="mode"><option value="major">大调</option><option value="minor">小调</option></select></section><small id="keyConfidence">待分析</small></div></section><div class="toolbar"><div class="tabs"><button class="active" data-view="staff">五线谱</button><button data-view="jianpu">简谱</button></div><div class="actions"><button id="play" disabled>▶ 演奏</button><button id="midi" disabled>导出 MIDI</button><button id="xml" disabled>导出 MusicXML</button></div></div><div id="staff" class="score"></div><div id="jianpu" class="score hidden"></div><div class="empty" id="empty"><div>♪</div><strong>完整乐谱会出现在这里</strong><span>导入歌曲后，一次完成分离、分析与转谱</span></div></article></section><footer>本地处理 · 不上传音频 · 自动识别结果可手动修正</footer></main>`;
 document
   .querySelector(".toolbar")!
   .insertAdjacentHTML(
@@ -57,6 +59,7 @@ document
   );
 
 const $ = <T extends HTMLElement>(s: string) => document.querySelector<T>(s)!;
+const taskProgress = new TaskProgressPanel($("#task-progress"));
 const input = $<HTMLInputElement>("#file"),
   audio = $<HTMLAudioElement>("#audio"),
   transcribe = $<HTMLButtonElement>("#transcribe"),
@@ -98,14 +101,28 @@ let analysis: MusicalAnalysis = {
 };
 let timers: number[] = [],
   playing = false;
-function status(message: string, pct?: number) {
+let transcriptionBusy = false;
+function setTranscriptionBusy(busy: boolean) {
+  transcriptionBusy = busy;
+  transcribe.disabled = busy || !sourceBuffer;
+  input.disabled = busy;
+  $<HTMLSelectElement>("#engine").disabled = busy;
+  $<HTMLSelectElement>("#recent-project").disabled = busy;
+  $<HTMLButtonElement>("#example").disabled = busy;
+  $<HTMLButtonElement>("#delete-project").disabled =
+    busy || !$<HTMLSelectElement>("#recent-project").value;
+  $<HTMLButtonElement>("#retry-job").disabled =
+    busy || !localStorage.getItem(FAILED_JOB_KEY);
+}
+function status(message: string) {
   $("#status").textContent = message;
-  if (pct !== undefined) $("#progress").style.width = `${pct}%`;
 }
 const conf = (v: number) =>
   v < 0.4 ? "低置信度 · 建议校正" : v < 0.7 ? "中等置信度" : "高置信度";
 async function load(file: File) {
-  status("正在解码音频…", 3);
+  if (transcriptionBusy) return;
+  taskProgress.reset();
+  status("正在解码音频…");
   sourceFile = file;
   serverProject = null;
   audio.src = URL.createObjectURL(file);
@@ -114,7 +131,7 @@ async function load(file: File) {
   );
   drawWaveform($<HTMLCanvasElement>("#waveform"), sourceBuffer);
   transcribe.disabled = false;
-  status(`已载入 ${file.name} · ${sourceBuffer.duration.toFixed(1)} 秒`, 0);
+  status(`已载入 ${file.name} · ${sourceBuffer.duration.toFixed(1)} 秒`);
 }
 input.addEventListener(
   "change",
@@ -157,7 +174,10 @@ async function infer(buffer: AudioBuffer) {
       onsets.push(...o);
       contours.push(...c);
     },
-    (p) => status(`正在识别人声旋律… ${Math.round(p * 100)}%`, 20 + p * 65),
+    (p) => {
+      taskProgress.start("transcribe", "正在识别人声旋律", p * 100);
+      status(`正在识别人声旋律… ${Math.min(99, Math.floor(p * 100))}%`);
+    },
   );
   const threshold = Number($<HTMLSelectElement>("#sensitivity").value);
   return noteFramesToTime(
@@ -169,16 +189,20 @@ async function infer(buffer: AudioBuffer) {
 }
 async function runLocal() {
   if (!sourceBuffer) return;
-  status("正在提取中心人声与增强语音频段…", 8);
+  taskProgress.start("separate", "提取中心人声与增强语音频段");
+  status("正在提取中心人声与增强语音频段…");
   const isolated = await isolateCenterVocal(
     sourceBuffer,
     Number(isolate.value) / 100,
   );
-  status("正在重采样人声…", 15);
+  taskProgress.start("separate", "正在重采样人声");
+  status("正在重采样人声…");
   const vocal = await resampleAudio(isolated);
-  status("正在加载音高模型…", 18);
+  taskProgress.start("transcribe", "正在加载音高模型");
+  status("正在加载音高模型…");
   rawNotes = await infer(vocal);
-  status("正在分析 BPM、拍号与调性…", 90);
+  taskProgress.start("transcribe", "正在分析 BPM、拍号与调性");
+  status("正在分析 BPM、拍号与调性…");
   analysis = analyzeMusic(sourceBuffer, rawNotes);
 }
 function applyApiProject(project: ApiScoreProject) {
@@ -227,14 +251,16 @@ async function recoverRevisionConflict(error: unknown) {
   applyApiProject(serverProject);
   sync();
   void render();
-  status(`检测到其他页面的修改，已恢复最新修订 ${serverProject.revision}`, 100);
+  status(`检测到其他页面的修改，已恢复最新修订 ${serverProject.revision}`);
   return true;
 }
 async function runServer(quality: "demo" | "high") {
   if (!sourceFile) return;
-  status("正在上传音频…", 3);
+  taskProgress.start("prepare", "正在上传音频");
+  status("正在上传音频…");
   const upload = await api.upload(sourceFile);
-  status("已进入后端处理队列…", 6);
+  taskProgress.start("prepare", "正在提交处理任务");
+  status("已进入后端处理队列…");
   const submitted = await api.createJob(upload.id, quality);
   localStorage.setItem(ACTIVE_JOB_KEY, submitted.id);
   const job = await waitForServerJob(submitted.id);
@@ -245,29 +271,46 @@ async function runServer(quality: "demo" | "high") {
   void refreshProjects();
 }
 async function waitForServerJob(jobId: string) {
+  let terminal = false;
   try {
-    const job = await api.waitForJobEvents(jobId, (current) =>
+    const job = await api.waitForJobEvents(jobId, (current) => {
+      terminal = ["completed", "failed", "cancelled"].includes(current.status);
+      if (current.status === "completed")
+        taskProgress.start("transcribe", "正在载入乐谱");
+      else taskProgress.updateJob(current);
       status(
-        `${JOB_STAGE_LABELS[current.stage]} · ${Math.round(current.progress * 100)}%`,
-        current.progress * 100,
-      ),
-    );
+        current.status === "failed"
+          ? "任务处理失败"
+          : JOB_STAGE_LABELS[current.stage],
+      );
+    });
     localStorage.removeItem(FAILED_JOB_KEY);
     $<HTMLButtonElement>("#retry-job").disabled = true;
     return job;
   } catch (error) {
+    if (error instanceof ApiError && error.status === 404) {
+      terminal = true;
+      taskProgress.fail("原任务已不存在，请重新开始");
+      throw new Error("原任务已不存在，请重新开始");
+    }
+    if (!terminal) {
+      taskProgress.interrupt();
+      throw new Error("进度连接中断，刷新页面可恢复");
+    }
     localStorage.setItem(FAILED_JOB_KEY, jobId);
-    $<HTMLButtonElement>("#retry-job").disabled = false;
     throw error;
   } finally {
-    localStorage.removeItem(ACTIVE_JOB_KEY);
+    if (terminal) localStorage.removeItem(ACTIVE_JOB_KEY);
   }
 }
 $("#retry-job").addEventListener("click", async () => {
   const failedJobId = localStorage.getItem(FAILED_JOB_KEY);
-  if (!failedJobId) return;
+  if (!failedJobId || transcriptionBusy) return;
+  setTranscriptionBusy(true);
+  taskProgress.reset();
+  taskProgress.start("prepare", "正在重新提交任务");
   try {
-    status("正在重新提交任务…", 2);
+    status("正在重新提交任务…");
     const submitted = await api.retryJob(failedJobId);
     localStorage.setItem(ACTIVE_JOB_KEY, submitted.id);
     const job = await waitForServerJob(submitted.id);
@@ -276,38 +319,42 @@ $("#retry-job").addEventListener("click", async () => {
     applyApiProject(serverProject);
     await loadServerAudio(serverProject);
     sync();
-    render();
+    await render();
+    taskProgress.complete();
     void refreshProjects();
-    status("重试任务已完成", 100);
+    status("重试任务已完成");
   } catch (error) {
-    status(
-      `重试失败：${error instanceof Error ? error.message : "未知错误"}`,
-      0,
-    );
+    taskProgress.fail(error instanceof Error ? error.message : "未知错误");
+    status(`重试失败：${error instanceof Error ? error.message : "未知错误"}`);
+  } finally {
+    setTranscriptionBusy(false);
   }
 });
 async function resumeActiveJob() {
   const jobId = localStorage.getItem(ACTIVE_JOB_KEY);
   if (!jobId) return;
+  setTranscriptionBusy(true);
+  taskProgress.start("prepare", "正在恢复任务进度");
   try {
-    status("正在恢复未完成任务…", 2);
+    status("正在恢复未完成任务…");
     const job = await waitForServerJob(jobId);
     if (!job.project_id) throw new Error("恢复的任务没有乐谱项目");
     serverProject = await api.getProject(job.project_id);
     applyApiProject(serverProject);
     await loadServerAudio(serverProject);
     sync();
-    render();
+    await render();
+    taskProgress.complete();
     status(
       `任务已恢复 · ${serverProject.source.file_name} · ${serverProject.notes.length} 个音符`,
-      100,
     );
   } catch (error) {
-    localStorage.removeItem(ACTIVE_JOB_KEY);
+    taskProgress.fail(error instanceof Error ? error.message : "未知错误");
     status(
       `任务恢复失败：${error instanceof Error ? error.message : "未知错误"}`,
-      0,
     );
+  } finally {
+    setTranscriptionBusy(false);
   }
 }
 async function refreshProjects() {
@@ -333,8 +380,9 @@ $<HTMLSelectElement>("#recent-project").addEventListener(
     const projectId = (event.currentTarget as HTMLSelectElement).value;
     $<HTMLButtonElement>("#delete-project").disabled = !projectId;
     if (!projectId) return;
+    taskProgress.reset();
     try {
-      status("正在打开已保存项目…", 20);
+      status("正在打开已保存项目…");
       serverProject = await api.getProject(projectId);
       applyApiProject(serverProject);
       await loadServerAudio(serverProject);
@@ -342,13 +390,11 @@ $<HTMLSelectElement>("#recent-project").addEventListener(
       render();
       status(
         `已恢复 ${serverProject.source.file_name} · 修订 ${serverProject.revision}`,
-        100,
       );
     } catch (error) {
       if (await recoverRevisionConflict(error)) return;
       status(
         `恢复失败：${error instanceof Error ? error.message : "未知错误"}`,
-        0,
       );
     }
   },
@@ -375,33 +421,34 @@ $("#delete-project").addEventListener("click", async () => {
     }
     $<HTMLButtonElement>("#delete-project").disabled = true;
     await refreshProjects();
-    status("项目及关联数据已删除", 0);
+    taskProgress.reset();
+    status("项目及关联数据已删除");
   } catch (error) {
-    status(
-      `删除失败：${error instanceof Error ? error.message : "未知错误"}`,
-      0,
-    );
+    status(`删除失败：${error instanceof Error ? error.message : "未知错误"}`);
   }
 });
 transcribe.addEventListener("click", async () => {
-  if (!sourceBuffer) return;
-  transcribe.disabled = true;
+  if (!sourceBuffer || transcriptionBusy) return;
+  setTranscriptionBusy(true);
+  taskProgress.reset();
+  taskProgress.start("prepare", "正在准备音频");
   try {
     const engine = $<HTMLSelectElement>("#engine").value;
     if (engine === "server-high") await runServer("high");
     else if (engine === "server-demo") await runServer("demo");
     else await runLocal();
     sync();
-    render();
+    await render();
+    taskProgress.complete();
     status(
       `完成 · ${analysis.bpm} BPM · ${analysis.meter}/${analysis.meterDenominator} · ${keyName(analysis.keyPitchClass, analysis.mode)} · ${notes.length} 个音符`,
-      100,
     );
   } catch (e) {
     console.error(e);
-    status(`处理失败：${e instanceof Error ? e.message : "未知错误"}`, 0);
+    taskProgress.fail(e instanceof Error ? e.message : "未知错误");
+    status(`处理未完成：${e instanceof Error ? e.message : "未知错误"}`);
   } finally {
-    transcribe.disabled = false;
+    setTranscriptionBusy(false);
   }
 });
 function sync() {
@@ -438,7 +485,7 @@ async function update() {
       });
       applyApiProject(serverProject);
       render();
-      status(`已保存 · 修订 ${serverProject.revision}`, 100);
+      status(`已保存 · 修订 ${serverProject.revision}`);
     } catch (error) {
       status(
         `保存失败：${error instanceof Error ? error.message : "未知错误"}`,
@@ -448,6 +495,7 @@ async function update() {
 }
 [bpm, meter, key, mode].forEach((el) => el.addEventListener("change", update));
 $("#example").addEventListener("click", () => {
+  taskProgress.reset();
   serverProject = null;
   rawNotes = demoNotes();
   analysis = {
@@ -460,7 +508,7 @@ $("#example").addEventListener("click", () => {
   };
   sync();
   render();
-  status("已载入完整示例 · 所有参数均可修改", 100);
+  status("已载入完整示例 · 所有参数均可修改");
 });
 async function render() {
   const authoritativeNotes = scoreHistory?.value ?? serverProject?.notes;
@@ -630,7 +678,7 @@ async function saveEditedNotes(updated: EditableNote[], label: string) {
       serverProject.revision,
       updated,
     );
-    status(`${label}已保存 · 修订 ${serverProject.revision}`, 100);
+    status(`${label}已保存 · 修订 ${serverProject.revision}`);
   } catch (error) {
     if (await recoverRevisionConflict(error)) return;
     status(`保存失败：${error instanceof Error ? error.message : "未知错误"}`);
@@ -785,7 +833,7 @@ $("#xml").addEventListener("click", () => {
       exportMusicXml(notes, analysis),
     );
 });
-void refreshProjects();
-void resumeActiveJob();
 $<HTMLButtonElement>("#retry-job").disabled =
   !localStorage.getItem(FAILED_JOB_KEY);
+void refreshProjects();
+void resumeActiveJob();
