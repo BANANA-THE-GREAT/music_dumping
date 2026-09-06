@@ -2,6 +2,29 @@
 
 输入常见音频，生成可演奏、可校正的主旋律简谱与五线谱，并导出 MIDI / MusicXML。
 
+## 项目定位与实施计划
+
+本项目以个人学习、研究和非商业使用为目的，计划在 GitHub 公开源代码，不计划用于商业化或收费服务。
+这是一项项目用途约定，源码授权仍以根目录 [LICENSE](LICENSE) 为准；第三方代码、模型权重及数据分别遵循各自许可证，不能因为本仓库公开就视为全部可自由再分发。
+
+当前人声分离链路保留 Demucs。下一轮重点是减少转录和量化的信息损失、评测歌声专用 MIDI 模型，以及用连续音高校验候选音符。
+详细步骤见 [人声转 MIDI 质量升级实施计划](plan/vocal-to-midi-quality.md)。根目录 [PLAN.md](PLAN.md) 保留为早期架构规划，不代表本轮待办或全部已实现功能。
+
+## 使用及拟采用的开源项目
+
+| 项目 | 状态与用途 | 许可及接入注意事项 |
+|---|---|---|
+| [Demucs](https://github.com/facebookresearch/demucs) | 已接入：人声分离，继续保留 | 固定所用版本、权重及其许可，见许可清单 |
+| [Basic Pitch](https://github.com/spotify/basic-pitch) / [Basic Pitch TS](https://github.com/spotify/basic-pitch-ts) | 已接入：后端及浏览器转录；保留为评测和回退基线 | Python 项目代码为 Apache-2.0；TS 版本及具体权重另行核对 |
+| [abcjs](https://github.com/paulrosen/abcjs) | 已接入：五线谱渲染 | 具体版本许可及第三方声明见许可清单 |
+| [GAME](https://github.com/openvpi/GAME) | 拟优先试验：歌声音符及起止边界识别，尚未接入 | 代码 MIT；[官方 1.0 权重](https://github.com/openvpi/GAME/releases/tag/v1.0.0)为 CC BY-NC-SA 4.0，须遵守非商用、署名及适用的相同方式共享条件 |
+| [SOME](https://github.com/openvpi/SOME) | 拟评测：歌声转 MIDI 的轻量、CPU 对照，尚未接入 | 代码 MIT；[官方基线权重](https://github.com/openvpi/SOME/releases/tag/v1.0.0-baseline)为 CC BY-NC-SA 4.0 |
+| [ROSVOT](https://github.com/RickyL-2000/ROSVOT) | 备选：中文、分离残留较重的歌声转录，按评测需要引入 | 代码 MIT；具体权重授权和数据限制仍需核实，不能由代码许可证推断 |
+| [RMVPE](https://github.com/Dream-High/RMVPE) / [部署实现](https://github.com/yxlllc/RMVPE) | 拟引入：连续基频和发声区间校验，不单独代替音符切分 | 最终采用的实现、版本、权重来源与授权均需确认 |
+| [DDSP](https://github.com/magenta/ddsp) | 远期可选：谐波重合成和频谱对照实验，不是本轮默认依赖 | 选型时核对代码、预训练模型及数据许可；不是开箱即用的人声转 MIDI 工具 |
+
+上述候选来自官方资料调研，不代表已安装、已验证效果或已经选为默认引擎。非商业用途不能代替许可审查；完整登记和分发规则见 [模型与依赖许可清单](docs/model-licenses.md)。
+
 ## 已实现
 
 - 三种转录模式：浏览器本地 Basic Pitch、后端快速演示、后端 Demucs + Basic Pitch 高质量管线
