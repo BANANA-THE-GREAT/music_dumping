@@ -184,6 +184,89 @@ try {
     ),
   );
   assert.deepEqual(errors, []);
+  const project = {
+    schema_version: "1.0",
+    project_id: "editor-check",
+    revision: 1,
+    source: {
+      file_name: "editor-check.wav",
+      duration_ms: 2000,
+      audio_object_key: "",
+      vocal_object_key: null,
+    },
+    analysis: {
+      tempo_map: [{ time_ms: 0, bpm: 120 }],
+      meter_map: [{ beat: 0, numerator: 4, denominator: 4 }],
+      key_map: [{ beat: 0, tonic: 0, mode: "major" }],
+      confidence: { tempo: 0.9, meter: 0.9, key: 0.9 },
+    },
+    notes: [60, 64].map((pitch, index) => ({
+      id: `saved-${index}`,
+      pitch_midi: pitch,
+      source_start_ms: index * 500,
+      source_end_ms: index * 500 + 500,
+      quantized_start: index,
+      quantized_duration: 1,
+      confidence: 0.9,
+      origin: "model",
+    })),
+    pipeline: [],
+  };
+  const saved = [];
+  await page.route("**/api/v1/projects", (route) =>
+    route.fulfill({
+      json: [
+        {
+          project_id: project.project_id,
+          file_name: "editor-check.wav",
+          note_count: 2,
+          revision: project.revision,
+        },
+      ],
+    }),
+  );
+  await page.route("**/api/v1/projects/editor-check/audio", (route) =>
+    route.abort(),
+  );
+  await page.route("**/api/v1/projects/editor-check", async (route) => {
+    if (route.request().method() === "PATCH") {
+      const body = route.request().postDataJSON();
+      assert.equal(body.expected_revision, project.revision);
+      saved.push(body);
+      project.notes = body.notes;
+      project.revision++;
+      await new Promise((resolve) => setTimeout(resolve, 150));
+    }
+    await route.fulfill({ json: project });
+  });
+  await page.click("#refresh-projects");
+  await page
+    .locator('#recent-project option[value="editor-check"]')
+    .waitFor({ state: "attached" });
+  await page.selectOption("#recent-project", "editor-check");
+  await page.waitForFunction(
+    () => document.querySelectorAll("#piano rect").length === 2,
+  );
+  await page.locator('#jianpu [data-note="0"]').first().click();
+  await page.click("#pitch-up");
+  await page.waitForFunction(() =>
+    document.querySelector("#status").textContent.includes("修订 2"),
+  );
+  assert.equal(project.notes[0].pitch_midi, 61);
+  await page.click("#undo");
+  await page.waitForFunction(() =>
+    document.querySelector("#status").textContent.includes("修订 3"),
+  );
+  assert.equal(project.notes[0].pitch_midi, 60);
+  assert.equal(saved.length, 2);
+  await page.click("#example");
+  await page.waitForFunction(
+    () => document.querySelectorAll("#piano rect").length === 14,
+  );
+  assert.deepEqual(errors, []);
+  console.log(
+    "PASS: server-project edit persistence, revision sequencing, undo and switching back to local example (mock API only)",
+  );
   console.log(
     "PASS: staff selection, cross-view pitch editing, undo, numbered bars, split, example reset, Ctrl-wheel zoom, drag, desktop/mobile layout",
   );

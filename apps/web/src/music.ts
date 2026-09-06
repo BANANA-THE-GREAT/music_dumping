@@ -171,7 +171,7 @@ export function mappedAbc(
     }
     abc += "| ";
   }
-  return { abc: abc + (notes.length ? "]" : "z8 |]"), mapping };
+  return { abc: notes.length ? abc.trimEnd() + "]" : abc + "z8 |]", mapping };
 }
 
 export function demoNotes(): RawNote[] {

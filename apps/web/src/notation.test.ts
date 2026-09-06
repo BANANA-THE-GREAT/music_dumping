@@ -1,9 +1,19 @@
 import { describe, expect, it } from "vitest";
 import { cleanAndQuantize, demoNotes, mappedAbc } from "./music";
-import { renderJianpu, scoreMeasures } from "./notation";
+import { renderJianpu, rhythmParts, scoreMeasures } from "./notation";
 
 const note = cleanAndQuantize(demoNotes(), 120)[0];
 describe("notation measures and identity", () => {
+  it("preserves dotted and fractional numbered note lengths", () => {
+    expect(rhythmParts(1.75)).toEqual([
+      { duration: 1.75, dots: 2, underlines: 0, extensions: 0 },
+    ]);
+    expect(rhythmParts(0.75)).toEqual([
+      { duration: 0.75, dots: 1, underlines: 1, extensions: 0 },
+    ]);
+    expect(rhythmParts(2.5).map((p) => p.duration)).toEqual([2, 0.5]);
+    expect(mappedAbc([note], 120).abc).toMatch(/\|\]$/);
+  });
   it("splits sustained notes and rests across compound meter measures", () => {
     const measures = scoreMeasures(
       [{ ...note, startBeat: 4, durationBeats: 4 }],
