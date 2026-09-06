@@ -2,7 +2,9 @@ import time
 from io import BytesIO
 
 from app.config import get_settings
+from app.database import SessionLocal
 from app.main import app
+from app.models import JobRecord, ProjectRecord, UploadRecord
 from fastapi.testclient import TestClient
 
 client = TestClient(app)
@@ -112,8 +114,39 @@ def test_project_deletion_removes_related_records_and_source_file() -> None:
     project = create_project()
     source_path = get_settings().data_dir / project["source"]["audio_object_key"]
     assert source_path.exists()
+    with SessionLocal() as session:
+        record = session.get(ProjectRecord, project["project_id"])
+        job_id = record.job_id
+        upload_id = session.get(JobRecord, job_id).upload_id
 
     response = client.delete(f"/v1/projects/{project['project_id']}")
     assert response.status_code == 204
     assert client.get(f"/v1/projects/{project['project_id']}").status_code == 404
     assert not source_path.exists()
+    assert project["project_id"] not in {
+        item["project_id"] for item in client.get("/v1/projects").json()
+    }
+    with SessionLocal() as session:
+        assert session.get(ProjectRecord, project["project_id"]) is None
+        assert session.get(JobRecord, job_id) is None
+        assert session.get(UploadRecord, upload_id) is None
+
+
+def test_project_deletion_preserves_upload_used_by_another_job() -> None:
+    project = create_project()
+    source_path = get_settings().data_dir / project["source"]["audio_object_key"]
+    with SessionLocal() as session:
+        record = session.get(ProjectRecord, project["project_id"])
+        job_id = record.job_id
+        upload_id = session.get(JobRecord, job_id).upload_id
+    other_job = client.post(
+        "/v1/jobs", json={"upload_id": upload_id, "options": {"auto_start": False}}
+    ).json()
+
+    assert client.delete(f"/v1/projects/{project['project_id']}").status_code == 204
+    assert source_path.exists()
+    with SessionLocal() as session:
+        assert session.get(ProjectRecord, project["project_id"]) is None
+        assert session.get(JobRecord, job_id) is None
+        assert session.get(JobRecord, other_job["id"]) is not None
+        assert session.get(UploadRecord, upload_id) is not None

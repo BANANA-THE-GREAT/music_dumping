@@ -260,6 +260,8 @@ def delete_project(project_id: str, session: SessionDep, settings: SettingsDep) 
     upload = session.get(UploadRecord, job.upload_id)
     object_key = upload.object_key if upload else None
     session.delete(project)
+    # There are no ORM relationships to order these dependent DELETE statements.
+    session.flush()
     session.delete(job)
     session.flush()
     other_job = session.scalar(
