@@ -71,23 +71,9 @@ def run_selected_job(job_id: str) -> None:
 
 
 def _runner_for(transcriber: object) -> Callable[[str], None]:
-    if transcriber == "basic_pitch":
+    if transcriber in {"basic_pitch", "game_f0"}:
         return run_real_job
-    if transcriber == "game_f0":
-        return run_unavailable_experimental_job
     return run_fake_job
-
-
-def run_unavailable_experimental_job(job_id: str) -> None:
-    with SessionLocal() as session:
-        job = session.get(JobRecord, job_id)
-        if job is None or job.status == JobStatus.CANCELLED:
-            return
-    _fail(
-        job_id,
-        "EXPERIMENTAL_ENGINE_NOT_CONFIGURED",
-        "The GAME + torchcrepe experimental engine is not configured in this worker",
-    )
 
 
 def run_fake_job(job_id: str) -> None:
@@ -122,12 +108,15 @@ def run_fake_job(job_id: str) -> None:
 
 def run_real_job(job_id: str) -> None:
     from vss_worker.cancellation import cancellation_scope
+    from vss_worker.experimental import (
+        ExperimentalEngineConfigurationError,
+        GameF0EvidenceTranscriber,
+    )
     from vss_worker.pipeline import build_real_project
 
     from app.config import get_settings
 
     settings = get_settings()
-    normalizer, separator, transcriber = real_adapters()
     with SessionLocal() as session:
         job = session.get(JobRecord, job_id)
         if job is None or job.status == JobStatus.CANCELLED:
@@ -141,6 +130,18 @@ def run_real_job(job_id: str) -> None:
             _progress(job_id, stage, value)
 
         try:
+            normalizer, separator, transcriber = real_adapters()
+            evidence_transcriber = (
+                GameF0EvidenceTranscriber(
+                    model_path=settings.game_model_path,
+                    game_root=settings.game_root,
+                    torchcrepe_root=settings.torchcrepe_root,
+                )
+                if job.options.get("transcriber") == "game_f0"
+                else None
+            )
+            if evidence_transcriber is not None:
+                evidence_transcriber.validate_runtime()
             with cancellation_scope(lambda: _check_cancelled(job_id)):
                 document = ScoreProject.model_validate(
                     build_real_project(
@@ -152,12 +153,15 @@ def run_real_job(job_id: str) -> None:
                         normalizer=normalizer,
                         separator=separator,
                         transcriber=transcriber,
+                        evidence_transcriber=evidence_transcriber,
                         progress=progress,
                     )
                 )
             _complete(job_id, document)
         except InterruptedError:
             return
+        except ExperimentalEngineConfigurationError as error:
+            _fail(job_id, "EXPERIMENTAL_ENGINE_NOT_CONFIGURED", str(error))
         except Exception as error:
             _fail(job_id, "TRANSCRIPTION_FAILED", str(error))
 

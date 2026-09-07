@@ -81,7 +81,13 @@ def test_experimental_transcriber_is_an_explicit_job_option() -> None:
     assert invalid.status_code == 422
 
 
-def test_unconfigured_experimental_transcriber_never_falls_back_to_fake() -> None:
+def test_unconfigured_experimental_transcriber_never_falls_back_to_fake(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.config import get_settings
+
+    monkeypatch.setenv("VSS_GAME_MODEL_PATH", "/missing/game/model.pt")
+    get_settings.cache_clear()
     upload = create_test_upload()
     job = client.post(
         "/v1/jobs",
@@ -99,6 +105,7 @@ def test_unconfigured_experimental_transcriber_never_falls_back_to_fake() -> Non
     assert job["status"] == "failed"
     assert job["error_code"] == "EXPERIMENTAL_ENGINE_NOT_CONFIGURED"
     assert job["project_id"] is None
+    get_settings.cache_clear()
 
 
 def test_interrupted_local_job_becomes_retryable() -> None:

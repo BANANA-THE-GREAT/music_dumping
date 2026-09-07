@@ -54,12 +54,18 @@ services:
   worker:
     build:
       context: ..
-      dockerfile: infra/docker/Dockerfile.worker
+      dockerfile: ${VSS_WORKER_DOCKERFILE:-infra/docker/Dockerfile.worker}
     environment:
       <<: *backend-env
       TORCH_HOME: /models/torch
       HF_HOME: /models/huggingface
-    volumes: [app-data:/data, model-cache:/models]
+      VSS_GAME_MODEL_PATH: /models/game/GAME-1.0-medium/model.pt
+      VSS_GAME_ROOT: /opt/game
+      VSS_TORCHCREPE_ROOT: /opt/torchcrepe
+    volumes:
+      - app-data:/data
+      - model-cache:/models
+      - ../data/models/game:/models/game:ro
     depends_on:
       api: {condition: service_healthy}
       postgres: {condition: service_healthy}

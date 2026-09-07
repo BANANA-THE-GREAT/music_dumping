@@ -36,5 +36,15 @@ class MelodyTranscriber(Protocol):
     def transcribe(self, vocal_path: Path) -> list[DetectedNote]: ...
 
 
+@dataclass(frozen=True)
+class EvidenceTranscription:
+    notes: list[DetectedNote]
+    transcription_evidence: dict[str, object]
+
+
+class EvidenceTranscriber(Protocol):
+    def transcribe(self, vocal_path: Path, evidence_dir: Path) -> EvidenceTranscription: ...
+
+
 class BeatTracker(Protocol):
     def track(self, source: Path) -> BeatGrid: ...

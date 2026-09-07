@@ -6,6 +6,7 @@ from uuid import uuid4
 from vss_worker.adapters import (
     AudioNormalizer,
     DetectedNote,
+    EvidenceTranscriber,
     MelodyTranscriber,
     Progress,
     VocalSeparator,
@@ -86,6 +87,7 @@ def build_real_project(
     normalizer: AudioNormalizer,
     separator: VocalSeparator,
     transcriber: MelodyTranscriber,
+    evidence_transcriber: EvidenceTranscriber | None = None,
     progress: Progress,
 ) -> dict[str, object]:
     pipeline_steps: list[dict[str, object]] = []
@@ -119,13 +121,21 @@ def build_real_project(
     )
     progress("transcribing", 0.65)
     started = time.perf_counter()
-    detected = sorted(transcriber.transcribe(vocal), key=lambda note: note.start_seconds)
+    transcription_evidence = None
+    active_transcriber: object = transcriber
+    if evidence_transcriber is None:
+        detected = sorted(transcriber.transcribe(vocal), key=lambda note: note.start_seconds)
+    else:
+        active_transcriber = evidence_transcriber
+        result = evidence_transcriber.transcribe(vocal, work_dir / "evidence")
+        detected = sorted(result.notes, key=lambda note: note.start_seconds)
+        transcription_evidence = result.transcription_evidence
     pipeline_steps.append(
         {
             "stage": "transcribe_notes",
             "version": "1",
             "parameters": {
-                "implementation": type(transcriber).__name__,
+                "implementation": type(active_transcriber).__name__,
                 "elapsed_ms": round((time.perf_counter() - started) * 1000, 2),
                 "device": "worker-default",
                 "detected_notes": len(detected),
@@ -185,6 +195,7 @@ def build_real_project(
         },
         "notes": notes,
         "raw_notes": quantized_notes(detected, bpm, monophonic=False),
+        "transcription_evidence": transcription_evidence,
         "pipeline": [
             {
                 "stage": "audio_to_melody",

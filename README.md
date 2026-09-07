@@ -17,11 +17,11 @@
 | [Demucs](https://github.com/facebookresearch/demucs) | 已接入：人声分离，继续保留 | 固定所用版本、权重及其许可，见许可清单 |
 | [Basic Pitch](https://github.com/spotify/basic-pitch) / [Basic Pitch TS](https://github.com/spotify/basic-pitch-ts) | 已接入：后端及浏览器转录；保留为评测和回退基线 | Python 项目代码为 Apache-2.0；TS 版本及具体权重另行核对 |
 | [abcjs](https://github.com/paulrosen/abcjs) | 已接入：五线谱渲染 | 具体版本许可及第三方声明见许可清单 |
-| [GAME](https://github.com/openvpi/GAME) | 已完成 P1 独立容器评测，medium 为最佳实验候选；未接入默认 Worker | 代码 MIT；[官方 1.0 权重](https://github.com/openvpi/GAME/releases/tag/v1.0.0)为 CC BY-NC-SA 4.0，须遵守非商用、署名及适用的相同方式共享条件 |
+| [GAME](https://github.com/openvpi/GAME) | 已接入显式可选的 quality Worker，medium 生成实验音符候选；默认仍为 Basic Pitch | 代码 MIT；[官方 1.0 权重](https://github.com/openvpi/GAME/releases/tag/v1.0.0)为 CC BY-NC-SA 4.0，须遵守非商用、署名及适用的相同方式共享条件；权重只读挂载，不进入镜像 |
 | [SOME](https://github.com/openvpi/SOME) | 已完成 P1 独立 CPU 对照；未达到预登记门槛，未接入默认 Worker | 代码 MIT；[官方基线权重](https://github.com/openvpi/SOME/releases/tag/v1.0.0-baseline)为 CC BY-NC-SA 4.0 |
 | [ROSVOT](https://github.com/RickyL-2000/ROSVOT) | 备选：中文、分离残留较重的歌声转录，按评测需要引入 | 代码 MIT；具体权重授权和数据限制仍需核实，不能由代码许可证推断 |
 | [RMVPE](https://github.com/Dream-High/RMVPE) / [部署实现](https://github.com/yxlllc/RMVPE) | 暂停：原始代码可用，但常用部署权重授权不明确 | 原始代码 Apache-2.0；部署仓库及 `230917` 权重未提供明确 LICENSE，不接入或再分发 |
-| [torchcrepe](https://github.com/maxrmorrison/torchcrepe) | P3 独立 CPU F0 与边界诊断完成；未接入默认 Worker | 固定 `0.0.24` / commit `19e2ec3d494c0797a5ff2a11408ec5838fba6681`；仓库 MIT，包内权重由原始 CREPE 权重转换。实验 full 权重哈希见许可清单 |
+| [torchcrepe](https://github.com/maxrmorrison/torchcrepe) | 已接入可选 quality Worker，保存 10ms F0 证据并生成默认不采用的止音建议 | 固定 `0.0.24` / commit `19e2ec3d494c0797a5ff2a11408ec5838fba6681`；仓库 MIT，包内权重由原始 CREPE 权重转换。full 权重哈希见许可清单 |
 | [DDSP](https://github.com/magenta/ddsp) | 远期可选：谐波重合成和频谱对照实验，不是本轮默认依赖 | 选型时核对代码、预训练模型及数据许可；不是开箱即用的人声转 MIDI 工具 |
 | [Vocadito](https://zenodo.org/records/5578807) | 已用于 P0：孤立人声 Basic Pitch 基线、双标注一致性和损失定位 | Bittner 等人，DOI `10.5281/zenodo.5578807`，数据集 CC BY 4.0；音频及转换标注保存在 Git 忽略的 `data/`，仓库只提交可复现 manifest 和汇总报告 |
 
@@ -69,6 +69,17 @@ docker compose -f infra/compose.yaml up -d --build --wait web worker
 Web 默认位于 `http://localhost:8080`，API 位于 `http://localhost:8000`。API 容器启动前自动执行 Alembic migration。
 浏览器通过同一站点的 `/api` 请求后端；上传、SSE 进度和导出均由 Nginx 转发。上述命令同时启动所需的 PostgreSQL、Redis 和 API，当前本地文件存储不需要 MinIO。
 如果已经运行本地 API，需先释放其 8000 端口。高质量模式由 Worker 内的 FFmpeg、Demucs 和 Basic Pitch 执行；首次使用 Demucs 时会联网下载模型权重，后续复用 `model-cache` 数据卷。
+
+实验 GAME + torchcrepe 引擎使用单独的 quality Worker。先把官方 GAME medium 的
+`model.pt` 放在 `data/models/game/GAME-1.0-medium/model.pt`，再执行：
+
+```bash
+scripts/build-quality-worker.sh
+VSS_WORKER_DOCKERFILE=infra/docker/Dockerfile.worker-quality \
+  docker compose -f infra/compose.yaml up -d --wait worker
+```
+
+构建脚本固定并校验源码与权重哈希。quality Worker 仍支持 Basic Pitch；实验引擎只有在任务中显式选择 `game_f0` 时运行。标准 Worker 收到该选项会返回 `EXPERIMENTAL_ENGINE_NOT_CONFIGURED`，不会回退成假结果或 Basic Pitch。GAME 原始音符、独立 F0 文件和边界建议会分别保存，建议默认保持 pending，不自动改写谱面。
 
 日常启动和修改前端后重新构建：
 

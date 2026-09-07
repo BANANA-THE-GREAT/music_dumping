@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from vss_worker.adapters import DetectedNote
+from vss_worker.adapters import DetectedNote, EvidenceTranscription
 from vss_worker.pipeline import build_real_project, estimate_meter
 
 
@@ -27,6 +27,25 @@ class FakeTranscriber:
             DetectedNote(0.5, 0.95, 64, 0.8),
             DetectedNote(1, 1.9, 67, 0.95),
         ]
+
+
+class FakeEvidenceTranscriber:
+    def transcribe(self, vocal_path: Path, evidence_dir: Path) -> EvidenceTranscription:
+        assert vocal_path.exists()
+        evidence_dir.mkdir(parents=True)
+        (evidence_dir / "f0.jsonl").write_text("{}\n", encoding="utf-8")
+        return EvidenceTranscription(
+            notes=[DetectedNote(0.1, 0.5, 60, 1.0, "game-0000", 6000.0)],
+            transcription_evidence={
+                "note_model": {
+                    "name": "GAME medium",
+                    "implementation": "fake",
+                    "code_revision": "test",
+                    "parameters": {},
+                },
+                "boundary_suggestions": [],
+            },
+        )
 
 
 def test_real_pipeline_composes_adapters_and_quantizes(tmp_path: Path) -> None:
@@ -76,6 +95,31 @@ def test_meter_estimator_detects_three_four_accent_cycle() -> None:
         for index in range(12)
     ]
     assert estimate_meter(notes)[:2] == (3, 4)
+
+
+def test_real_pipeline_persists_experimental_evidence_without_applying_it(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "source.wav"
+    source.write_bytes(b"audio")
+    document = build_real_project(
+        upload_id="upload-2",
+        file_name="voice.wav",
+        object_key="uploads/upload-2/source.wav",
+        source_path=source,
+        work_dir=tmp_path / "job-2",
+        normalizer=FakeNormalizer(),
+        separator=FakeSeparator(),
+        transcriber=FakeTranscriber(),
+        evidence_transcriber=FakeEvidenceTranscriber(),
+        progress=lambda *_: None,
+    )
+    assert document["raw_notes"][0]["source_note_ids"] == ["game-0000"]
+    assert document["raw_notes"][0]["source_end_ms"] == 500
+    assert document["transcription_evidence"]["note_model"]["name"] == "GAME medium"
+    assert document["pipeline"][3]["parameters"]["implementation"] == (
+        "FakeEvidenceTranscriber"
+    )
 
 
 def test_meter_estimator_detects_six_eight_and_falls_back_when_unclear() -> None:
