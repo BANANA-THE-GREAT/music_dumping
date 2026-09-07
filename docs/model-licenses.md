@@ -6,7 +6,7 @@
 
 ## 项目登记
 
-以下为 2026-09-06 的调研与接入状态。未填精确版本和权重哈希的候选，不视为已完成集成审查。
+以下为 2026-09-07 的调研与接入状态。未填精确版本和权重哈希的候选，不视为已完成集成审查。
 
 | 组件 | 状态及用途 | 官方来源 | 已知许可和待办 |
 |---|---|---|---|
@@ -16,7 +16,8 @@
 | GAME | P1 独立容器评测完成；未接入默认 Worker | [代码](https://github.com/openvpi/GAME)、[权重](https://github.com/openvpi/GAME/releases/tag/v1.0.0) | 固定代码 tag `v1.0.0` / commit `e66c31251605e334b1bf0f565252d4987a9065c0`，代码 MIT；官方权重 CC BY-NC-SA 4.0。small zip SHA-256 `3d3e1ac0a83234b2a163a3d43043455d15670765eaa25ef6285c399da1ccc576`，`model.pt` SHA-256 `7dd10022a4011938843249a31d9527691376c493d13687a7fc1dec88786b9691`；medium zip SHA-256 `8c5b3e531e2905b935e664e2f533921cd637243770fab5282413bdb5051ca60c`，`model.pt` SHA-256 `e9904159fb0646e1a352b9d2bc74615547cfa3e32d45c7464d440ac142846d93`。训练含约 32 小时私有人工标注数据及公开/私有噪声数据 |
 | SOME | P1 独立 CPU 对照完成；未接入默认 Worker | [代码](https://github.com/openvpi/SOME)、[权重](https://github.com/openvpi/SOME/releases/tag/v1.0.0-baseline) | 固定代码 tag `v1.0.0-baseline` / commit `dcfd40f9bfaa7c9649aae01a2795af73946ec5e7`，代码 MIT；权重 CC BY-NC-SA 4.0。`0119_continuous128_5spk.zip` SHA-256 `bc91b1afc3ae350bd70d36ec418c471baa65c94fbeeaa09d6e178cbcfca886ec`；压缩包内部实际为 `0119_continuous256_5spk`，checkpoint SHA-256 `aa710fce920b4dae281b0e6cc2acba83345d82ee62d51f7bafeb29636f28f97c` |
 | ROSVOT | 按需备选，歌声转 MIDI | [代码与模型说明](https://github.com/RickyL-2000/ROSVOT) | 代码 MIT；权重及训练数据使用限制待核实，不自动继承 MIT |
-| RMVPE | 候选，连续基频校验；未接入 | [原实现](https://github.com/Dream-High/RMVPE)、[部署实现](https://github.com/yxlllc/RMVPE) | 原实现预检 commit `a6db1cd7d26014aa739383367afd9bab57fc624c`；部署实现最新可见权重 release `230917`，说明训练数据包含处理后的 MIR-1K、PTDB 和 M4Singer 合成数据。代码许可、权重许可及各训练数据约束仍未完整核实，不得下载后直接分发或接入默认链路 |
+| RMVPE | 暂停，连续基频候选；未接入 | [原实现](https://github.com/Dream-High/RMVPE)、[部署实现](https://github.com/yxlllc/RMVPE) | 原实现 commit `a6db1cd7d26014aa739383367afd9bab57fc624c` 含 Apache-2.0 LICENSE，但未发布权重。部署实现 commit `0aabafba18289ca938a73af0b0297686abf4922d` 及 `230917` release 提供约 325 MiB 权重，却未提供明确代码 LICENSE 或权重授权；不得接入、再分发或把其结果宣传为已审核模型 |
+| torchcrepe / CREPE | P3 独立 F0 和边界诊断完成；未接入默认 Worker | [torchcrepe](https://github.com/maxrmorrison/torchcrepe)、[CREPE](https://github.com/marl/crepe) | 固定 torchcrepe `0.0.24` / commit `19e2ec3d494c0797a5ff2a11408ec5838fba6681`，仓库 MIT，并说明包内权重由原始 CREPE tiny/full 权重转换。源码归档 SHA-256 `4c4651da5c071f81d7825ed58edc32b42f74e794152ff45d9b08432e882e8f91`；full 权重 SHA-256 `133225604dedd2e4005f8bbd1bd0a2ec073ba8b7a6cd31ff6d5edbbfa3539986`。权重只进入本地实验镜像，不提交 Git 或公共 Release；公开容器前仍需保留 MIT notice 并复核原始 CREPE 训练数据说明 |
 | DDSP | 可选后续研究，重合成校验 | [代码](https://github.com/magenta/ddsp) | 尚未集成；若使用具体预训练音色模型，须额外核查权重和数据授权 |
 
 ## 评测数据集

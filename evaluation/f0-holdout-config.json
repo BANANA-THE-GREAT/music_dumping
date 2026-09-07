@@ -1,0 +1,33 @@
+{
+  "schema_version": "1.0",
+  "split": "holdout",
+  "selected_on_tuning": {
+    "game_variant": "game_medium_p015_b010_s8",
+    "game_parameters": {
+      "presence_threshold": 0.15,
+      "boundary_threshold": 0.1,
+      "d3pm_steps": 8,
+      "language_id": 0
+    },
+    "f0_variant": "torchcrepe_full",
+    "boundary_parameters": {
+      "periodicity_threshold": 0.4,
+      "pitch_tolerance_cents": 100,
+      "maximum_gap_ms": 20,
+      "maximum_contraction_ms": 400,
+      "maximum_extension_ms": 400,
+      "minimum_overlap_ms": 30
+    }
+  },
+  "holdout_variants": {
+    "game": "game_medium_p015_b010_s8_holdout",
+    "f0": "torchcrepe_full_holdout"
+  },
+  "quality_gate": {
+    "baseline_variant": "basic_pitch_raw",
+    "minimum_f1_improvement": 0.03,
+    "minimum_recall_improvement": 0.05,
+    "maximum_precision_regression": 0.02,
+    "maximum_failure_rate": 0.02
+  }
+}

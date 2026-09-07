@@ -2,7 +2,7 @@
 
 日期：2026-09-06
 
-状态：实施中。P0、P1 与 P1.5 已完成；GAME medium 能明显改善起音检测，但阈值和 D3PM 步数调优仍不能改善严格起止指标。默认引擎保持 Basic Pitch，下一步提前进行 P3 的连续 F0 边界诊断。真实混音及 Demucs 残留覆盖仍待补充，尚未证明真实歌曲识别准确率提高。
+状态：实施中。P0、P1、P1.5 与 P3 的连续 F0 质量诊断已完成。固定的 GAME + torchcrepe 边界规则在未访问 holdout 上通过预登记指标，但存在逐片段回退、CPU 成本和取消问题。默认引擎保持 Basic Pitch，下一步进入 P2 的显式实验接入和人工审阅流程。真实混音及 Demucs 残留覆盖仍待补充，尚未证明真实歌曲识别准确率提高。
 
 ## 1. 目标与边界
 
@@ -38,7 +38,8 @@
 | [GAME](https://github.com/openvpi/GAME) | 优先候选：歌声音符及边界预测 | 固定官方权重、确认非商用条款；先测 small/medium 的本机质量与资源成本 |
 | [SOME](https://github.com/openvpi/SOME) | 轻量、CPU 对照 | 独立环境可复现运行，记录权重 CC BY-NC-SA 4.0 条件 |
 | [ROSVOT](https://github.com/RickyL-2000/ROSVOT) | 可选第二批对照 | GAME/SOME 在中文或残留噪声片段上仍明显不足，且完成权重授权核查 |
-| [RMVPE](https://github.com/Dream-High/RMVPE) | 独立连续基频与发声校验 | 固定原实现或[部署实现](https://github.com/yxlllc/RMVPE)，确认权重授权和 CPU/GPU 可运行性 |
+| [torchcrepe](https://github.com/maxrmorrison/torchcrepe) | 独立连续基频与发声校验 | 固定 `0.0.24` / MIT 包内权重；已完成 CPU tuning 和 holdout 诊断 |
+| [RMVPE](https://github.com/Dream-High/RMVPE) | 暂停的 F0 候选 | 原始代码 Apache-2.0，但常用部署权重授权不明确，不接入 |
 | [Basic Pitch](https://github.com/spotify/basic-pitch) | 保留原始输出基线与回退 | 固定当前版本，不在模型对比中混用不同后处理参数 |
 | [DDSP](https://github.com/magenta/ddsp) | 远期可选，谐波与频谱对照 | 仅在特征级校验证明有效但不足后启动；另立实验，不阻塞主线 |
 
@@ -108,7 +109,7 @@ P1 验收结论：未通过。GAME medium 的 holdout 起止 F1 相对 Basic Pit
 产物：`evaluation/game-tuning-grid.json`、`evaluation/reports/vocadito-game-tuning.json`、诊断报告和可恢复运行脚本。
 结论：presence `0.10` 至 `0.20` 几乎不影响 recall；boundary `0.10` 仅带来小幅改善；增加 D3PM 步数无收益。停止 GAME 参数扩展，不运行 tuned holdout，不以当前数据微调。先用连续 F0/发声区间验证局部止音校正，再决定是否接入实验引擎。详见 `evaluation/reports/vocadito-game-tuning.md`。
 
-### P2：接入候选引擎与原始结果保真（等待 P3 诊断）
+### P2：接入候选引擎与原始结果保真（下一阶段）
 
 - [ ] 将胜出候选接到后端转录适配器，复用任务取消、进度、错误状态和隔离子进程。
 - [ ] 支持显式选择引擎；模型不存在时显示安装/配置错误，不静默伪装为另一个模型。
@@ -118,17 +119,19 @@ P1 验收结论：未通过。GAME medium 的 holdout 起止 F1 相对 Basic Pit
 
 验收：完整任务可取消、重试、恢复，旧项目仍能打开；结果可追溯到固定模型；切回 Basic Pitch 不丢用户编辑。
 
-### P3：连续音高校验与可解释局部修正（下一阶段）
+### P3：连续音高校验与可解释局部修正（质量诊断完成）
 
-- [ ] 接入 RMVPE，生成与原人声同一时间轴上的 F0 和发声区间。
-- [ ] 先做诊断：疑似漏音、八度错误、多切、误合及无声区误报，并显示相关时间段。
-- [ ] 将候选音符展开成时间轴，与可靠 F0 区域比较；音高比较使用 cents 等音程距离。
+- [x] 因 RMVPE 常用权重授权不明确，改用许可清楚的 torchcrepe，生成与原人声同一时间轴的 10ms F0 和 periodicity。
+- [x] 在 Vocadito F0 标注上验证 voicing 与音高证据，并诊断 GAME 严格起止损失。
+- [x] 将候选音符与可靠 F0 区域比较；音高使用 cents 距离，只调整止音、不改变起音和音高。
 - [ ] 自动修正默认关闭；先由用户逐项接受，保留撤销与修改原因。
 - [ ] 仅在多种证据一致时尝试局部增删、移调、合并或拆分；设置最大改动范围，防止级联改写。
 - [ ] 同音高重复音必须结合起音/边界证据判断；歌词边界可选，不能假设一个字对应一个音符。
 
 验收：降低人工确认的漏音和八度错误，同时不过度增加误补音、误合并；低置信和声区域只提示、不强制修改。
-RMVPE 也是模型，其错误不能被当作绝对真值。校验损失降低不等于真实谱面一定更正确。
+连续 F0 模型也会出错，不能被当作绝对真值。校验损失降低不等于真实谱面一定更正确。
+
+P3 质量结论：通过聚合门槛。固定 tuning 规则在 holdout 上将 GAME 起止 F1 从 `0.3631` 提高到 `0.4407`，相对 Basic Pitch raw 提高 `0.1279`；recall 相对基线提高 `0.1054`。但 A1 逐片段仍有 5/15 回退，因此只允许作为默认关闭的审阅建议进入 P2，不能直接自动覆盖。详见 `evaluation/reports/vocadito-f0-boundary-comparison.md`。
 
 ### P4：演唱版与谱面版分离
 
@@ -191,7 +194,7 @@ npm run build
 
 ## 8. 本轮开工顺序
 
-P0 损失定位 → P1 小样本模型对比 → P1.5 tuning 诊断 → P3 独立 F0 校验 → P2 实验候选接入 → P4 双版本谱面。
+P0 损失定位 → P1 小样本模型对比 → P1.5 tuning 诊断 → P3 独立 F0 校验 → P2 实验候选接入与人工审阅 → P4 双版本谱面。
 P5 仅在前述评测显示必要时另行启动。
 
 开始前先完成候选许可和模型环境预检；没有可复现的质量报告，不直接替换默认引擎或承诺准确率提升。

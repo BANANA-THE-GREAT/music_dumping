@@ -20,7 +20,8 @@
 | [GAME](https://github.com/openvpi/GAME) | 已完成 P1 独立容器评测，medium 为最佳实验候选；未接入默认 Worker | 代码 MIT；[官方 1.0 权重](https://github.com/openvpi/GAME/releases/tag/v1.0.0)为 CC BY-NC-SA 4.0，须遵守非商用、署名及适用的相同方式共享条件 |
 | [SOME](https://github.com/openvpi/SOME) | 已完成 P1 独立 CPU 对照；未达到预登记门槛，未接入默认 Worker | 代码 MIT；[官方基线权重](https://github.com/openvpi/SOME/releases/tag/v1.0.0-baseline)为 CC BY-NC-SA 4.0 |
 | [ROSVOT](https://github.com/RickyL-2000/ROSVOT) | 备选：中文、分离残留较重的歌声转录，按评测需要引入 | 代码 MIT；具体权重授权和数据限制仍需核实，不能由代码许可证推断 |
-| [RMVPE](https://github.com/Dream-High/RMVPE) / [部署实现](https://github.com/yxlllc/RMVPE) | 拟引入：连续基频和发声区间校验，不单独代替音符切分 | 最终采用的实现、版本、权重来源与授权均需确认 |
+| [RMVPE](https://github.com/Dream-High/RMVPE) / [部署实现](https://github.com/yxlllc/RMVPE) | 暂停：原始代码可用，但常用部署权重授权不明确 | 原始代码 Apache-2.0；部署仓库及 `230917` 权重未提供明确 LICENSE，不接入或再分发 |
+| [torchcrepe](https://github.com/maxrmorrison/torchcrepe) | P3 独立 CPU F0 与边界诊断完成；未接入默认 Worker | 固定 `0.0.24` / commit `19e2ec3d494c0797a5ff2a11408ec5838fba6681`；仓库 MIT，包内权重由原始 CREPE 权重转换。实验 full 权重哈希见许可清单 |
 | [DDSP](https://github.com/magenta/ddsp) | 远期可选：谐波重合成和频谱对照实验，不是本轮默认依赖 | 选型时核对代码、预训练模型及数据许可；不是开箱即用的人声转 MIDI 工具 |
 | [Vocadito](https://zenodo.org/records/5578807) | 已用于 P0：孤立人声 Basic Pitch 基线、双标注一致性和损失定位 | Bittner 等人，DOI `10.5281/zenodo.5578807`，数据集 CC BY 4.0；音频及转换标注保存在 Git 忽略的 `data/`，仓库只提交可复现 manifest 和汇总报告 |
 
@@ -92,4 +93,4 @@ npm run build
 
 更多说明见 [架构](docs/architecture.md)、[API](docs/api.md)、[评测](docs/evaluation.md) 和 [模型许可](docs/model-licenses.md)。
 
-P0 基线与 P1 GAME/SOME 对比已经完成。GAME medium 在 Vocadito holdout 上最好，但没有候选通过全部预登记门槛，默认引擎保持 Basic Pitch。结果见 [Basic Pitch 基线](evaluation/reports/vocadito-baseline.md)和[候选模型对比](evaluation/reports/vocadito-candidate-comparison.md)；真实混音与 Demucs 残留样本仍待补充。运行方法、固定容差和标注要求见[转录质量评测](docs/evaluation.md)与[人声转录标注规范](docs/transcription-annotation.md)。
+P0、P1、P1.5 与 P3 F0 诊断已经完成。GAME medium 单独使用时未通过全部门槛；固定的 GAME + torchcrepe F0 边界规则在未访问 holdout 上通过预登记质量门槛，但仍有逐片段回退、CPU 成本和取消问题，因此默认引擎保持 Basic Pitch。结果见 [Basic Pitch 基线](evaluation/reports/vocadito-baseline.md)、[候选模型对比](evaluation/reports/vocadito-candidate-comparison.md)、[GAME tuning](evaluation/reports/vocadito-game-tuning.md)和[F0 边界诊断](evaluation/reports/vocadito-f0-boundary-comparison.md)；真实混音与 Demucs 残留样本仍待补充。运行方法、固定容差和标注要求见[转录质量评测](docs/evaluation.md)与[人声转录标注规范](docs/transcription-annotation.md)。
