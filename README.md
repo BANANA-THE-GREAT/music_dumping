@@ -85,6 +85,9 @@ VSS_WORKER_DOCKERFILE=infra/docker/Dockerfile.worker-quality \
 NVIDIA GPU 为可选运行模式，不改变默认 CPU Compose。宿主机完成 NVIDIA Container Toolkit 配置后，普通 Worker 可执行：
 
 ```bash
+scripts/setup-nvidia-container-toolkit.sh
+docker run --rm --gpus all vocal-score-studio-worker:latest \
+  python -c "import torch; print(torch.cuda.is_available(), torch.cuda.get_device_name(0))"
 docker compose -f infra/compose.yaml -f infra/compose.gpu.yaml build worker
 docker compose -f infra/compose.yaml -f infra/compose.gpu.yaml up -d --no-build --wait worker
 docker compose -f infra/compose.yaml -f infra/compose.gpu.yaml exec worker \

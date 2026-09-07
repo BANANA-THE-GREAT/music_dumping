@@ -23,7 +23,7 @@ Basic Pitch、FFmpeg 归一化、节拍/调性/拍号分析、旋律后处理和
 
 ## 主机前置条件
 
-- 安装与 Docker Engine 匹配的 NVIDIA Container Toolkit，并完成 Docker runtime 配置。
+- [ ] 运行 `scripts/setup-nvidia-container-toolkit.sh`，安装 NVIDIA Container Toolkit 并完成 Docker runtime 配置。脚本需要 sudo 密码且会重启 Docker。
 - 在修改项目镜像前，必须先让一个已有本地镜像通过 `--gpus all` 启动，并在容器内确认 `torch.cuda.is_available()`。
 - CUDA PyTorch 版本必须通过 RTX 5060 Ti 的实际容器测试确定，不能只根据宿主机能运行 `nvidia-smi` 判断兼容。
 
