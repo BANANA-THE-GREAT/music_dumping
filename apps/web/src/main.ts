@@ -26,6 +26,7 @@ import {
   boundaryDeltaLabel,
   boundaryReasonLabel,
   orderedBoundarySuggestions,
+  reviewableBoundarySuggestions,
 } from "./boundary-review";
 import "./style.css";
 import "./editor.css";
@@ -361,8 +362,12 @@ function reviewActions(suggestion: BoundarySuggestion) {
 }
 function renderBoundaryReview() {
   const panel = $("#boundary-review");
-  const suggestions =
-    serverProject?.transcription_evidence?.boundary_suggestions ?? [];
+  const suggestions = serverProject
+    ? reviewableBoundarySuggestions(
+        serverProject.transcription_evidence?.boundary_suggestions ?? [],
+        serverProject.notes,
+      )
+    : [];
   panel.classList.toggle("hidden", suggestions.length === 0);
   if (!suggestions.length) {
     $("#boundary-list").innerHTML = "";
