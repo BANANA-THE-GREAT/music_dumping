@@ -28,7 +28,7 @@ scripts/run-quality-segmentation-smoke.sh
 
 GPU quality Worker 使用 `scripts/build-quality-worker-gpu.sh` 构建，并以 `VSS_WORKER_DOCKERFILE=infra/docker/Dockerfile.worker-quality docker compose -f infra/compose.yaml -f infra/compose.gpu.yaml up -d --no-build --wait worker` 启动。不要把 GPU override 合并进默认 Compose，也不要在未验证 CUDA 可用时删除 CPU 回退路径。
 
-宿主机缺少 NVIDIA Container Toolkit 时，使用 `scripts/setup-nvidia-container-toolkit.sh` 安装并配置 Docker runtime；该脚本需要 sudo 密码且会重启 Docker。重启后先运行 `docker run --rm --gpus all vocal-score-studio-worker:latest python -c "import torch; print(torch.cuda.is_available(), torch.cuda.get_device_name(0))"`，通过后才能切换 GPU Worker。
+宿主机缺少 NVIDIA Container Toolkit 时，使用 `scripts/setup-nvidia-container-toolkit.sh` 安装并配置 Docker runtime；该脚本需要 sudo 密码且会重启 Docker。WSL 的 `nvidia-smi` 通常位于 `/usr/lib/wsl/lib/nvidia-smi`，sudo 的安全 PATH 未必包含该目录，不能因此误判驱动缺失。重启后先运行 `docker run --rm --gpus all vocal-score-studio-worker:latest python -c "import torch; print(torch.cuda.is_available(), torch.cuda.get_device_name(0))"`，通过后才能切换 GPU Worker。
 
 - GAME 权重通过 `../data/models/game:/models/game:ro` 只读挂载，不在 Docker build context 内。quality Worker 仍保留 Basic Pitch 回退；默认 Compose 未构建 quality Worker 时，实验任务必须明确失败为 `EXPERIMENTAL_ENGINE_NOT_CONFIGURED`，不得静默改用其他模型。模型运行验证优先检查 F0 JSONL、项目 provenance、pending 边界建议和子进程取消，不要把建议自动应用到项目音符。
 - API 与 Worker 共享 `app-data` 卷；Demucs 等下载缓存位于 `model-cache` 卷，重建 Worker 不应默认删除这些卷。PostgreSQL 和 Redis 分别使用持久化卷。MinIO 当前在 Compose 中定义但不属于常规 `up -d --wait web worker` 启动链路，不要无故启动或依赖它。
