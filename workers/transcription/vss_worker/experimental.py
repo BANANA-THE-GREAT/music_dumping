@@ -55,9 +55,11 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _read_notes(path: Path) -> list[DetectedNote]:
+def _read_notes(path: Path) -> tuple[list[DetectedNote], dict[str, object] | None]:
     document = json.loads(path.read_text(encoding="utf-8"))
-    return [DetectedNote(**note) for note in document["notes"]]
+    notes = [DetectedNote(**note) for note in document["notes"]]
+    segmentation = document.get("segmentation")
+    return notes, segmentation if isinstance(segmentation, dict) else None
 
 
 def _read_f0_jsonl(path: Path) -> dict[str, list[float]]:
@@ -149,7 +151,7 @@ class GameF0EvidenceTranscriber:
         self.command_runner(
             [sys.executable, "-m", "vss_worker.torchcrepe_cli", str(vocal_path), str(f0_path)]
         )
-        notes = _read_notes(notes_path)
+        notes, segmentation = _read_notes(notes_path)
         prediction = _read_f0_jsonl(f0_path)
         adjusted = adjust_note_offsets(notes, prediction, **BOUNDARY_PARAMETERS)
         suggestions: list[dict[str, object]] = []
@@ -199,7 +201,10 @@ class GameF0EvidenceTranscriber:
                     "code_revision": GAME_COMMIT,
                     "model_revision": "1.0.0-medium",
                     "weight_sha256": GAME_MODEL_SHA256,
-                    "parameters": GAME_PARAMETERS,
+                    "parameters": {
+                        **GAME_PARAMETERS,
+                        **({"segmentation": segmentation} if segmentation else {}),
+                    },
                     "device": "cpu",
                 },
                 "f0_track": {

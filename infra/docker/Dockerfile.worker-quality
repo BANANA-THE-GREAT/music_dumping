@@ -1,4 +1,4 @@
-FROM vocal-score-studio-worker:latest
+FROM vocal-score-studio-worker-basic:latest
 
 ARG GAME_COMMIT=e66c31251605e334b1bf0f565252d4987a9065c0
 ARG TORCHCREPE_COMMIT=19e2ec3d494c0797a5ff2a11408ec5838fba6681
@@ -8,11 +8,6 @@ ENV CUDA_VISIBLE_DEVICES="" \
     VSS_GAME_ROOT=/opt/game \
     VSS_TORCHCREPE_ROOT=/opt/torchcrepe \
     VSS_GAME_MODEL_PATH=/models/game/GAME-1.0-medium/model.pt
-
-COPY pyproject.toml ./
-COPY apps/api apps/api
-COPY workers/transcription workers/transcription
-RUN pip install --no-cache-dir --no-deps .
 
 COPY infra/experiments/sources/game-e66c31251605e334b1bf0f565252d4987a9065c0.tar.gz /tmp/game.tar.gz
 COPY infra/experiments/sources/torchcrepe-19e2ec3d494c0797a5ff2a11408ec5838fba6681.tar.gz /tmp/torchcrepe.tar.gz
@@ -28,4 +23,8 @@ RUN pip install --no-cache-dir --force-reinstall \
 # The production F0 CLI uses soundfile directly, so torchaudio is not required.
 RUN sed -i '/^import torchaudio$/d' /opt/torchcrepe/torchcrepe/load.py \
     && pip install --no-cache-dir --no-deps /opt/torchcrepe
+COPY pyproject.toml ./
+COPY apps/api apps/api
+COPY workers/transcription workers/transcription
+RUN pip install --no-cache-dir --no-deps .
 RUN python -c "import sys; sys.path.insert(0, '/opt/game'); import inference.api; import torchcrepe; from basic_pitch.inference import Model; import demucs.separate"

@@ -54,7 +54,14 @@ def test_experimental_transcriber_preserves_notes_and_emits_suggestions(
                                 "source_id": "game-0000",
                                 "pitch_cents": 6000.0,
                             }
-                        ]
+                        ],
+                        "segmentation": {
+                            "method": "silence",
+                            "overlap_ms": 0,
+                            "segments": [
+                                {"offset_seconds": 0.0, "duration_seconds": 0.81}
+                            ],
+                        },
                     }
                 ),
                 encoding="utf-8",
@@ -86,6 +93,7 @@ def test_experimental_transcriber_preserves_notes_and_emits_suggestions(
 
     assert result.notes[0].end_seconds == 0.5
     evidence = result.transcription_evidence
+    assert evidence["note_model"]["parameters"]["segmentation"]["overlap_ms"] == 0
     assert evidence["f0_track"]["object_key"] == "work/job-1/evidence/f0.jsonl"
     suggestions = evidence["boundary_suggestions"]
     assert suggestions == [

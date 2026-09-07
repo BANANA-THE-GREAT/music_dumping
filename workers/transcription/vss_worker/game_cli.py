@@ -26,6 +26,7 @@ def main() -> None:
     class NotesCallback(lightning.pytorch.Callback):  # type: ignore[misc]
         def __init__(self) -> None:
             self.notes: list[tuple[float, float, float]] = []
+            self.segments: set[tuple[float, float]] = set()
 
         def on_predict_batch_end(
             self,
@@ -39,6 +40,7 @@ def main() -> None:
             for index in range(batch["size"]):
                 offset = float(batch["offset"][index])
                 length = float(batch["length"][index])
+                self.segments.add((offset, length))
                 durations = outputs["durations"][index]
                 onsets = functional.pad(durations, (1, 0), value=0).cumsum(0)
                 onsets = onsets.clamp(max=length).add(offset)
@@ -105,7 +107,27 @@ def main() -> None:
         for index, (onset, note_offset, pitch) in enumerate(combined)
     ]
     target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(json.dumps({"notes": notes}, separators=(",", ":")), encoding="utf-8")
+    target.write_text(
+        json.dumps(
+            {
+                "notes": notes,
+                "segmentation": {
+                    "method": "silence",
+                    "threshold_db": -40.0,
+                    "minimum_slice_ms": 1000,
+                    "minimum_silence_ms": 200,
+                    "maximum_silence_kept_ms": 100,
+                    "overlap_ms": 0,
+                    "segments": [
+                        {"offset_seconds": offset, "duration_seconds": duration}
+                        for offset, duration in sorted(callback.segments)
+                    ],
+                },
+            },
+            separators=(",", ":"),
+        ),
+        encoding="utf-8",
+    )
     sys.stdout.flush()
     sys.stderr.flush()
     os._exit(0)

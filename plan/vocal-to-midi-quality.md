@@ -109,15 +109,17 @@ P1 验收结论：未通过。GAME medium 的 holdout 起止 F1 相对 Basic Pit
 产物：`evaluation/game-tuning-grid.json`、`evaluation/reports/vocadito-game-tuning.json`、诊断报告和可恢复运行脚本。
 结论：presence `0.10` 至 `0.20` 几乎不影响 recall；boundary `0.10` 仅带来小幅改善；增加 D3PM 步数无收益。停止 GAME 参数扩展，不运行 tuned holdout，不以当前数据微调。先用连续 F0/发声区间验证局部止音校正，再决定是否接入实验引擎。详见 `evaluation/reports/vocadito-game-tuning.md`。
 
-### P2：接入候选引擎与原始结果保真（下一阶段）
+### P2：接入候选引擎与原始结果保真（已完成）
 
 - [x] 将胜出候选接到后端转录适配器，复用任务取消、进度、错误状态和隔离子进程。
 - [x] 支持显式选择引擎；模型不存在时显示安装/配置错误，不静默伪装为另一个模型。
 - [x] 实现带校验的权重获取说明或脚本；默认不把权重打包进源码、Release 或公共镜像。
 - [x] 保存未量化结果及模型提供的边界/连续音高，保持 `raw_notes` 恢复兼容。
-- [ ] 按乐句或静音分段处理长音频，校验重叠区域的时间偏移、漏音和重复音。
+- [x] 按乐句或静音分段处理长音频，校验分段区域的时间偏移、漏音和重复音；当前 slicer 为非重叠静音切片，provenance 明确记录 `overlap_ms: 0`。
 
 验收：完整任务可取消、重试、恢复，旧项目仍能打开；结果可追溯到固定模型；切回 Basic Pitch 不丢用户编辑。
+
+P2 工程结论：通过。quality Worker 在真实 Vocadito 片段上生成 32 个 GAME 原始音符、872 帧 F0 和 18 条默认 pending 建议；GAME 子进程取消耗时 `1.124s`。重复片段加 2 秒静音的分段 smoke test 产生 2 个非重叠片段、两侧各 32 个音符、静音区零跨界音符，segment offset 误差 `13.492ms`，低于 20ms slicer hop。报告见 `evaluation/reports/game-segmentation-smoke.json`，复现命令为 `scripts/run-quality-segmentation-smoke.sh`。这些工程验收不改变真实混音质量结论，默认引擎继续为 Basic Pitch。
 
 ### P3：连续音高校验与可解释局部修正（质量诊断完成）
 
