@@ -2,6 +2,26 @@
 
 本文件适用于本仓库及其所有子目录中的 agent 工作。
 
+## Docker 优先的开发与验证环境
+
+- 本项目长期以 `infra/compose.yaml` 和 `infra/docker/` 中的镜像作为标准运行环境。不要因为宿主机缺少或版本较旧的 Node.js、npm、Python、FFmpeg、Basic Pitch、Demucs 或 PyTorch，就判断项目依赖缺失或验证不可执行；先检查 Docker 配置和现有容器。
+- 开始环境诊断时优先运行 `docker compose -f infra/compose.yaml config`、`docker compose -f infra/compose.yaml ps -a` 和 `docker compose -f infra/compose.yaml images`。除非用户明确要求本地非容器开发，不要为迁就宿主机版本擅自修改 workspace、依赖或构建脚本。
+- Web 构建镜像为 `node:22-alpine`，镜像构建阶段执行 `npm ci`、`npm test` 和 `npm run build`；最终由 `nginx:1.29-alpine` 提供静态文件。因此前端标准验证是 `docker compose -f infra/compose.yaml build web`，宿主机无需安装 Node.js 22。前端改动后使用 `docker compose -f infra/compose.yaml up -d --build --wait web` 更新运行服务。
+- API 镜像为 `python:3.11-slim`，安装 `pyproject.toml` 的生产依赖，启动时先执行 Alembic migration，再运行 Uvicorn。API 默认映射到宿主机 `127.0.0.1:8000`。
+- Worker 镜像为 `python:3.11-slim`，安装 FFmpeg/FFprobe、libsndfile、OpenMP、CPU 版 PyTorch 以及 `.[models]` 中的 Basic Pitch 和 Demucs。构建时已经检查 FFmpeg、FFprobe 和主要 Python 模块导入；运行时以 Celery 单并发执行任务。需要核验时使用：
+
+```bash
+docker compose -f infra/compose.yaml build api worker
+docker compose -f infra/compose.yaml run --rm --no-deps worker ffmpeg -version
+docker compose -f infra/compose.yaml run --rm --no-deps worker python -c "from basic_pitch.inference import Model; import demucs.separate; print('model dependencies OK')"
+```
+
+- 默认 Compose Worker 使用 CPU PyTorch，尚未配置 GPU 透传。宿主机存在 NVIDIA GPU 不代表容器已经使用 GPU；启用 GPU 前需要同时调整 PyTorch 安装源和 Compose 设备配置。
+- API 与 Worker 共享 `app-data` 卷；Demucs 等下载缓存位于 `model-cache` 卷，重建 Worker 不应默认删除这些卷。PostgreSQL 和 Redis 分别使用持久化卷。MinIO 当前在 Compose 中定义但不属于常规 `up -d --wait web worker` 启动链路，不要无故启动或依赖它。
+- 常规启动命令为 `docker compose -f infra/compose.yaml up -d --build --wait web worker`，浏览器入口为 `http://localhost:8080`。Nginx 将同源 `/api` 转发到 API；不要因宿主机直连方式不同而改写前端默认 API 路径。
+- Python 的 Ruff、mypy、pytest 属于开发依赖，不在精简的 API/Worker 运行镜像中。宿主机 `.venv` 可用时可直接运行；需要完全隔离验证时，可在重新构建 API 镜像后使用一次性容器安装开发额外依赖再执行检查。无论使用哪种方式，都要说明验证发生在宿主机还是容器内。
+- `.dockerignore` 明确排除宿主机的 `.venv`、`node_modules`、构建产物、模型、音频和运行数据。不要假设镜像会复用这些宿主机目录，也不要为加快构建而把模型权重或用户数据加入构建上下文。
+
 ## 项目用途与第三方许可
 
 - 本项目按作者的非商业用途维护，计划在 GitHub 公开源代码，不计划用于商业化或收费服务。后续技术选型应以此为前提，不得擅自将项目转为商业用途。
