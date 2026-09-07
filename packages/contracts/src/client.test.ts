@@ -7,13 +7,14 @@ describe("API errors", () => {
   it("preserves structured revision conflict details", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () =>
-        new Response(
-          JSON.stringify({
-            detail: { code: "REVISION_CONFLICT", current_revision: 4 },
-          }),
-          { status: 409, headers: { "content-type": "application/json" } },
-        ),
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              detail: { code: "REVISION_CONFLICT", current_revision: 4 },
+            }),
+            { status: 409, headers: { "content-type": "application/json" } },
+          ),
       ),
     );
     const error = await new VocalScoreApi("http://api")
@@ -32,11 +33,12 @@ describe("boundary suggestion review", () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it("sends an optimistic review action", async () => {
-    const fetchMock = vi.fn(async () =>
-      new Response(JSON.stringify({ revision: 3 }), {
-        status: 200,
-        headers: { "content-type": "application/json" },
-      }),
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ revision: 3 }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
     );
     vi.stubGlobal("fetch", fetchMock);
     await new VocalScoreApi("http://api").reviewBoundarySuggestion(
@@ -51,5 +53,35 @@ describe("boundary suggestion review", () => {
         body: JSON.stringify({ expected_revision: 2, action: "accept" }),
       }),
     );
+  });
+});
+
+describe("experimental job selection", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("maps the experimental mode to GAME plus F0 without changing high quality", async () => {
+    const fetchMock = vi.fn(
+      async (_input: RequestInfo | URL, _init?: RequestInit) =>
+        new Response(JSON.stringify({ id: "job" }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const api = new VocalScoreApi("http://api");
+    await api.createJob("upload", "experimental");
+    await api.createJob("upload", "high");
+    expect(
+      JSON.parse(fetchMock.mock.calls[0][1]!.body as string).options,
+    ).toEqual({
+      separator: "demucs",
+      transcriber: "game_f0",
+    });
+    expect(
+      JSON.parse(fetchMock.mock.calls[1][1]!.body as string).options,
+    ).toEqual({
+      separator: "demucs",
+      transcriber: "basic_pitch",
+    });
   });
 });

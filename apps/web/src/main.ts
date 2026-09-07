@@ -1,5 +1,6 @@
 import {
   JOB_STAGE_LABELS,
+  type BoundarySuggestion,
   type ScoreProject as ApiScoreProject,
 } from "@vocal-score/contracts";
 import { ApiError, VocalScoreApi } from "@vocal-score/contracts/client";
@@ -21,6 +22,11 @@ import type { MusicalAnalysis, RawNote, ScoreNote } from "./types";
 import { drawWaveform } from "./waveform";
 import { VocalPreview, audioBlob } from "./vocal-preview";
 import { refineLocalMelody } from "./melody";
+import {
+  boundaryDeltaLabel,
+  boundaryReasonLabel,
+  orderedBoundarySuggestions,
+} from "./boundary-review";
 import "./style.css";
 import "./editor.css";
 import "./task-progress.css";
@@ -86,10 +92,14 @@ $(".waveform-panel").insertAdjacentHTML(
   "afterend",
   `<section id="vocal-preview" class="waveform-panel"></section><section class="melody-controls"><label>旋律整理<select id="melody-mode"><option value="balanced">主旋律 · 均衡</option><option value="conservative">主旋律 · 保守</option><option value="raw">原始识别</option></select></label><label>最低音 MIDI<input id="melody-low" type="number" min="0" max="127" value="48"></label><label>最高音 MIDI<input id="melody-high" type="number" min="0" max="127" value="84"></label><button id="refine-melody" disabled>应用整理</button><output id="melody-result"></output></section>`,
 );
+$(".melody-controls").insertAdjacentHTML(
+  "afterend",
+  `<section id="boundary-review" class="boundary-review hidden" aria-label="F0 止音建议"><header><strong>止音建议</strong><output id="boundary-summary"></output></header><div id="boundary-list"></div></section>`,
+);
 const vocalPreview = new VocalPreview(audio, $("#vocal-preview"));
 audio.insertAdjacentHTML(
   "afterend",
-  `<div class="field"><label>处理引擎</label><select id="engine"><option value="server-high">后端高质量 · Demucs</option><option value="server-demo">后端演示 · 快速</option><option value="local">浏览器本地模式</option></select><small>高质量模式需要部署模型 Worker</small></div>`,
+  `<div class="field"><label>处理引擎</label><select id="engine"><option value="server-high">后端高质量 · Demucs</option><option value="server-experimental">实验 · GAME + F0</option><option value="server-demo">后端演示 · 快速</option><option value="local">浏览器本地模式</option></select><small>实验模式需要 quality Worker</small></div>`,
 );
 document
   .querySelector("aside")!
@@ -337,6 +347,46 @@ function applyApiProject(project: ApiScoreProject) {
     },
   };
 }
+function boundaryTime(milliseconds: number) {
+  const minutes = Math.floor(milliseconds / 60_000);
+  const seconds = ((milliseconds % 60_000) / 1000).toFixed(2).padStart(5, "0");
+  return `${minutes}:${seconds}`;
+}
+function reviewActions(suggestion: BoundarySuggestion) {
+  const encodedId = encodeURIComponent(suggestion.id);
+  if (suggestion.review_status === "pending")
+    return `<button data-boundary-action="accept" data-suggestion-id="${encodedId}" title="接受建议" aria-label="接受建议">✓</button><button data-boundary-action="reject" data-suggestion-id="${encodedId}" title="忽略建议" aria-label="忽略建议">×</button>`;
+  const label = suggestion.review_status === "accepted" ? "已接受" : "已忽略";
+  return `<span class="boundary-state ${suggestion.review_status}">${label}</span><button data-boundary-action="reset" data-suggestion-id="${encodedId}" title="撤销审阅" aria-label="撤销审阅">↶</button>`;
+}
+function renderBoundaryReview() {
+  const panel = $("#boundary-review");
+  const suggestions =
+    serverProject?.transcription_evidence?.boundary_suggestions ?? [];
+  panel.classList.toggle("hidden", suggestions.length === 0);
+  if (!suggestions.length) {
+    $("#boundary-list").innerHTML = "";
+    return;
+  }
+  const pending = suggestions.filter(
+    (suggestion) => suggestion.review_status === "pending",
+  ).length;
+  const accepted = suggestions.filter(
+    (suggestion) => suggestion.review_status === "accepted",
+  ).length;
+  const rejected = suggestions.length - pending - accepted;
+  $("#boundary-summary").textContent =
+    `${pending} 待审 · ${accepted} 已接受 · ${rejected} 已忽略`;
+  $("#boundary-list").innerHTML = orderedBoundarySuggestions(suggestions)
+    .map(
+      (suggestion) =>
+        `<div class="boundary-row"><button class="boundary-locate" data-boundary-locate="${encodeURIComponent(suggestion.source_note_id)}" title="定位并试听" aria-label="定位并试听">▶</button><div class="boundary-change"><strong>${boundaryTime(suggestion.original_end_ms)} → ${boundaryTime(suggestion.proposed_end_ms)}</strong><span>${boundaryReasonLabel(suggestion)} · ${boundaryDeltaLabel(suggestion)}</span></div><meter min="0" max="1" value="${suggestion.confidence}" title="F0 置信度 ${Math.round(suggestion.confidence * 100)}%"></meter><output>${Math.round(suggestion.confidence * 100)}%</output><div class="boundary-actions">${reviewActions(suggestion)}</div></div>`,
+    )
+    .join("");
+  panel
+    .querySelectorAll<HTMLButtonElement>("button")
+    .forEach((button) => (button.disabled = editSaving || transcriptionBusy));
+}
 async function loadServerAudio(project: ApiScoreProject) {
   const url = api.audioUrl(project.project_id);
   vocalPreview.setSource(url);
@@ -373,7 +423,7 @@ async function recoverRevisionConflict(error: unknown) {
   status(`检测到其他页面的修改，已恢复最新修订 ${serverProject.revision}`);
   return true;
 }
-async function runServer(quality: "demo" | "high") {
+async function runServer(quality: "demo" | "high" | "experimental") {
   if (!sourceFile) return;
   taskProgress.start("prepare", "正在上传音频");
   status("正在上传音频…");
@@ -570,6 +620,7 @@ transcribe.addEventListener("click", async () => {
   try {
     const engine = $<HTMLSelectElement>("#engine").value;
     if (engine === "server-high") await runServer("high");
+    else if (engine === "server-experimental") await runServer("experimental");
     else if (engine === "server-demo") await runServer("demo");
     else await runLocal();
     sync();
@@ -765,6 +816,7 @@ let renderVersion = 0;
 let rollZoom = 1;
 async function render() {
   const version = ++renderVersion;
+  renderBoundaryReview();
   const authoritativeNotes = scoreHistory?.value ?? serverProject?.notes;
   notes = authoritativeNotes
     ? displayQuantizedNotes(
@@ -846,6 +898,56 @@ async function render() {
     (b) => (b.disabled = !notes.length),
   );
 }
+$("#boundary-review").addEventListener("click", async (event) => {
+  const button = (event.target as Element).closest<HTMLButtonElement>("button");
+  if (!button || !serverProject || editSaving || transcriptionBusy) return;
+  const sourceId = button.dataset.boundaryLocate;
+  if (sourceId) {
+    const decodedSourceId = decodeURIComponent(sourceId);
+    const index = serverProject.notes.findIndex((note) =>
+      note.source_note_ids?.includes(decodedSourceId),
+    );
+    if (index >= 0) {
+      selectedNoteIndex = index;
+      refreshSelection();
+    }
+    const suggestion =
+      serverProject.transcription_evidence?.boundary_suggestions.find(
+        (item) => item.source_note_id === decodedSourceId,
+      );
+    if (suggestion) {
+      audio.currentTime = Math.max(0, suggestion.original_end_ms / 1000 - 0.6);
+      void audio.play();
+    }
+    return;
+  }
+  const suggestionId = button.dataset.suggestionId;
+  const action = button.dataset.boundaryAction as
+    "accept" | "reject" | "reset" | undefined;
+  if (!suggestionId || !action) return;
+  editSaving = true;
+  renderBoundaryReview();
+  try {
+    status(action === "accept" ? "正在采用止音建议…" : "正在保存审阅结果…");
+    serverProject = await api.reviewBoundarySuggestion(
+      serverProject.project_id,
+      decodeURIComponent(suggestionId),
+      { expected_revision: serverProject.revision, action },
+    );
+    applyApiProject(serverProject);
+    await render();
+    status(`止音建议已更新 · 修订 ${serverProject.revision}`);
+  } catch (error) {
+    if (!(await recoverRevisionConflict(error)))
+      status(
+        `审阅失败：${error instanceof Error ? error.message : "未知错误"}`,
+      );
+  } finally {
+    editSaving = false;
+    renderBoundaryReview();
+    refreshSelection();
+  }
+});
 function refreshSelection() {
   editableSelectionId =
     selectedNoteIndex === null

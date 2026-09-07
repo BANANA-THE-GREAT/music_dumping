@@ -172,6 +172,90 @@
   color: #50766e;
   font-size: 12px;
 }
+.boundary-review {
+  padding: 14px 0;
+  border-bottom: 1px solid #ded6ca;
+}
+.boundary-review > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 0 8px;
+}
+.boundary-review > header strong {
+  font-size: 12px;
+}
+.boundary-review > header output {
+  color: #71695e;
+  font-size: 11px;
+}
+#boundary-list {
+  max-height: 264px;
+  overflow-y: auto;
+}
+.boundary-row {
+  display: grid;
+  grid-template-columns: 30px minmax(150px, 1fr) 90px 42px auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  border-top: 1px solid #eee8de;
+}
+.boundary-row button {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid #d6cbbc;
+  background: #fffdf8;
+  color: #5f584e;
+  cursor: pointer;
+}
+.boundary-row button:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+.boundary-locate {
+  color: #185f52 !important;
+}
+.boundary-change {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.boundary-change strong {
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.boundary-change span,
+.boundary-row > output {
+  color: #71695e;
+  font-size: 10px;
+}
+.boundary-row meter {
+  width: 90px;
+  accent-color: #168577;
+}
+.boundary-row > output {
+  font-variant-numeric: tabular-nums;
+}
+.boundary-actions {
+  display: flex;
+  align-items: center;
+  justify-content: end;
+  gap: 5px;
+  min-width: 76px;
+}
+.boundary-state {
+  font-size: 10px;
+  white-space: nowrap;
+}
+.boundary-state.accepted {
+  color: #12665b;
+}
+.boundary-state.rejected {
+  color: #8a8174;
+}
 .empty {
   pointer-events: none;
 }
@@ -255,6 +339,16 @@
   }
   .analysis-panel {
     grid-template-columns: 1fr;
+  }
+  .boundary-row {
+    grid-template-columns: 30px minmax(0, 1fr) 38px auto;
+    gap: 6px;
+  }
+  .boundary-row meter {
+    display: none;
+  }
+  .boundary-actions {
+    min-width: 65px;
   }
 }
 @media (prefers-reduced-motion: reduce) {

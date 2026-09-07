@@ -44,7 +44,7 @@ export class VocalScoreApi {
   }
   createJob(
     uploadId: string,
-    quality: "demo" | "high" = "demo",
+    quality: "demo" | "high" | "experimental" = "demo",
   ): Promise<JobResponse> {
     return this.request("/v1/jobs", {
       method: "POST",
@@ -52,9 +52,11 @@ export class VocalScoreApi {
       body: JSON.stringify({
         upload_id: uploadId,
         options:
-          quality === "high"
-            ? { separator: "demucs", transcriber: "basic_pitch" }
-            : { separator: "fake", transcriber: "fake" },
+          quality === "experimental"
+            ? { separator: "demucs", transcriber: "game_f0" }
+            : quality === "high"
+              ? { separator: "demucs", transcriber: "basic_pitch" }
+              : { separator: "fake", transcriber: "fake" },
       }),
     });
   }
