@@ -27,4 +27,23 @@ python scripts/diagnose-transcription.py raw-notes.json diagnostics.json \
 
 `evaluation/manifest.json` 当前只有 CC0 合成 fixture，用于验证工具本身，不含第三方录音。`evaluation/reports/synthetic-baseline.json` 和 `synthetic-diagnostics.json` 不是实际歌曲质量报告。
 
+Vocadito（Bittner、Pasalo、Bosch、Meseguer Brocal、Rubinstein，DOI `10.5281/zenodo.5578807`，CC BY 4.0）下载到 `data/evaluation/vocadito/` 后，可用 Docker Worker 复现真实孤立人声基线：
+
+```bash
+python scripts/prepare-vocadito.py data/evaluation/vocadito
+docker compose -f infra/compose.yaml run --rm --no-deps \
+  -e PYTHONPATH=/workspace/workers/transcription:/workspace/apps/api \
+  -v "$PWD:/workspace:ro" \
+  -v "$PWD/data/evaluation/vocadito:/dataset:ro" \
+  -v "$PWD/data/evaluation/vocadito-results:/results" \
+  worker python /workspace/scripts/run-basic-pitch-benchmark.py \
+  /dataset/Audio /results --skip-existing
+python scripts/prepare-vocadito.py data/evaluation/vocadito
+python scripts/evaluate-transcription-manifest.py \
+  evaluation/vocadito-manifest.json \
+  --output evaluation/reports/vocadito-basic-pitch.json
+```
+
+固定划分与结果见 `evaluation/vocadito-manifest.json` 和 `evaluation/reports/vocadito-baseline.md`。下载音频、转换标注、逐段诊断和模型运行明细留在 `data/`，不会进入 Git。
+
 真实片段须遵循[转录标注规范](transcription-annotation.md)，按歌曲和歌手隔离调参集与保留测试集。公开仓库只提交确认允许再分发的音频和标注；私有授权材料只在 manifest 保存本机相对引用，不进入 Git。达到 `quality_gate` 前不得更换默认引擎。

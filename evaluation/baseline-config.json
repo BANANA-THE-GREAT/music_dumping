@@ -1,11 +1,12 @@
 {
   "schema_version": "1.0",
-  "recorded_at": "2026-09-06",
+  "recorded_at": "2026-09-07",
   "pipeline": {
-    "separator": "demucs",
-    "separator_version": "unfixed_existing_dependency_demucs_4_x",
+    "separator": "none_vocadito_isolated_vocals",
+    "separator_version": null,
     "transcriber": "basic_pitch",
-    "transcriber_version": "unfixed_existing_dependency_basic_pitch_0_4_x",
+    "transcriber_version": "0.4.0",
+    "model_sha256": "095cf7e8a2205331d9cd05d545f49c4a51d5826e7f385d1bfb8657b9ff3d0e33",
     "refinement": {
       "mode": "balanced",
       "low_pitch": 48,
@@ -22,10 +23,12 @@
     }
   },
   "environment_preflight": {
-    "python": "3.12.3",
-    "gpu": "NVIDIA GeForce RTX 5060 Ti, 16311 MiB",
-    "ffmpeg": "missing_from_path",
-    "basic_pitch": "not_installed",
-    "demucs": "not_installed"
+    "runtime": "Docker worker image",
+    "python": "3.11",
+    "device": "cpu",
+    "host_gpu_not_exposed": "NVIDIA GeForce RTX 5060 Ti",
+    "ffmpeg": "installed_in_worker",
+    "basic_pitch": "0.4.0",
+    "demucs": "installed_but_not_used_for_isolated_vocals"
   }
 }

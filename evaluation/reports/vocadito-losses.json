@@ -1,0 +1,23 @@
+{
+  "schema_version": "1.0",
+  "clip_count": 40,
+  "note_counts": {
+    "raw": 2086,
+    "refined": 1569,
+    "quantized": 1569,
+    "removed_or_merged_by_refinement": 517,
+    "removed_by_quantization_conflicts": 0
+  },
+  "actions": {
+    "filter": 316,
+    "keep": 1569,
+    "merge": 201
+  },
+  "reasons": {
+    "below_minimum_confidence": 1,
+    "continuity_path": 1607,
+    "outside_pitch_range": 272,
+    "selected_fragment_too_short": 5,
+    "short_same_pitch_fragments": 201
+  }
+}

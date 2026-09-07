@@ -22,6 +22,7 @@
 | [ROSVOT](https://github.com/RickyL-2000/ROSVOT) | 备选：中文、分离残留较重的歌声转录，按评测需要引入 | 代码 MIT；具体权重授权和数据限制仍需核实，不能由代码许可证推断 |
 | [RMVPE](https://github.com/Dream-High/RMVPE) / [部署实现](https://github.com/yxlllc/RMVPE) | 拟引入：连续基频和发声区间校验，不单独代替音符切分 | 最终采用的实现、版本、权重来源与授权均需确认 |
 | [DDSP](https://github.com/magenta/ddsp) | 远期可选：谐波重合成和频谱对照实验，不是本轮默认依赖 | 选型时核对代码、预训练模型及数据许可；不是开箱即用的人声转 MIDI 工具 |
+| [Vocadito](https://zenodo.org/records/5578807) | 已用于 P0：孤立人声 Basic Pitch 基线、双标注一致性和损失定位 | Bittner 等人，DOI `10.5281/zenodo.5578807`，数据集 CC BY 4.0；音频及转换标注保存在 Git 忽略的 `data/`，仓库只提交可复现 manifest 和汇总报告 |
 
 上述候选来自官方资料调研，不代表已安装、已验证效果或已经选为默认引擎。非商业用途不能代替许可审查；完整登记和分发规则见 [模型与依赖许可清单](docs/model-licenses.md)。
 
@@ -91,4 +92,4 @@ npm run build
 
 更多说明见 [架构](docs/architecture.md)、[API](docs/api.md)、[评测](docs/evaluation.md) 和 [模型许可](docs/model-licenses.md)。
 
-P0 评测与损失定位工具已提供，但当前仓库只有 CC0 合成 fixture，尚未完成授权真实歌声基线。运行方法、固定容差和标注要求见[转录质量评测](docs/evaluation.md)与[人声转录标注规范](docs/transcription-annotation.md)。
+P0 评测与损失定位工具已提供，并已完成 Vocadito 孤立人声基线。结果见 [Vocadito Basic Pitch 基线报告](evaluation/reports/vocadito-baseline.md)；真实混音与 Demucs 残留样本仍待补充。运行方法、固定容差和标注要求见[转录质量评测](docs/evaluation.md)与[人声转录标注规范](docs/transcription-annotation.md)。

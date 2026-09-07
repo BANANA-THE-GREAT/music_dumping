@@ -11,10 +11,23 @@ from vss_worker.evaluation import TranscriptionEvaluation, evaluate_transcriptio
 def read_notes(path: Path) -> list[DetectedNote]:
     document: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
     notes = document["notes"]
+    bpm = document.get("bpm")
+
+    def timing(note: dict[str, Any]) -> tuple[float, float]:
+        if bpm is not None and "quantized_start" in note:
+            seconds_per_beat = 60 / float(bpm)
+            start = float(note["quantized_start"]) * seconds_per_beat
+            end = start + float(note["quantized_duration"]) * seconds_per_beat
+            return start, end
+        return (
+            float(note.get("start_seconds", note.get("source_start_ms", 0) / 1000)),
+            float(note.get("end_seconds", note.get("source_end_ms", 0) / 1000)),
+        )
+
     return [
         DetectedNote(
-            start_seconds=note.get("start_seconds", note.get("source_start_ms", 0) / 1000),
-            end_seconds=note.get("end_seconds", note.get("source_end_ms", 0) / 1000),
+            start_seconds=timing(note)[0],
+            end_seconds=timing(note)[1],
             pitch_midi=note["pitch_midi"],
             confidence=note.get("confidence", 1.0),
             source_id=note.get("source_id"),
@@ -58,6 +71,7 @@ def evaluate_manifest(path: Path) -> dict[str, object]:
     manifest: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
     tolerances = manifest["tolerances"]
     reports: dict[str, list[TranscriptionEvaluation]] = {}
+    reports_by_split: dict[str, dict[str, list[TranscriptionEvaluation]]] = {}
     clips: list[dict[str, object]] = []
     for clip in manifest["clips"]:
         reference = read_notes(path.parent / clip["reference"])
@@ -72,6 +86,9 @@ def evaluate_manifest(path: Path) -> dict[str, object]:
                 offset_tolerance_ratio=tolerances["offset_duration_ratio"],
             )
             reports.setdefault(variant, []).append(result)
+            reports_by_split.setdefault(clip["split"], {}).setdefault(variant, []).append(
+                result
+            )
             clip_results[variant] = asdict(result)
         clips.append(
             {
@@ -89,4 +106,8 @@ def evaluate_manifest(path: Path) -> dict[str, object]:
         "quality_gate": manifest["quality_gate"],
         "clips": clips,
         "aggregate": {variant: _aggregate(values) for variant, values in reports.items()},
+        "aggregate_by_split": {
+            split: {variant: _aggregate(values) for variant, values in variants.items()}
+            for split, variants in sorted(reports_by_split.items())
+        },
     }

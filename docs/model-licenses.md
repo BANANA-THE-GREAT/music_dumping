@@ -19,6 +19,12 @@
 | RMVPE | 候选，连续基频校验；未接入 | [原实现](https://github.com/Dream-High/RMVPE)、[部署实现](https://github.com/yxlllc/RMVPE) | 原实现预检 commit `a6db1cd7d26014aa739383367afd9bab57fc624c`；部署实现最新可见权重 release `230917`，说明训练数据包含处理后的 MIR-1K、PTDB 和 M4Singer 合成数据。代码许可、权重许可及各训练数据约束仍未完整核实，不得下载后直接分发或接入默认链路 |
 | DDSP | 可选后续研究，重合成校验 | [代码](https://github.com/magenta/ddsp) | 尚未集成；若使用具体预训练音色模型，须额外核查权重和数据授权 |
 
+## 评测数据集
+
+| 数据集 | 状态及用途 | 官方来源 | 许可和存储约束 |
+|---|---|---|---|
+| Vocadito | 已用于 P0 孤立人声基线；40 段双音符标注及 F0 | [Zenodo](https://zenodo.org/records/5578807)，DOI `10.5281/zenodo.5578807` | 作者：Rachel Bittner、Katherine Pasalo、Juan José Bosch、Gabriel Meseguer Brocal、David Rubinstein；CC BY 4.0。归档 SHA-256 `e0d6b99d3f9c594afe5ae5c4d7bdacebe569e53b809e90b89d1c771c4f9990e3`；音频和转换标注仅保存在本机 `data/`，仓库记录归属、划分和汇总指标 |
+
 ## 集成与公开发布检查表
 
 - [ ] 记录项目名称、用途、代码版本或 commit、模型配置和运行依赖。
