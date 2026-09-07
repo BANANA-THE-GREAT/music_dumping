@@ -59,6 +59,48 @@ def test_running_job_cannot_be_retried() -> None:
     assert client.post(f"/v1/jobs/{job['id']}/cancel").status_code == 200
 
 
+def test_experimental_transcriber_is_an_explicit_job_option() -> None:
+    upload = create_test_upload()
+    response = client.post(
+        "/v1/jobs",
+        json={
+            "upload_id": upload["id"],
+            "options": {
+                "separator": "demucs",
+                "transcriber": "game_f0",
+                "auto_start": False,
+            },
+        },
+    )
+    assert response.status_code == 202
+
+    invalid = client.post(
+        "/v1/jobs",
+        json={"upload_id": upload["id"], "options": {"transcriber": "unknown"}},
+    )
+    assert invalid.status_code == 422
+
+
+def test_unconfigured_experimental_transcriber_never_falls_back_to_fake() -> None:
+    upload = create_test_upload()
+    job = client.post(
+        "/v1/jobs",
+        json={
+            "upload_id": upload["id"],
+            "options": {"separator": "demucs", "transcriber": "game_f0"},
+        },
+    ).json()
+    deadline = time.monotonic() + 3
+    while time.monotonic() < deadline:
+        job = client.get(f"/v1/jobs/{job['id']}").json()
+        if job["status"] == "failed":
+            break
+        time.sleep(0.03)
+    assert job["status"] == "failed"
+    assert job["error_code"] == "EXPERIMENTAL_ENGINE_NOT_CONFIGURED"
+    assert job["project_id"] is None
+
+
 def test_interrupted_local_job_becomes_retryable() -> None:
     upload = create_test_upload()
     job = client.post(

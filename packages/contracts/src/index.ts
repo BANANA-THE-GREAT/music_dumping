@@ -42,6 +42,40 @@ export interface ScoreProjectNote {
   quantized_duration: number;
   origin: "model" | "user";
 }
+export interface ModelProvenance {
+  name: string;
+  implementation: string;
+  code_revision: string;
+  model_revision?: string | null;
+  weight_sha256?: string | null;
+  parameters: Record<string, unknown>;
+  device?: string | null;
+}
+export interface F0TrackArtifact {
+  object_key: string;
+  format: "jsonl";
+  frame_period_ms: number;
+  frame_count: number;
+  voiced_frame_count: number;
+  duration_ms: number;
+  provenance: ModelProvenance;
+}
+export interface BoundarySuggestion {
+  id: string;
+  source_note_id: string;
+  kind: "adjust_end";
+  original_end_ms: number;
+  proposed_end_ms: number;
+  confidence: number;
+  reason: "f0_voicing_extension" | "f0_voicing_contraction";
+  review_status: "pending" | "accepted" | "rejected";
+  reviewed_revision?: number | null;
+}
+export interface TranscriptionEvidence {
+  note_model: ModelProvenance;
+  f0_track?: F0TrackArtifact | null;
+  boundary_suggestions: BoundarySuggestion[];
+}
 export interface ScoreProject {
   schema_version: "1.0";
   project_id: string;
@@ -59,6 +93,7 @@ export interface ScoreProject {
   };
   notes: ScoreProjectNote[];
   raw_notes?: ScoreProjectNote[] | null;
+  transcription_evidence?: TranscriptionEvidence | null;
   pipeline: Array<{
     stage: string;
     version: string;

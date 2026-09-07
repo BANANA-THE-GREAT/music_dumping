@@ -5,6 +5,7 @@ from app.config import get_settings
 from app.database import SessionLocal
 from app.main import app
 from app.models import JobRecord, ProjectRecord, UploadRecord
+from app.schemas import ScoreProject
 from fastapi.testclient import TestClient
 
 client = TestClient(app)
@@ -192,3 +193,60 @@ def test_vocal_preview_serves_actual_stem_and_handles_legacy_path() -> None:
     assert response.status_code == 200
     assert response.content == b"RIFF-separated-vocals"
     assert response.headers["content-type"].startswith("audio/wav")
+
+
+def test_transcription_evidence_is_optional_and_round_trips() -> None:
+    legacy = create_project()
+    assert "transcription_evidence" in legacy
+    assert legacy["transcription_evidence"] is None
+
+    legacy.pop("transcription_evidence")
+    parsed = ScoreProject.model_validate(legacy)
+    assert parsed.transcription_evidence is None
+
+    legacy["transcription_evidence"] = {
+        "note_model": {
+            "name": "GAME medium",
+            "implementation": "game_subprocess",
+            "code_revision": "0123456789abcdef",
+            "model_revision": "medium-2024-07-17",
+            "weight_sha256": "a" * 64,
+            "parameters": {"presence_threshold": 0.15, "boundary_threshold": 0.10},
+            "device": "cpu",
+        },
+        "f0_track": {
+            "object_key": "work/job-1/evidence/f0.jsonl",
+            "format": "jsonl",
+            "frame_period_ms": 10,
+            "frame_count": 101,
+            "voiced_frame_count": 88,
+            "duration_ms": 1000,
+            "provenance": {
+                "name": "torchcrepe full",
+                "implementation": "torchcrepe_subprocess",
+                "code_revision": "19e2ec3d494c0797a5ff2a11408ec5838fba6681",
+                "model_revision": "0.0.24",
+                "weight_sha256": "b" * 64,
+                "parameters": {"periodicity_threshold": 0.4},
+                "device": "cpu",
+            },
+        },
+        "boundary_suggestions": [
+            {
+                "id": "suggestion-1",
+                "source_note_id": legacy["notes"][0]["id"],
+                "kind": "adjust_end",
+                "original_end_ms": 450,
+                "proposed_end_ms": 520,
+                "confidence": 0.83,
+                "reason": "f0_voicing_extension",
+                "review_status": "pending",
+            }
+        ],
+    }
+    evidence = ScoreProject.model_validate(legacy).model_dump(mode="json")[
+        "transcription_evidence"
+    ]
+    assert evidence is not None
+    assert evidence["f0_track"]["frame_count"] == 101
+    assert evidence["boundary_suggestions"][0]["review_status"] == "pending"

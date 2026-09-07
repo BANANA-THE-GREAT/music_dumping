@@ -1,4 +1,5 @@
 import time
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from functools import lru_cache
 from typing import Any, cast
@@ -58,15 +59,35 @@ def dispatch_job(job_id: str) -> None:
     else:
         with SessionLocal() as session:
             job = session.get(JobRecord, job_id)
-            use_real_pipeline = job is not None and job.options.get("transcriber") == "basic_pitch"
-        executor.submit(run_real_job if use_real_pipeline else run_fake_job, job_id)
+            transcriber = job.options.get("transcriber") if job is not None else None
+        executor.submit(_runner_for(transcriber), job_id)
 
 
 def run_selected_job(job_id: str) -> None:
     with SessionLocal() as session:
         job = session.get(JobRecord, job_id)
-        use_real_pipeline = job is not None and job.options.get("transcriber") == "basic_pitch"
-    (run_real_job if use_real_pipeline else run_fake_job)(job_id)
+        transcriber = job.options.get("transcriber") if job is not None else None
+    _runner_for(transcriber)(job_id)
+
+
+def _runner_for(transcriber: object) -> Callable[[str], None]:
+    if transcriber == "basic_pitch":
+        return run_real_job
+    if transcriber == "game_f0":
+        return run_unavailable_experimental_job
+    return run_fake_job
+
+
+def run_unavailable_experimental_job(job_id: str) -> None:
+    with SessionLocal() as session:
+        job = session.get(JobRecord, job_id)
+        if job is None or job.status == JobStatus.CANCELLED:
+            return
+    _fail(
+        job_id,
+        "EXPERIMENTAL_ENGINE_NOT_CONFIGURED",
+        "The GAME + torchcrepe experimental engine is not configured in this worker",
+    )
 
 
 def run_fake_job(job_id: str) -> None:

@@ -55,6 +55,128 @@
         "title": "Body_upload_audio_v1_uploads_post",
         "type": "object"
       },
+      "BoundarySuggestion": {
+        "properties": {
+          "confidence": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence",
+            "type": "number"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "const": "adjust_end",
+            "default": "adjust_end",
+            "title": "Kind",
+            "type": "string"
+          },
+          "original_end_ms": {
+            "minimum": 0.0,
+            "title": "Original End Ms",
+            "type": "integer"
+          },
+          "proposed_end_ms": {
+            "minimum": 0.0,
+            "title": "Proposed End Ms",
+            "type": "integer"
+          },
+          "reason": {
+            "enum": [
+              "f0_voicing_extension",
+              "f0_voicing_contraction"
+            ],
+            "title": "Reason",
+            "type": "string"
+          },
+          "review_status": {
+            "default": "pending",
+            "enum": [
+              "pending",
+              "accepted",
+              "rejected"
+            ],
+            "title": "Review Status",
+            "type": "string"
+          },
+          "reviewed_revision": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewed Revision"
+          },
+          "source_note_id": {
+            "title": "Source Note Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "source_note_id",
+          "original_end_ms",
+          "proposed_end_ms",
+          "confidence",
+          "reason"
+        ],
+        "title": "BoundarySuggestion",
+        "type": "object"
+      },
+      "F0TrackArtifact": {
+        "properties": {
+          "duration_ms": {
+            "minimum": 0.0,
+            "title": "Duration Ms",
+            "type": "integer"
+          },
+          "format": {
+            "const": "jsonl",
+            "default": "jsonl",
+            "title": "Format",
+            "type": "string"
+          },
+          "frame_count": {
+            "minimum": 0.0,
+            "title": "Frame Count",
+            "type": "integer"
+          },
+          "frame_period_ms": {
+            "exclusiveMinimum": 0.0,
+            "title": "Frame Period Ms",
+            "type": "number"
+          },
+          "object_key": {
+            "minLength": 1,
+            "title": "Object Key",
+            "type": "string"
+          },
+          "provenance": {
+            "$ref": "#/components/schemas/ModelProvenance"
+          },
+          "voiced_frame_count": {
+            "minimum": 0.0,
+            "title": "Voiced Frame Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "object_key",
+          "frame_period_ms",
+          "frame_count",
+          "voiced_frame_count",
+          "duration_ms",
+          "provenance"
+        ],
+        "title": "F0TrackArtifact",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -138,7 +260,8 @@
             "default": "fake",
             "enum": [
               "fake",
-              "basic_pitch"
+              "basic_pitch",
+              "game_f0"
             ],
             "title": "Transcriber",
             "type": "string"
@@ -349,6 +472,71 @@
           "denominator"
         ],
         "title": "MeterPoint",
+        "type": "object"
+      },
+      "ModelProvenance": {
+        "properties": {
+          "code_revision": {
+            "minLength": 1,
+            "title": "Code Revision",
+            "type": "string"
+          },
+          "device": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device"
+          },
+          "implementation": {
+            "minLength": 1,
+            "title": "Implementation",
+            "type": "string"
+          },
+          "model_revision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Revision"
+          },
+          "name": {
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "parameters": {
+            "additionalProperties": true,
+            "title": "Parameters",
+            "type": "object"
+          },
+          "weight_sha256": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weight Sha256"
+          }
+        },
+        "required": [
+          "name",
+          "implementation",
+          "code_revision"
+        ],
+        "title": "ModelProvenance",
         "type": "object"
       },
       "PipelineStep": {
@@ -654,6 +842,16 @@
           },
           "source": {
             "$ref": "#/components/schemas/SourceAudio"
+          },
+          "transcription_evidence": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TranscriptionEvidence"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -720,6 +918,35 @@
           "bpm"
         ],
         "title": "TempoPoint",
+        "type": "object"
+      },
+      "TranscriptionEvidence": {
+        "properties": {
+          "boundary_suggestions": {
+            "items": {
+              "$ref": "#/components/schemas/BoundarySuggestion"
+            },
+            "title": "Boundary Suggestions",
+            "type": "array"
+          },
+          "f0_track": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/F0TrackArtifact"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "note_model": {
+            "$ref": "#/components/schemas/ModelProvenance"
+          }
+        },
+        "required": [
+          "note_model"
+        ],
+        "title": "TranscriptionEvidence",
         "type": "object"
       },
       "UploadResponse": {

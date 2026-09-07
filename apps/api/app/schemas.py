@@ -2,7 +2,7 @@ from datetime import datetime
 from enum import StrEnum
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class HealthResponse(BaseModel):
@@ -47,7 +47,7 @@ class UploadResponse(BaseModel):
 
 class JobOptions(BaseModel):
     separator: Literal["fake", "demucs"] = "fake"
-    transcriber: Literal["fake", "basic_pitch"] = "fake"
+    transcriber: Literal["fake", "basic_pitch", "game_f0"] = "fake"
     detect_meter: bool = True
     detect_key: bool = True
     auto_start: bool = True
@@ -121,6 +121,56 @@ class PipelineStep(BaseModel):
     parameters: dict[str, object] = Field(default_factory=dict)
 
 
+class ModelProvenance(BaseModel):
+    name: str = Field(min_length=1)
+    implementation: str = Field(min_length=1)
+    code_revision: str = Field(min_length=1)
+    model_revision: str | None = None
+    weight_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+    parameters: dict[str, object] = Field(default_factory=dict)
+    device: str | None = None
+
+
+class F0TrackArtifact(BaseModel):
+    object_key: str = Field(min_length=1)
+    format: Literal["jsonl"] = "jsonl"
+    frame_period_ms: float = Field(gt=0)
+    frame_count: int = Field(ge=0)
+    voiced_frame_count: int = Field(ge=0)
+    duration_ms: int = Field(ge=0)
+    provenance: ModelProvenance
+
+    @model_validator(mode="after")
+    def validate_voiced_frame_count(self) -> "F0TrackArtifact":
+        if self.voiced_frame_count > self.frame_count:
+            raise ValueError("voiced_frame_count cannot exceed frame_count")
+        return self
+
+
+class BoundarySuggestion(BaseModel):
+    id: str
+    source_note_id: str
+    kind: Literal["adjust_end"] = "adjust_end"
+    original_end_ms: int = Field(ge=0)
+    proposed_end_ms: int = Field(ge=0)
+    confidence: float = Field(ge=0, le=1)
+    reason: Literal["f0_voicing_extension", "f0_voicing_contraction"]
+    review_status: Literal["pending", "accepted", "rejected"] = "pending"
+    reviewed_revision: int | None = Field(default=None, ge=1)
+
+    @model_validator(mode="after")
+    def validate_changed_boundary(self) -> "BoundarySuggestion":
+        if self.proposed_end_ms == self.original_end_ms:
+            raise ValueError("proposed_end_ms must differ from original_end_ms")
+        return self
+
+
+class TranscriptionEvidence(BaseModel):
+    note_model: ModelProvenance
+    f0_track: F0TrackArtifact | None = None
+    boundary_suggestions: list[BoundarySuggestion] = Field(default_factory=list)
+
+
 class ScoreProject(BaseModel):
     schema_version: Literal["1.0"] = "1.0"
     project_id: str
@@ -128,6 +178,7 @@ class ScoreProject(BaseModel):
     analysis: Analysis
     notes: list[ScoreNote]
     raw_notes: list[ScoreNote] | None = None
+    transcription_evidence: TranscriptionEvidence | None = None
     pipeline: list[PipelineStep]
     revision: int = Field(ge=1)
 
