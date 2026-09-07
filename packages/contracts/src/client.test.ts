@@ -27,3 +27,29 @@ describe("API errors", () => {
     });
   });
 });
+
+describe("boundary suggestion review", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("sends an optimistic review action", async () => {
+    const fetchMock = vi.fn(async () =>
+      new Response(JSON.stringify({ revision: 3 }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    await new VocalScoreApi("http://api").reviewBoundarySuggestion(
+      "project",
+      "suggestion",
+      { expected_revision: 2, action: "accept" },
+    );
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://api/v1/projects/project/boundary-suggestions/suggestion",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ expected_revision: 2, action: "accept" }),
+      }),
+    );
+  });
+});

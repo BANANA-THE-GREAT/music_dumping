@@ -1,4 +1,5 @@
 import type {
+  BoundarySuggestionReviewRequest,
   JobResponse,
   MelodyOptions,
   ProjectSummary,
@@ -79,6 +80,20 @@ export class VocalScoreApi {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ expected_revision: expectedRevision, notes }),
     });
+  }
+  reviewBoundarySuggestion(
+    id: string,
+    suggestionId: string,
+    request: BoundarySuggestionReviewRequest,
+  ): Promise<ScoreProject> {
+    return this.request(
+      `/v1/projects/${id}/boundary-suggestions/${suggestionId}`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(request),
+      },
+    );
   }
   requantizeProject(
     id: string,

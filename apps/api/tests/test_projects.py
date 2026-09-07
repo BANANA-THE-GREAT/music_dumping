@@ -250,3 +250,96 @@ def test_transcription_evidence_is_optional_and_round_trips() -> None:
     assert evidence is not None
     assert evidence["f0_track"]["frame_count"] == 101
     assert evidence["boundary_suggestions"][0]["review_status"] == "pending"
+
+
+def test_boundary_suggestion_review_accept_reject_and_reset() -> None:
+    project = create_project()
+    project_id = project["project_id"]
+    original_end = project["notes"][0]["source_end_ms"]
+    proposed_end = original_end + 70
+    project["notes"][0]["source_note_ids"] = ["game-0000"]
+    project["raw_notes"] = [dict(note) for note in project["notes"]]
+    project["transcription_evidence"] = {
+        "note_model": {
+            "name": "GAME medium",
+            "implementation": "test",
+            "code_revision": "test",
+            "parameters": {},
+        },
+        "boundary_suggestions": [
+            {
+                "id": "boundary-1",
+                "source_note_id": "game-0000",
+                "original_end_ms": original_end,
+                "proposed_end_ms": proposed_end,
+                "confidence": 0.8,
+                "reason": "f0_voicing_extension",
+            }
+        ],
+    }
+    with SessionLocal() as session:
+        record = session.get(ProjectRecord, project_id)
+        record.document = project
+        session.commit()
+
+    path = f"/v1/projects/{project_id}/boundary-suggestions/boundary-1"
+    accepted = client.post(path, json={"expected_revision": 1, "action": "accept"})
+    assert accepted.status_code == 200
+    accepted_project = accepted.json()
+    assert accepted_project["revision"] == 2
+    assert accepted_project["notes"][0]["source_end_ms"] == proposed_end
+    assert accepted_project["raw_notes"][0]["source_end_ms"] == original_end
+    assert accepted_project["transcription_evidence"]["boundary_suggestions"][0][
+        "review_status"
+    ] == "accepted"
+    assert client.post(path, json={"expected_revision": 1, "action": "reset"}).status_code == 409
+
+    reset = client.post(path, json={"expected_revision": 2, "action": "reset"})
+    assert reset.status_code == 200
+    assert reset.json()["notes"][0]["source_end_ms"] == original_end
+    assert reset.json()["transcription_evidence"]["boundary_suggestions"][0][
+        "review_status"
+    ] == "pending"
+
+    rejected = client.post(path, json={"expected_revision": 3, "action": "reject"})
+    assert rejected.status_code == 200
+    assert rejected.json()["revision"] == 4
+    assert rejected.json()["notes"][0]["source_end_ms"] == original_end
+    reset_rejection = client.post(path, json={"expected_revision": 4, "action": "reset"})
+    assert reset_rejection.status_code == 200
+    assert reset_rejection.json()["transcription_evidence"]["boundary_suggestions"][0][
+        "review_status"
+    ] == "pending"
+
+
+def test_boundary_suggestion_accept_refuses_changed_target() -> None:
+    project = create_project()
+    project["notes"][0]["source_note_ids"] = ["game-0000"]
+    project["transcription_evidence"] = {
+        "note_model": {
+            "name": "GAME medium",
+            "implementation": "test",
+            "code_revision": "test",
+            "parameters": {},
+        },
+        "boundary_suggestions": [
+            {
+                "id": "boundary-1",
+                "source_note_id": "game-0000",
+                "original_end_ms": project["notes"][0]["source_end_ms"] - 20,
+                "proposed_end_ms": project["notes"][0]["source_end_ms"] + 20,
+                "confidence": 0.7,
+                "reason": "f0_voicing_extension",
+            }
+        ],
+    }
+    with SessionLocal() as session:
+        record = session.get(ProjectRecord, project["project_id"])
+        record.document = project
+        session.commit()
+    response = client.post(
+        f"/v1/projects/{project['project_id']}/boundary-suggestions/boundary-1",
+        json={"expected_revision": 1, "action": "accept"},
+    )
+    assert response.status_code == 409
+    assert response.json()["detail"]["code"] == "SUGGESTION_TARGET_CHANGED"

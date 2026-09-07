@@ -197,6 +197,11 @@ class ProjectPatch(BaseModel):
     notes: list[ScoreNote] | None = None
 
 
+class BoundarySuggestionReviewRequest(BaseModel):
+    expected_revision: int = Field(ge=1)
+    action: Literal["accept", "reject", "reset"]
+
+
 class MelodyRequest(BaseModel):
     expected_revision: int = Field(ge=1)
     mode: Literal["raw", "conservative", "balanced"] = "balanced"

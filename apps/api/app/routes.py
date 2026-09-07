@@ -15,6 +15,7 @@ from app.models import JobRecord, ProjectRecord, UploadRecord
 from app.project_service import requantize
 from app.repository import create_job, create_upload, job_response
 from app.schemas import (
+    BoundarySuggestionReviewRequest,
     JobCreate,
     JobResponse,
     JobStage,
@@ -257,6 +258,90 @@ def update_project(project_id: str, request: ProjectPatch, session: SessionDep) 
     return _save_project(record, project, session)
 
 
+@router.post(
+    "/projects/{project_id}/boundary-suggestions/{suggestion_id}",
+    response_model=ScoreProject,
+)
+def review_boundary_suggestion(
+    project_id: str,
+    suggestion_id: str,
+    request: BoundarySuggestionReviewRequest,
+    session: SessionDep,
+) -> ScoreProject:
+    from app.schemas import PipelineStep
+
+    record, project = _editable_project(project_id, request.expected_revision, session)
+    evidence = project.transcription_evidence
+    if evidence is None:
+        raise HTTPException(status_code=404, detail={"code": "SUGGESTION_NOT_FOUND"})
+    suggestion = next(
+        (item for item in evidence.boundary_suggestions if item.id == suggestion_id), None
+    )
+    if suggestion is None:
+        raise HTTPException(status_code=404, detail={"code": "SUGGESTION_NOT_FOUND"})
+    if request.action != "reset" and suggestion.review_status != "pending":
+        raise HTTPException(status_code=409, detail={"code": "SUGGESTION_ALREADY_REVIEWED"})
+    if request.action == "reset" and suggestion.review_status == "pending":
+        raise HTTPException(status_code=409, detail={"code": "SUGGESTION_NOT_REVIEWED"})
+
+    target = next(
+        (
+            note
+            for note in project.notes
+            if suggestion.source_note_id in note.source_note_ids
+        ),
+        None,
+    )
+    changes_note = request.action == "accept" or (
+        request.action == "reset" and suggestion.review_status == "accepted"
+    )
+    if changes_note:
+        if target is None:
+            raise HTTPException(status_code=409, detail={"code": "SUGGESTION_TARGET_MISSING"})
+        expected_end = (
+            suggestion.original_end_ms
+            if request.action == "accept"
+            else suggestion.proposed_end_ms
+        )
+        if target.source_end_ms != expected_end:
+            raise HTTPException(status_code=409, detail={"code": "SUGGESTION_TARGET_CHANGED"})
+
+    next_revision = record.revision + 1
+    if request.action == "accept":
+        assert target is not None
+        target.source_end_ms = suggestion.proposed_end_ms
+        target.quantized_duration = max(
+            0.01,
+            (target.source_end_ms - target.source_start_ms)
+            / (60_000 / project.analysis.tempo_map[0].bpm),
+        )
+        target.origin = "user"
+        suggestion.review_status = "accepted"
+        suggestion.reviewed_revision = next_revision
+    elif request.action == "reject":
+        suggestion.review_status = "rejected"
+        suggestion.reviewed_revision = next_revision
+    else:
+        if changes_note:
+            assert target is not None
+            target.source_end_ms = suggestion.original_end_ms
+            target.quantized_duration = max(
+                0.01,
+                (target.source_end_ms - target.source_start_ms)
+                / (60_000 / project.analysis.tempo_map[0].bpm),
+            )
+        suggestion.review_status = "pending"
+        suggestion.reviewed_revision = None
+    project.pipeline.append(
+        PipelineStep(
+            stage="boundary_suggestion_review",
+            version="1",
+            parameters={"suggestion_id": suggestion.id, "action": request.action},
+        )
+    )
+    return _save_project(record, project, session)
+
+
 @router.post("/projects/{project_id}/requantize", response_model=ScoreProject)
 def requantize_project(
     project_id: str, request: RequantizeRequest, session: SessionDep
@@ -312,7 +397,11 @@ def refine_project_melody(
     else:
         detected = [
             DetectedNote(
-                n.source_start_ms / 1000, n.source_end_ms / 1000, n.pitch_midi, n.confidence
+                n.source_start_ms / 1000,
+                n.source_end_ms / 1000,
+                n.pitch_midi,
+                n.confidence,
+                n.source_note_ids[0] if n.source_note_ids else n.id,
             )
             for n in project.raw_notes
         ]

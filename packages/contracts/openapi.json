@@ -129,6 +129,30 @@
         "title": "BoundarySuggestion",
         "type": "object"
       },
+      "BoundarySuggestionReviewRequest": {
+        "properties": {
+          "action": {
+            "enum": [
+              "accept",
+              "reject",
+              "reset"
+            ],
+            "title": "Action",
+            "type": "string"
+          },
+          "expected_revision": {
+            "minimum": 1.0,
+            "title": "Expected Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expected_revision",
+          "action"
+        ],
+        "title": "BoundarySuggestionReviewRequest",
+        "type": "object"
+      },
       "F0TrackArtifact": {
         "properties": {
           "duration_ms": {
@@ -1457,6 +1481,64 @@
           }
         },
         "summary": "Stream Project Audio"
+      }
+    },
+    "/v1/projects/{project_id}/boundary-suggestions/{suggestion_id}": {
+      "post": {
+        "operationId": "review_boundary_suggestion_v1_projects__project_id__boundary_suggestions__suggestion_id__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "suggestion_id",
+            "required": true,
+            "schema": {
+              "title": "Suggestion Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BoundarySuggestionReviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScoreProject"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Review Boundary Suggestion"
       }
     },
     "/v1/projects/{project_id}/exports/midi": {

@@ -118,6 +118,10 @@ export interface RequantizeRequest {
   mode: "major" | "minor";
   grid: number;
 }
+export interface BoundarySuggestionReviewRequest {
+  expected_revision: number;
+  action: "accept" | "reject" | "reset";
+}
 export interface MelodyOptions {
   mode: "raw" | "conservative" | "balanced";
   low_pitch: number;
