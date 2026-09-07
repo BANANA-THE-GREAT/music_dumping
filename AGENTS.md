@@ -28,7 +28,7 @@ scripts/run-quality-segmentation-smoke.sh
 
 - GAME 权重通过 `../data/models/game:/models/game:ro` 只读挂载，不在 Docker build context 内。quality Worker 仍保留 Basic Pitch 回退；默认 Compose 未构建 quality Worker 时，实验任务必须明确失败为 `EXPERIMENTAL_ENGINE_NOT_CONFIGURED`，不得静默改用其他模型。模型运行验证优先检查 F0 JSONL、项目 provenance、pending 边界建议和子进程取消，不要把建议自动应用到项目音符。
 - API 与 Worker 共享 `app-data` 卷；Demucs 等下载缓存位于 `model-cache` 卷，重建 Worker 不应默认删除这些卷。PostgreSQL 和 Redis 分别使用持久化卷。MinIO 当前在 Compose 中定义但不属于常规 `up -d --wait web worker` 启动链路，不要无故启动或依赖它。
-- 常规启动命令为 `docker compose -f infra/compose.yaml up -d --build --wait web worker`，浏览器入口为 `http://localhost:8080`。Nginx 将同源 `/api` 转发到 API；不要因宿主机直连方式不同而改写前端默认 API 路径。
+- 常规启动命令为 `docker compose -f infra/compose.yaml up -d --build --wait web worker`，浏览器入口为 `http://localhost:8888`。Nginx 将同源 `/api` 转发到 API；不要因宿主机直连方式不同而改写前端默认 API 路径。
 - Python 的 Ruff、mypy、pytest 属于开发依赖，不在精简的 API/Worker 运行镜像中。宿主机 `.venv` 可用时可直接运行；需要完全隔离验证时，可在重新构建 API 镜像后使用一次性容器安装开发额外依赖再执行检查。无论使用哪种方式，都要说明验证发生在宿主机还是容器内。
 - `.dockerignore` 明确排除宿主机的 `.venv`、`node_modules`、构建产物、模型、音频和运行数据。不要假设镜像会复用这些宿主机目录，也不要为加快构建而把模型权重或用户数据加入构建上下文。
 

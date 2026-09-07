@@ -74,7 +74,7 @@ services:
     build:
       context: ..
       dockerfile: infra/docker/Dockerfile.web
-    ports: ["127.0.0.1:8080:80"]
+    ports: ["127.0.0.1:8888:80"]
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/api/health/live"]
       interval: 5s

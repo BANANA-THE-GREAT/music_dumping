@@ -67,7 +67,7 @@ python -m pip install -e ".[models]"
 docker compose -f infra/compose.yaml up -d --build --wait web worker
 ```
 
-Web 默认位于 `http://localhost:8080`，API 位于 `http://localhost:8000`。API 容器启动前自动执行 Alembic migration。
+Web 默认位于 `http://localhost:8888`，API 位于 `http://localhost:8000`。API 容器启动前自动执行 Alembic migration。
 浏览器通过同一站点的 `/api` 请求后端；上传、SSE 进度和导出均由 Nginx 转发。上述命令同时启动所需的 PostgreSQL、Redis 和 API，当前本地文件存储不需要 MinIO。
 如果已经运行本地 API，需先释放其 8000 端口。高质量模式由 Worker 内的 FFmpeg、Demucs 和 Basic Pitch 执行；首次使用 Demucs 时会联网下载模型权重，后续复用 `model-cache` 数据卷。
 

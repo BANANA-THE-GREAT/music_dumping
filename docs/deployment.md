@@ -28,7 +28,7 @@ docker compose -f infra/compose.yaml run --rm --no-deps worker python -c "from b
 docker compose -f infra/compose.yaml config
 docker compose -f infra/compose.yaml build api worker web
 docker compose -f infra/compose.yaml up -d --wait web worker
-curl --fail http://localhost:8080/api/health/ready
+curl --fail http://localhost:8888/api/health/ready
 curl --fail http://localhost:8000/health/live
 curl --fail http://localhost:8000/health/ready
 ```
