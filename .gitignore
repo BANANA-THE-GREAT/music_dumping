@@ -26,6 +26,7 @@ test-data/*.wav
 
 # Runtime data
 data/
+infra/experiments/sources/
 uploads/
 stems/
 exports/

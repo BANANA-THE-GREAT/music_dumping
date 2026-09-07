@@ -14,6 +14,14 @@ from vss_worker.evaluation import evaluate_transcription
 VOCADITO_MD5 = "dea40fd18f14d899643c4ba221b33a46"
 VOCADITO_SHA256 = "e0d6b99d3f9c594afe5ae5c4d7bdacebe569e53b809e90b89d1c771c4f9990e3"
 HOLDOUT_SINGERS = {"S1", "S6", "S9", "S21", "S28", "S29"}
+PREDICTION_VARIANTS = (
+    "basic_pitch_raw",
+    "basic_pitch_refined",
+    "basic_pitch_quantized",
+    "game_1_0_small",
+    "game_1_0_medium",
+    "some_continuous256_5spk",
+)
 
 
 def file_hash(path: Path, algorithm: str) -> str:
@@ -170,7 +178,7 @@ def prepare_vocadito(
         )
         predictions = {}
         if prediction_root is not None:
-            for variant in ("basic_pitch_raw", "basic_pitch_refined", "basic_pitch_quantized"):
+            for variant in PREDICTION_VARIANTS:
                 candidate = prediction_root / variant / f"{stem}.json"
                 if candidate.is_file():
                     predictions[variant] = _relative(candidate, manifest_path)

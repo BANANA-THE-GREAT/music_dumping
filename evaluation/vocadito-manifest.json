@@ -86,7 +86,10 @@
       "predictions": {
         "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_1.json",
         "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_1.json",
-        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_1.json"
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_1.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_1.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_1.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_1.json"
       }
     },
     {
@@ -105,7 +108,10 @@
       "predictions": {
         "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_2.json",
         "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_2.json",
-        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_2.json"
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_2.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_2.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_2.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_2.json"
       }
     },
     {
@@ -124,7 +130,10 @@
       "predictions": {
         "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_3.json",
         "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_3.json",
-        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_3.json"
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_3.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_3.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_3.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_3.json"
       }
     },
     {
@@ -143,7 +152,10 @@
       "predictions": {
         "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_4.json",
         "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_4.json",
-        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_4.json"
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_4.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_4.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_4.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_4.json"
       }
     },
     {
@@ -162,7 +174,10 @@
       "predictions": {
         "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_5.json",
         "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_5.json",
-        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_5.json"
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_5.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_5.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_5.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_5.json"
       }
     },
     {
@@ -181,7 +196,10 @@
       "predictions": {
         "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_6.json",
         "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_6.json",
-        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_6.json"
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_6.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_6.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_6.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_6.json"
       }
     },
     {
@@ -200,7 +218,10 @@
       "predictions": {
         "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_7.json",
         "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_7.json",
-        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_7.json"
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_7.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_7.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_7.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_7.json"
       }
     },
     {
@@ -219,7 +240,10 @@
       "predictions": {
         "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_8.json",
         "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_8.json",
-        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_8.json"
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_8.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_8.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_8.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_8.json"
       }
     },
     {
@@ -238,7 +262,10 @@
       "predictions": {
         "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_9.json",
         "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_9.json",
-        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_9.json"
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_9.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_9.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_9.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_9.json"
       }
     },
     {
@@ -257,7 +284,10 @@
       "predictions": {
         "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_10.json",
         "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_10.json",
-        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_10.json"
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_10.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_10.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_10.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_10.json"
       }
     },
     {
@@ -276,7 +306,10 @@
       "predictions": {
         "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_11.json",
         "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_11.json",
-        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_11.json"
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_11.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_11.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_11.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_11.json"
       }
     },
     {
@@ -295,7 +328,10 @@
       "predictions": {
         "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_12.json",
         "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_12.json",
-        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_12.json"
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_12.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_12.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_12.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_12.json"
       }
     },
     {
@@ -314,7 +350,10 @@
       "predictions": {
         "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_13.json",
         "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_13.json",
-        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_13.json"
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_13.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_13.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_13.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_13.json"
       }
     },
     {
@@ -333,7 +372,10 @@
       "predictions": {
         "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_14.json",
         "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_14.json",
-        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_14.json"
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_14.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_14.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_14.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_14.json"
       }
     },
     {
@@ -352,7 +394,10 @@
       "predictions": {
         "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_15.json",
         "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_15.json",
-        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_15.json"
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_15.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_15.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_15.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_15.json"
       }
     },
     {
@@ -371,7 +416,10 @@
       "predictions": {
         "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_16.json",
         "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_16.json",
-        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_16.json"
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_16.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_16.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_16.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_16.json"
       }
     },
     {
@@ -390,7 +438,10 @@
       "predictions": {
         "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_17.json",
         "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_17.json",
-        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_17.json"
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_17.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_17.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_17.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_17.json"
       }
     },
     {
@@ -409,7 +460,10 @@
       "predictions": {
         "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_18.json",
         "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_18.json",
-        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_18.json"
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_18.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_18.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_18.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_18.json"
       }
     },
     {
@@ -428,7 +482,10 @@
       "predictions": {
         "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_19.json",
         "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_19.json",
-        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_19.json"
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_19.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_19.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_19.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_19.json"
       }
     },
     {
@@ -447,7 +504,10 @@
       "predictions": {
         "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_20.json",
         "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_20.json",
-        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_20.json"
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_20.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_20.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_20.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_20.json"
       }
     },
     {
@@ -466,7 +526,10 @@
       "predictions": {
         "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_21.json",
         "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_21.json",
-        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_21.json"
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_21.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_21.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_21.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_21.json"
       }
     },
     {
@@ -485,7 +548,10 @@
       "predictions": {
         "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_22.json",
         "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_22.json",
-        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_22.json"
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_22.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_22.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_22.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_22.json"
       }
     },
     {
@@ -504,7 +570,10 @@
       "predictions": {
         "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_23.json",
         "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_23.json",
-        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_23.json"
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_23.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_23.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_23.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_23.json"
       }
     },
     {
@@ -523,7 +592,10 @@
       "predictions": {
         "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_24.json",
         "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_24.json",
-        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_24.json"
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_24.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_24.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_24.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_24.json"
       }
     },
     {
@@ -542,7 +614,10 @@
       "predictions": {
         "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_25.json",
         "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_25.json",
-        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_25.json"
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_25.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_25.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_25.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_25.json"
       }
     },
     {
@@ -561,7 +636,10 @@
       "predictions": {
         "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_26.json",
         "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_26.json",
-        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_26.json"
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_26.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_26.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_26.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_26.json"
       }
     },
     {
@@ -580,7 +658,10 @@
       "predictions": {
         "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_27.json",
         "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_27.json",
-        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_27.json"
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_27.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_27.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_27.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_27.json"
       }
     },
     {
@@ -599,7 +680,10 @@
       "predictions": {
         "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_28.json",
         "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_28.json",
-        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_28.json"
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_28.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_28.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_28.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_28.json"
       }
     },
     {
@@ -618,7 +702,10 @@
       "predictions": {
         "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_29.json",
         "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_29.json",
-        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_29.json"
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_29.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_29.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_29.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_29.json"
       }
     },
     {
@@ -637,7 +724,10 @@
       "predictions": {
         "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_30.json",
         "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_30.json",
-        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_30.json"
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_30.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_30.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_30.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_30.json"
       }
     },
     {
@@ -656,7 +746,10 @@
       "predictions": {
         "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_31.json",
         "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_31.json",
-        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_31.json"
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_31.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_31.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_31.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_31.json"
       }
     },
     {
@@ -675,7 +768,10 @@
       "predictions": {
         "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_32.json",
         "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_32.json",
-        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_32.json"
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_32.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_32.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_32.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_32.json"
       }
     },
     {
@@ -694,7 +790,10 @@
       "predictions": {
         "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_33.json",
         "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_33.json",
-        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_33.json"
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_33.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_33.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_33.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_33.json"
       }
     },
     {
@@ -713,7 +812,10 @@
       "predictions": {
         "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_34.json",
         "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_34.json",
-        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_34.json"
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_34.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_34.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_34.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_34.json"
       }
     },
     {
@@ -732,7 +834,10 @@
       "predictions": {
         "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_35.json",
         "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_35.json",
-        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_35.json"
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_35.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_35.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_35.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_35.json"
       }
     },
     {
@@ -751,7 +856,10 @@
       "predictions": {
         "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_36.json",
         "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_36.json",
-        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_36.json"
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_36.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_36.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_36.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_36.json"
       }
     },
     {
@@ -770,7 +878,10 @@
       "predictions": {
         "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_37.json",
         "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_37.json",
-        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_37.json"
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_37.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_37.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_37.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_37.json"
       }
     },
     {
@@ -789,7 +900,10 @@
       "predictions": {
         "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_38.json",
         "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_38.json",
-        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_38.json"
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_38.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_38.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_38.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_38.json"
       }
     },
     {
@@ -808,7 +922,10 @@
       "predictions": {
         "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_39.json",
         "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_39.json",
-        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_39.json"
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_39.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_39.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_39.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_39.json"
       }
     },
     {
@@ -827,7 +944,10 @@
       "predictions": {
         "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_40.json",
         "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_40.json",
-        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_40.json"
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_40.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_40.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_40.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_40.json"
       }
     }
   ]

@@ -17,8 +17,8 @@
 | [Demucs](https://github.com/facebookresearch/demucs) | 已接入：人声分离，继续保留 | 固定所用版本、权重及其许可，见许可清单 |
 | [Basic Pitch](https://github.com/spotify/basic-pitch) / [Basic Pitch TS](https://github.com/spotify/basic-pitch-ts) | 已接入：后端及浏览器转录；保留为评测和回退基线 | Python 项目代码为 Apache-2.0；TS 版本及具体权重另行核对 |
 | [abcjs](https://github.com/paulrosen/abcjs) | 已接入：五线谱渲染 | 具体版本许可及第三方声明见许可清单 |
-| [GAME](https://github.com/openvpi/GAME) | 拟优先试验：歌声音符及起止边界识别，尚未接入 | 代码 MIT；[官方 1.0 权重](https://github.com/openvpi/GAME/releases/tag/v1.0.0)为 CC BY-NC-SA 4.0，须遵守非商用、署名及适用的相同方式共享条件 |
-| [SOME](https://github.com/openvpi/SOME) | 拟评测：歌声转 MIDI 的轻量、CPU 对照，尚未接入 | 代码 MIT；[官方基线权重](https://github.com/openvpi/SOME/releases/tag/v1.0.0-baseline)为 CC BY-NC-SA 4.0 |
+| [GAME](https://github.com/openvpi/GAME) | 已完成 P1 独立容器评测，medium 为最佳实验候选；未接入默认 Worker | 代码 MIT；[官方 1.0 权重](https://github.com/openvpi/GAME/releases/tag/v1.0.0)为 CC BY-NC-SA 4.0，须遵守非商用、署名及适用的相同方式共享条件 |
+| [SOME](https://github.com/openvpi/SOME) | 已完成 P1 独立 CPU 对照；未达到预登记门槛，未接入默认 Worker | 代码 MIT；[官方基线权重](https://github.com/openvpi/SOME/releases/tag/v1.0.0-baseline)为 CC BY-NC-SA 4.0 |
 | [ROSVOT](https://github.com/RickyL-2000/ROSVOT) | 备选：中文、分离残留较重的歌声转录，按评测需要引入 | 代码 MIT；具体权重授权和数据限制仍需核实，不能由代码许可证推断 |
 | [RMVPE](https://github.com/Dream-High/RMVPE) / [部署实现](https://github.com/yxlllc/RMVPE) | 拟引入：连续基频和发声区间校验，不单独代替音符切分 | 最终采用的实现、版本、权重来源与授权均需确认 |
 | [DDSP](https://github.com/magenta/ddsp) | 远期可选：谐波重合成和频谱对照实验，不是本轮默认依赖 | 选型时核对代码、预训练模型及数据许可；不是开箱即用的人声转 MIDI 工具 |
@@ -92,4 +92,4 @@ npm run build
 
 更多说明见 [架构](docs/architecture.md)、[API](docs/api.md)、[评测](docs/evaluation.md) 和 [模型许可](docs/model-licenses.md)。
 
-P0 评测与损失定位工具已提供，并已完成 Vocadito 孤立人声基线。结果见 [Vocadito Basic Pitch 基线报告](evaluation/reports/vocadito-baseline.md)；真实混音与 Demucs 残留样本仍待补充。运行方法、固定容差和标注要求见[转录质量评测](docs/evaluation.md)与[人声转录标注规范](docs/transcription-annotation.md)。
+P0 基线与 P1 GAME/SOME 对比已经完成。GAME medium 在 Vocadito holdout 上最好，但没有候选通过全部预登记门槛，默认引擎保持 Basic Pitch。结果见 [Basic Pitch 基线](evaluation/reports/vocadito-baseline.md)和[候选模型对比](evaluation/reports/vocadito-candidate-comparison.md)；真实混音与 Demucs 残留样本仍待补充。运行方法、固定容差和标注要求见[转录质量评测](docs/evaluation.md)与[人声转录标注规范](docs/transcription-annotation.md)。

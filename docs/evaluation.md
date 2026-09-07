@@ -46,4 +46,12 @@ python scripts/evaluate-transcription-manifest.py \
 
 固定划分与结果见 `evaluation/vocadito-manifest.json` 和 `evaluation/reports/vocadito-baseline.md`。下载音频、转换标注、逐段诊断和模型运行明细留在 `data/`，不会进入 Git。
 
+GAME 与 SOME 的 P1 对比使用独立镜像，不修改生产 Worker。权重按 `docs/model-licenses.md` 的目录和哈希准备后运行：
+
+```bash
+bash scripts/run-vocadito-candidates.sh
+```
+
+脚本会核对权重、准备固定 commit 源码归档、构建 CPU 实验镜像、运行三个候选并生成统一报告。当前结果见 `evaluation/reports/vocadito-candidate-comparison.md`；没有候选通过全部预登记门槛，不能据此更换默认引擎。
+
 真实片段须遵循[转录标注规范](transcription-annotation.md)，按歌曲和歌手隔离调参集与保留测试集。公开仓库只提交确认允许再分发的音频和标注；私有授权材料只在 manifest 保存本机相对引用，不进入 Git。达到 `quality_gate` 前不得更换默认引擎。

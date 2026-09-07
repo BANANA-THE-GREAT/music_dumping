@@ -3,7 +3,12 @@ import json
 import wave
 from pathlib import Path
 
-from vss_worker.vocadito import hz_to_midi, prepare_vocadito, read_note_annotation
+from vss_worker.vocadito import (
+    PREDICTION_VARIANTS,
+    hz_to_midi,
+    prepare_vocadito,
+    read_note_annotation,
+)
 
 
 def write_wav(path: Path) -> None:
@@ -52,3 +57,9 @@ def test_prepares_singer_disjoint_manifest(tmp_path: Path) -> None:
     agreement = json.loads((output / "annotation-agreement.json").read_text())
     assert agreement["clips"][0]["metrics"]["onset_offset_pitch"]["f1"] == 1
     assert agreement["clips"][0]["uncertain_regions"] == []
+
+
+def test_candidate_variants_are_registered() -> None:
+    assert "game_1_0_small" in PREDICTION_VARIANTS
+    assert "game_1_0_medium" in PREDICTION_VARIANTS
+    assert "some_continuous256_5spk" in PREDICTION_VARIANTS

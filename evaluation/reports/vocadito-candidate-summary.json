@@ -1,0 +1,149 @@
+{
+  "schema_version": "1.0",
+  "split": "holdout",
+  "baseline_variant": "basic_pitch_raw",
+  "quality_gate": {
+    "status": "preregistered_before_candidate_model_evaluation",
+    "candidate_onset_offset_f1_improvement": 0.03,
+    "candidate_recall_improvement": 0.05,
+    "maximum_precision_regression": 0.02,
+    "maximum_failure_rate": 0.02
+  },
+  "baseline_metrics": {
+    "clip_count": 15,
+    "onset_pitch": {
+      "precision_macro": 0.5344087701174303,
+      "recall_macro": 0.5131253823322618,
+      "f1_macro": 0.5120126439716395,
+      "mean_onset_error_ms": 15.350715611062956,
+      "mean_offset_error_ms": 98.325875378056
+    },
+    "onset_offset_pitch": {
+      "precision_macro": 0.325521881962393,
+      "recall_macro": 0.31400277048525266,
+      "f1_macro": 0.31280076560947084,
+      "mean_onset_error_ms": 14.838137165659736,
+      "mean_offset_error_ms": 23.326854043660948
+    },
+    "errors": {
+      "missed_notes": 571,
+      "extra_notes": 557,
+      "octave_errors": 1,
+      "possible_splits": 123,
+      "possible_merges": 67,
+      "weak_note_misses": 0
+    }
+  },
+  "candidates": {
+    "game_1_0_small": {
+      "metrics": {
+        "onset_f1": 0.6670687186303901,
+        "onset_offset_precision": 0.3896522431461597,
+        "onset_offset_recall": 0.33257733275991513,
+        "onset_offset_f1": 0.35762628937867647
+      },
+      "deltas_vs_basic_pitch_raw": {
+        "onset_f1": 0.1550560746587506,
+        "onset_offset_precision": 0.0641303611837667,
+        "onset_offset_recall": 0.018574562274662476,
+        "onset_offset_f1": 0.04482552376920562
+      },
+      "resources": {
+        "upstream_commit": "e66c31251605e334b1bf0f565252d4987a9065c0",
+        "model_sha256": "7dd10022a4011938843249a31d9527691376c493d13687a7fc1dec88786b9691",
+        "device": "cpu",
+        "seed": 114514,
+        "model_load_seconds": 0.31009037801413797,
+        "inference_seconds": 250.22281269400264,
+        "seconds_per_clip": 6.255570317350066,
+        "median_clip_seconds": null,
+        "peak_rss_kib": 1208316,
+        "clip_count": 40,
+        "failure_count": 0,
+        "failure_rate": 0.0
+      },
+      "quality_gate_checks": {
+        "onset_offset_f1_improvement": true,
+        "recall_improvement": false,
+        "precision_regression": true,
+        "failure_rate": true,
+        "passed_all": false
+      }
+    },
+    "game_1_0_medium": {
+      "metrics": {
+        "onset_f1": 0.6662235976807881,
+        "onset_offset_precision": 0.38636624493822935,
+        "onset_offset_recall": 0.3426186959896748,
+        "onset_offset_f1": 0.36202123388357677
+      },
+      "deltas_vs_basic_pitch_raw": {
+        "onset_f1": 0.1542109537091486,
+        "onset_offset_precision": 0.06084436297583634,
+        "onset_offset_recall": 0.028615925504422157,
+        "onset_offset_f1": 0.04922046827410592
+      },
+      "resources": {
+        "upstream_commit": "e66c31251605e334b1bf0f565252d4987a9065c0",
+        "model_sha256": "e9904159fb0646e1a352b9d2bc74615547cfa3e32d45c7464d440ac142846d93",
+        "device": "cpu",
+        "seed": 114514,
+        "model_load_seconds": 1.6709621390036773,
+        "inference_seconds": 531.5716305070091,
+        "seconds_per_clip": 13.289290762675227,
+        "median_clip_seconds": null,
+        "peak_rss_kib": 1617348,
+        "clip_count": 40,
+        "failure_count": 0,
+        "failure_rate": 0.0
+      },
+      "quality_gate_checks": {
+        "onset_offset_f1_improvement": true,
+        "recall_improvement": false,
+        "precision_regression": true,
+        "failure_rate": true,
+        "passed_all": false
+      }
+    },
+    "some_continuous256_5spk": {
+      "metrics": {
+        "onset_f1": 0.6409256306623045,
+        "onset_offset_precision": 0.3585646938501078,
+        "onset_offset_recall": 0.327588207922275,
+        "onset_offset_f1": 0.34149049894606953
+      },
+      "deltas_vs_basic_pitch_raw": {
+        "onset_f1": 0.12891298669066498,
+        "onset_offset_precision": 0.033042811887714796,
+        "onset_offset_recall": 0.01358543743702234,
+        "onset_offset_f1": 0.02868973333659869
+      },
+      "resources": {
+        "upstream_commit": "dcfd40f9bfaa7c9649aae01a2795af73946ec5e7",
+        "model_sha256": "aa710fce920b4dae281b0e6cc2acba83345d82ee62d51f7bafeb29636f28f97c",
+        "device": "cpu",
+        "seed": 114514,
+        "model_load_seconds": 1.331347072031349,
+        "inference_seconds": 153.31833141384413,
+        "seconds_per_clip": 3.8329582853461033,
+        "median_clip_seconds": 3.4324213410145603,
+        "peak_rss_kib": 1388188,
+        "clip_count": 40,
+        "failure_count": 0,
+        "failure_rate": 0.0
+      },
+      "quality_gate_checks": {
+        "onset_offset_f1_improvement": false,
+        "recall_improvement": false,
+        "precision_regression": true,
+        "failure_rate": true,
+        "passed_all": false
+      }
+    }
+  },
+  "recommendation": {
+    "default_engine": "basic_pitch",
+    "best_experimental_candidate": "game_1_0_medium",
+    "reason": "No candidate passed every preregistered quality gate check."
+  }
+}
