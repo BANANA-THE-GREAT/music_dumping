@@ -1,12 +1,14 @@
 FROM python:3.11-slim
 WORKDIR /app
+ARG PYTORCH_INDEX_URL=https://download.pytorch.org/whl/cpu
+ARG PYTORCH_PACKAGE="torch>=2.1"
 ENV PIP_DEFAULT_TIMEOUT=120 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ffmpeg libsndfile1 libgomp1 \
     && rm -rf /var/lib/apt/lists/*
-# Compose runs this worker on CPU; keep CUDA packages out of the default image.
-RUN pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu "torch>=2.1"
+# The GPU Compose override replaces both build arguments with a CUDA wheel.
+RUN pip install --no-cache-dir --index-url "$PYTORCH_INDEX_URL" "$PYTORCH_PACKAGE"
 COPY pyproject.toml ./
 COPY apps/api apps/api
 COPY workers/transcription workers/transcription

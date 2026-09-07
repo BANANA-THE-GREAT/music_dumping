@@ -1,0 +1,10 @@
+services:
+  worker:
+    build:
+      args:
+        PYTORCH_INDEX_URL: ${VSS_PYTORCH_INDEX_URL:-https://download.pytorch.org/whl/cu128}
+        PYTORCH_PACKAGE: ${VSS_PYTORCH_PACKAGE:-torch==2.8.0}
+    environment:
+      CUDA_VISIBLE_DEVICES: ${VSS_CUDA_VISIBLE_DEVICES:-0}
+      VSS_INFERENCE_DEVICE: ${VSS_INFERENCE_DEVICE:-auto}
+    gpus: all

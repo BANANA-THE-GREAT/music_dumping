@@ -3,14 +3,21 @@ from collections.abc import Callable, Sequence
 from pathlib import Path
 
 from vss_worker.command import run_command
+from vss_worker.device import resolve_inference_device
 
 Runner = Callable[[Sequence[str]], None]
 
 
 class DemucsSeparator:
-    def __init__(self, model: str = "htdemucs", runner: Runner = run_command) -> None:
+    def __init__(
+        self,
+        model: str = "htdemucs",
+        runner: Runner = run_command,
+        device: str | None = None,
+    ) -> None:
         self.model = model
         self.runner = runner
+        self.device = resolve_inference_device(device)
 
     def command(self, source: Path, output_dir: Path) -> list[str]:
         return [
@@ -21,6 +28,8 @@ class DemucsSeparator:
             "vocals",
             "-n",
             self.model,
+            "--device",
+            self.device,
             "-o",
             str(output_dir),
             str(source),

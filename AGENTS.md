@@ -16,7 +16,7 @@ docker compose -f infra/compose.yaml run --rm --no-deps worker ffmpeg -version
 docker compose -f infra/compose.yaml run --rm --no-deps worker python -c "from basic_pitch.inference import Model; import demucs.separate; print('model dependencies OK')"
 ```
 
-- 默认 Compose Worker 使用 CPU PyTorch，尚未配置 GPU 透传。宿主机存在 NVIDIA GPU 不代表容器已经使用 GPU；启用 GPU 前需要同时调整 PyTorch 安装源和 Compose 设备配置。
+- 默认 Compose Worker 使用 CPU PyTorch。GPU 模式通过叠加 `infra/compose.gpu.yaml` 构建 CUDA PyTorch 并申请可见 GPU，设备由 `VSS_INFERENCE_DEVICE=auto|cpu|cuda` 控制；宿主机仍须预先安装并配置 NVIDIA Container Toolkit。宿主机存在 NVIDIA GPU 不代表容器已经使用 GPU，启动后必须在容器内检查 `torch.cuda.is_available()`。
 - GAME + torchcrepe 不进入默认 Worker；显式实验模式使用 `scripts/build-quality-worker.sh` 构建。脚本保留独立的 `vocal-score-studio-worker-basic:latest` 基础标签，校验固定源码归档和 `data/models/game/GAME-1.0-medium/model.pt` 的 SHA-256，再生成 `vocal-score-studio-worker:latest`。启动时必须沿用同一 Dockerfile 选择：
 
 ```bash
@@ -26,11 +26,14 @@ VSS_WORKER_DOCKERFILE=infra/docker/Dockerfile.worker-quality \
 scripts/run-quality-segmentation-smoke.sh
 ```
 
+GPU quality Worker 使用 `scripts/build-quality-worker-gpu.sh` 构建，并以 `VSS_WORKER_DOCKERFILE=infra/docker/Dockerfile.worker-quality docker compose -f infra/compose.yaml -f infra/compose.gpu.yaml up -d --no-build --wait worker` 启动。不要把 GPU override 合并进默认 Compose，也不要在未验证 CUDA 可用时删除 CPU 回退路径。
+
 - GAME 权重通过 `../data/models/game:/models/game:ro` 只读挂载，不在 Docker build context 内。quality Worker 仍保留 Basic Pitch 回退；默认 Compose 未构建 quality Worker 时，实验任务必须明确失败为 `EXPERIMENTAL_ENGINE_NOT_CONFIGURED`，不得静默改用其他模型。模型运行验证优先检查 F0 JSONL、项目 provenance、pending 边界建议和子进程取消，不要把建议自动应用到项目音符。
 - API 与 Worker 共享 `app-data` 卷；Demucs 等下载缓存位于 `model-cache` 卷，重建 Worker 不应默认删除这些卷。PostgreSQL 和 Redis 分别使用持久化卷。MinIO 当前在 Compose 中定义但不属于常规 `up -d --wait web worker` 启动链路，不要无故启动或依赖它。
 - 常规启动命令为 `docker compose -f infra/compose.yaml up -d --build --wait web worker`，浏览器入口为 `http://localhost:8888`。Nginx 将同源 `/api` 转发到 API；不要因宿主机直连方式不同而改写前端默认 API 路径。
 - Python 的 Ruff、mypy、pytest 属于开发依赖，不在精简的 API/Worker 运行镜像中。宿主机 `.venv` 可用时可直接运行；需要完全隔离验证时，可在重新构建 API 镜像后使用一次性容器安装开发额外依赖再执行检查。无论使用哪种方式，都要说明验证发生在宿主机还是容器内。
 - `.dockerignore` 明确排除宿主机的 `.venv`、`node_modules`、构建产物、模型、音频和运行数据。不要假设镜像会复用这些宿主机目录，也不要为加快构建而把模型权重或用户数据加入构建上下文。
+- 外部依赖、模型权重或数据集的下载链接无法联通，或下载速度慢到明显阻塞工作时，可以停止反复重试，向用户说明目标文件、来源、期望路径和校验信息，请用户自行设法下载后再继续。
 
 ## 项目用途与第三方许可
 

@@ -82,6 +82,25 @@ VSS_WORKER_DOCKERFILE=infra/docker/Dockerfile.worker-quality \
 
 构建脚本固定并校验源码与权重哈希。quality Worker 仍支持 Basic Pitch；实验引擎只有在任务中显式选择 `game_f0` 时运行。标准 Worker 收到该选项会返回 `EXPERIMENTAL_ENGINE_NOT_CONFIGURED`，不会回退成假结果或 Basic Pitch。GAME 原始音符、独立 F0 文件和边界建议会分别保存，建议默认保持 pending，不自动改写谱面。
 
+NVIDIA GPU 为可选运行模式，不改变默认 CPU Compose。宿主机完成 NVIDIA Container Toolkit 配置后，普通 Worker 可执行：
+
+```bash
+docker compose -f infra/compose.yaml -f infra/compose.gpu.yaml build worker
+docker compose -f infra/compose.yaml -f infra/compose.gpu.yaml up -d --no-build --wait worker
+docker compose -f infra/compose.yaml -f infra/compose.gpu.yaml exec worker \
+  python -c "import torch; print(torch.__version__, torch.cuda.is_available(), torch.cuda.get_device_name(0))"
+```
+
+实验 GPU Worker 使用 `scripts/build-quality-worker-gpu.sh` 构建，然后执行：
+
+```bash
+VSS_WORKER_DOCKERFILE=infra/docker/Dockerfile.worker-quality \
+  docker compose -f infra/compose.yaml -f infra/compose.gpu.yaml \
+  up -d --no-build --wait worker
+```
+
+GPU 镜像默认使用 PyTorch `2.8.0` 的 CUDA 12.8 wheel，可通过 `VSS_PYTORCH_INDEX_URL` 和 `VSS_PYTORCH_PACKAGE` 覆盖。运行时 `VSS_INFERENCE_DEVICE` 支持 `auto`、`cpu`、`cuda`，默认以 `VSS_CUDA_VISIBLE_DEVICES=0` 只使用一张卡；显式选择 `cuda` 但容器不可用时任务会失败，不会静默回退 CPU。Demucs、GAME 和 torchcrepe 使用同一选择结果。
+
 日常启动和修改前端后重新构建：
 
 ```bash

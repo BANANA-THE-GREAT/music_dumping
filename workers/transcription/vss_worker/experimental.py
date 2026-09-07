@@ -2,11 +2,13 @@ import hashlib
 import json
 import math
 import sys
+import time
 from collections.abc import Callable, Sequence
 from pathlib import Path
 
 from vss_worker.adapters import DetectedNote, EvidenceTranscription
 from vss_worker.command import run_command
+from vss_worker.device import resolve_inference_device
 from vss_worker.f0_diagnostics import adjust_note_offsets
 
 GAME_COMMIT = "e66c31251605e334b1bf0f565252d4987a9065c0"
@@ -55,11 +57,18 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _read_notes(path: Path) -> tuple[list[DetectedNote], dict[str, object] | None]:
+def _read_notes(
+    path: Path,
+) -> tuple[list[DetectedNote], dict[str, object] | None, str | None]:
     document = json.loads(path.read_text(encoding="utf-8"))
     notes = [DetectedNote(**note) for note in document["notes"]]
     segmentation = document.get("segmentation")
-    return notes, segmentation if isinstance(segmentation, dict) else None
+    device = document.get("device")
+    return (
+        notes,
+        segmentation if isinstance(segmentation, dict) else None,
+        device if isinstance(device, str) else None,
+    )
 
 
 def _read_f0_jsonl(path: Path) -> dict[str, list[float]]:
@@ -106,11 +115,13 @@ class GameF0EvidenceTranscriber:
         game_root: Path,
         torchcrepe_root: Path,
         command_runner: Callable[[Sequence[str]], None] = run_command,
+        device: str | None = None,
     ) -> None:
         self.model_path = model_path
         self.game_root = game_root
         self.torchcrepe_root = torchcrepe_root
         self.command_runner = command_runner
+        self.device = resolve_inference_device(device)
 
     def validate_runtime(self) -> None:
         if not self.model_path.is_file():
@@ -137,6 +148,7 @@ class GameF0EvidenceTranscriber:
         evidence_dir.mkdir(parents=True, exist_ok=True)
         notes_path = evidence_dir / "game-notes.json"
         f0_path = evidence_dir / "f0.jsonl"
+        started = time.perf_counter()
         self.command_runner(
             [
                 sys.executable,
@@ -146,12 +158,23 @@ class GameF0EvidenceTranscriber:
                 str(notes_path),
                 str(self.model_path),
                 str(self.game_root),
+                self.device,
             ]
         )
+        game_elapsed_ms = round((time.perf_counter() - started) * 1000, 2)
+        started = time.perf_counter()
         self.command_runner(
-            [sys.executable, "-m", "vss_worker.torchcrepe_cli", str(vocal_path), str(f0_path)]
+            [
+                sys.executable,
+                "-m",
+                "vss_worker.torchcrepe_cli",
+                str(vocal_path),
+                str(f0_path),
+                self.device,
+            ]
         )
-        notes, segmentation = _read_notes(notes_path)
+        f0_elapsed_ms = round((time.perf_counter() - started) * 1000, 2)
+        notes, segmentation, game_device = _read_notes(notes_path)
         prediction = _read_f0_jsonl(f0_path)
         adjusted = adjust_note_offsets(notes, prediction, **BOUNDARY_PARAMETERS)
         suggestions: list[dict[str, object]] = []
@@ -203,9 +226,10 @@ class GameF0EvidenceTranscriber:
                     "weight_sha256": GAME_MODEL_SHA256,
                     "parameters": {
                         **GAME_PARAMETERS,
+                        "elapsed_ms": game_elapsed_ms,
                         **({"segmentation": segmentation} if segmentation else {}),
                     },
-                    "device": "cpu",
+                    "device": game_device or self.device,
                 },
                 "f0_track": {
                     "object_key": object_key,
@@ -220,8 +244,12 @@ class GameF0EvidenceTranscriber:
                         "code_revision": TORCHCREPE_COMMIT,
                         "model_revision": "0.0.24",
                         "weight_sha256": TORCHCREPE_MODEL_SHA256,
-                        "parameters": {**F0_PARAMETERS, **BOUNDARY_PARAMETERS},
-                        "device": "cpu",
+                        "parameters": {
+                            **F0_PARAMETERS,
+                            **BOUNDARY_PARAMETERS,
+                            "elapsed_ms": f0_elapsed_ms,
+                        },
+                        "device": self.device,
                     },
                 },
                 "boundary_suggestions": suggestions,

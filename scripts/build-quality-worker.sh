@@ -4,6 +4,8 @@ set -euo pipefail
 root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 sources="$root/infra/experiments/sources"
 model="$root/data/models/game/GAME-1.0-medium/model.pt"
+pytorch_index_url=${VSS_PYTORCH_INDEX_URL:-https://download.pytorch.org/whl/cpu}
+pytorch_package=${VSS_PYTORCH_PACKAGE:-torch==2.8.0}
 
 bash "$root/scripts/prepare-candidate-build-context.sh"
 
@@ -49,5 +51,7 @@ if ! docker image inspect vocal-score-studio-worker-basic:latest >/dev/null 2>&1
 fi
 DOCKER_BUILDKIT=0 docker build \
   -f "$root/infra/docker/Dockerfile.worker-quality" \
+  --build-arg "PYTORCH_INDEX_URL=$pytorch_index_url" \
+  --build-arg "PYTORCH_PACKAGE=$pytorch_package" \
   -t vocal-score-studio-worker:latest \
   "$root"

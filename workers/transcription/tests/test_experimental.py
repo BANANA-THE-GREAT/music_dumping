@@ -26,6 +26,7 @@ def test_experimental_transcriber_rejects_missing_weight(tmp_path: Path) -> None
         model_path=tmp_path / "missing.pt",
         game_root=tmp_path / "game",
         torchcrepe_root=tmp_path / "torchcrepe",
+        device="cpu",
     )
     with pytest.raises(ExperimentalEngineConfigurationError, match="weight is missing"):
         transcriber.validate_runtime()
@@ -40,6 +41,7 @@ def test_experimental_transcriber_preserves_notes_and_emits_suggestions(
     )
 
     def fake_command(arguments: Sequence[str]) -> None:
+        assert arguments[-1] == "cpu"
         target = Path(arguments[4])
         if arguments[2] == "vss_worker.game_cli":
             target.write_text(
@@ -62,6 +64,7 @@ def test_experimental_transcriber_preserves_notes_and_emits_suggestions(
                                 {"offset_seconds": 0.0, "duration_seconds": 0.81}
                             ],
                         },
+                        "device": "cpu",
                     }
                 ),
                 encoding="utf-8",
@@ -89,12 +92,19 @@ def test_experimental_transcriber_preserves_notes_and_emits_suggestions(
         game_root=game_root,
         torchcrepe_root=torchcrepe_root,
         command_runner=fake_command,
+        device="cpu",
     ).transcribe(vocal, evidence_dir)
 
     assert result.notes[0].end_seconds == 0.5
     evidence = result.transcription_evidence
     assert evidence["note_model"]["parameters"]["segmentation"]["overlap_ms"] == 0
+    assert evidence["note_model"]["device"] == "cpu"
+    assert isinstance(evidence["note_model"]["parameters"]["elapsed_ms"], float)
     assert evidence["f0_track"]["object_key"] == "work/job-1/evidence/f0.jsonl"
+    assert evidence["f0_track"]["provenance"]["device"] == "cpu"
+    assert isinstance(
+        evidence["f0_track"]["provenance"]["parameters"]["elapsed_ms"], float
+    )
     suggestions = evidence["boundary_suggestions"]
     assert suggestions == [
         {

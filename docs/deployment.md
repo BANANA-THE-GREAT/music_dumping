@@ -7,7 +7,7 @@ Docker 部署不使用宿主机的 Node.js、npm 或 Python 环境：
 - Web 在 Node.js 22 构建容器内执行 `npm ci`、测试和构建，生成的静态文件及浏览器模型由 Nginx 容器提供。最终 Web 镜像运行 Nginx，无需宿主机 Node/npm 或 `/tmp` 中的依赖。
 - 浏览器 API 客户端默认访问同源 `/api`。容器内 Nginx 转发至 API，并支持 200 MiB 音频上传、流式进度和长任务；本地 Vite 开发及预览使用相同路径代理到 `127.0.0.1:8000`。
 - API 镜像安装 FastAPI、数据库客户端和任务调度依赖；通过 Redis 将音频处理任务交给 Worker。
-- Worker 镜像安装 FFmpeg（含 FFprobe）、libsndfile、OpenMP 运行库、Demucs 和 Basic Pitch 及其 Python 依赖。默认使用 PyTorch 官方 CPU 安装源，与当前未配置 GPU 的 Compose 服务一致；需要 GPU 时应调整 PyTorch 安装源和容器 GPU 配置。构建时检查工具版本和主要模块导入。
+- Worker 镜像安装 FFmpeg（含 FFprobe）、libsndfile、OpenMP 运行库、Demucs 和 Basic Pitch 及其 Python 依赖。默认使用 PyTorch 官方 CPU 安装源；叠加 `infra/compose.gpu.yaml` 时改用 CUDA wheel、申请 GPU，并以 `VSS_INFERENCE_DEVICE` 控制推理设备。构建时检查工具版本和主要模块导入。
 - API 与 Worker 共享 `app-data` 卷。Demucs 首次推理下载的权重写入 `model-cache` 卷，重建 Worker 后可复用；首次推理需要联网。
 
 只构建后端镜像并检查工具，不启动或停止服务：
@@ -61,6 +61,20 @@ curl --fail http://localhost:8000/v1/projects/PROJECT_ID
 ```
 
 第二个请求应返回 404。数据库/数据卷备份中的副本会持续到备份保留期结束，因此用户说明中应明确这一点。
+
+## GPU Worker
+
+GPU 模式要求宿主机 Docker 已配置 NVIDIA Container Toolkit。项目默认仍使用 CPU；GPU override 只修改 Worker 的 PyTorch 构建参数、设备环境变量和 GPU 设备申请。
+
+```bash
+docker compose -f infra/compose.yaml -f infra/compose.gpu.yaml config
+docker compose -f infra/compose.yaml -f infra/compose.gpu.yaml build worker
+docker compose -f infra/compose.yaml -f infra/compose.gpu.yaml up -d --no-build --wait worker
+docker compose -f infra/compose.yaml -f infra/compose.gpu.yaml exec worker \
+  python -c "import torch; assert torch.cuda.is_available(); print(torch.cuda.get_device_name(0))"
+```
+
+设置 `VSS_INFERENCE_DEVICE=cpu` 可以让 GPU 镜像临时走 CPU；设置为 `cuda` 时不可用即报错；默认 `auto` 根据 PyTorch 的 CUDA 检测结果选择。GPU override 默认设置 `VSS_CUDA_VISIBLE_DEVICES=0`，避免 GAME 自动启用多卡预测。实验 GAME + torchcrepe GPU 镜像使用 `scripts/build-quality-worker-gpu.sh` 构建，启动时还需设置 `VSS_WORKER_DOCKERFILE=infra/docker/Dockerfile.worker-quality` 并添加 `--no-build`。
 
 ## 升级与回滚
 

@@ -34,10 +34,11 @@ def test_demucs_command_and_vocal_location(tmp_path: Path) -> None:
 
     def runner(arguments: list[str]) -> None:
         assert "--two-stems" in arguments
+        assert arguments[arguments.index("--device") + 1] == "cpu"
         vocal = output / "htdemucs" / "song" / "vocals.wav"
         vocal.parent.mkdir(parents=True)
         vocal.write_bytes(b"vocals")
 
-    result = DemucsSeparator(runner=runner).separate(source, output)
+    result = DemucsSeparator(runner=runner, device="cpu").separate(source, output)
     assert result.name == "vocals.wav"
     assert result.read_bytes() == b"vocals"

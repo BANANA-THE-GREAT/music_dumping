@@ -12,6 +12,8 @@ class FakeNormalizer:
 
 
 class FakeSeparator:
+    device = "cuda"
+
     def separate(self, source: Path, output_dir: Path) -> Path:
         vocal = output_dir / "vocals.wav"
         vocal.parent.mkdir(parents=True)
@@ -20,6 +22,8 @@ class FakeSeparator:
 
 
 class FakeTranscriber:
+    device = "cpu"
+
     def transcribe(self, vocal_path: Path) -> list[DetectedNote]:
         assert vocal_path.exists()
         return [
@@ -30,6 +34,8 @@ class FakeTranscriber:
 
 
 class FakeEvidenceTranscriber:
+    device = "cuda"
+
     def transcribe(self, vocal_path: Path, evidence_dir: Path) -> EvidenceTranscription:
         assert vocal_path.exists()
         evidence_dir.mkdir(parents=True)
@@ -75,6 +81,8 @@ def test_real_pipeline_composes_adapters_and_quantizes(tmp_path: Path) -> None:
         "melody_refinement",
     ]
     assert document["pipeline"][3]["parameters"]["detected_notes"] == 3
+    assert document["pipeline"][2]["parameters"]["device"] == "cuda"
+    assert document["pipeline"][3]["parameters"]["device"] == "cpu"
     assert document["source"]["vocal_object_key"] == "work/work/stems/vocals.wav"
     assert len(document["raw_notes"]) == 3
     assert stages == [
@@ -120,6 +128,7 @@ def test_real_pipeline_persists_experimental_evidence_without_applying_it(
     assert document["pipeline"][3]["parameters"]["implementation"] == (
         "FakeEvidenceTranscriber"
     )
+    assert document["pipeline"][3]["parameters"]["device"] == "cuda"
 
 
 def test_meter_estimator_detects_six_eight_and_falls_back_when_unclear() -> None:

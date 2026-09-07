@@ -62,6 +62,7 @@ services:
       VSS_GAME_MODEL_PATH: /models/game/GAME-1.0-medium/model.pt
       VSS_GAME_ROOT: /opt/game
       VSS_TORCHCREPE_ROOT: /opt/torchcrepe
+      VSS_INFERENCE_DEVICE: cpu
     volumes:
       - app-data:/data
       - model-cache:/models

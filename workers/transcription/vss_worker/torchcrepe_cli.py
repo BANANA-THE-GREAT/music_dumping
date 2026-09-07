@@ -8,12 +8,17 @@ from pathlib import Path
 
 def main() -> None:
     source, target = map(Path, sys.argv[1:3])
+    requested_device = sys.argv[3] if len(sys.argv) > 3 else None
     import numpy as np  # type: ignore[import-not-found]
     import soundfile  # type: ignore[import-not-found]
     import torch  # type: ignore[import-not-found]
     import torchcrepe  # type: ignore[import-not-found]
 
-    torch.set_num_threads(max(1, os.cpu_count() or 1))
+    from vss_worker.device import resolve_inference_device
+
+    device = resolve_inference_device(requested_device)
+    if device == "cpu":
+        torch.set_num_threads(max(1, os.cpu_count() or 1))
     waveform, sample_rate = soundfile.read(source, dtype="float32", always_2d=True)
     mono = torch.from_numpy(np.mean(waveform, axis=1, dtype=np.float32)).unsqueeze(0)
     hop_length = round(sample_rate / 100)
@@ -27,7 +32,7 @@ def main() -> None:
         decoder=torchcrepe.decode.viterbi,
         return_periodicity=True,
         batch_size=512,
-        device="cpu",
+        device=device,
         pad=True,
     )
     periodicity = torchcrepe.filter.median(periodicity, 3)

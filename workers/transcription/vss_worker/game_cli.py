@@ -7,11 +7,16 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from vss_worker.device import resolve_inference_device
+
 SEED = 114514
 
 
 def main() -> None:
     source, target, model_path, game_root = map(Path, sys.argv[1:5])
+    requested_device = sys.argv[5] if len(sys.argv) > 5 else None
+    if requested_device == "cpu":
+        os.environ["CUDA_VISIBLE_DEVICES"] = ""
     sys.path.insert(0, str(game_root))
 
     import lightning.pytorch  # type: ignore[import-not-found]
@@ -23,10 +28,13 @@ def main() -> None:
     from inference.slicer2 import Slicer  # type: ignore[import-not-found]
     from lib.config.schema import ValidationConfig  # type: ignore[import-not-found]
 
+    device = resolve_inference_device(requested_device)
+
     class NotesCallback(lightning.pytorch.Callback):  # type: ignore[misc]
         def __init__(self) -> None:
             self.notes: list[tuple[float, float, float]] = []
             self.segments: set[tuple[float, float]] = set()
+            self.device = device
 
         def on_predict_batch_end(
             self,
@@ -37,6 +45,9 @@ def main() -> None:
             *args: Any,
         ) -> None:
             del trainer, pl_module, args
+            scores = outputs.get("scores")
+            if isinstance(scores, torch.Tensor):
+                self.device = scores.device.type
             for index in range(batch["size"]):
                 offset = float(batch["offset"][index])
                 length = float(batch["length"][index])
@@ -58,7 +69,10 @@ def main() -> None:
     random.seed(SEED)
     np.random.seed(SEED)
     torch.manual_seed(SEED)
-    torch.set_num_threads(max(1, os.cpu_count() or 1))
+    if device == "cpu":
+        torch.set_num_threads(max(1, os.cpu_count() or 1))
+    else:
+        torch.cuda.manual_seed_all(SEED)
     model, _ = load_inference_model(model_path)
     callback = NotesCallback()
     dataset = SlicedAudioFileIterableDataset(
@@ -86,6 +100,10 @@ def main() -> None:
         num_workers=0,
         callbacks=[callback],
     )
+    if callback.device != device:
+        raise RuntimeError(
+            f"GAME ran on {callback.device!r} after {device!r} was requested"
+        )
     combined = []
     last_time = 0.0
     for onset, note_offset, pitch in sorted(callback.notes):
@@ -123,6 +141,7 @@ def main() -> None:
                         for offset, duration in sorted(callback.segments)
                     ],
                 },
+                "device": callback.device,
             },
             separators=(",", ":"),
         ),

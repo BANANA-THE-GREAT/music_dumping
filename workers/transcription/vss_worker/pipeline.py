@@ -14,6 +14,11 @@ from vss_worker.adapters import (
 from vss_worker.melody import quantized_notes, refine_melody
 
 
+def _runtime_device(adapter: object) -> str:
+    device = getattr(adapter, "device", None)
+    return device if isinstance(device, str) else "worker-default"
+
+
 def _estimate_bpm(notes: list[DetectedNote]) -> float:
     onsets = sorted({note.start_seconds for note in notes})
     intervals = [
@@ -115,7 +120,7 @@ def build_real_project(
             "parameters": {
                 "implementation": type(separator).__name__,
                 "elapsed_ms": round((time.perf_counter() - started) * 1000, 2),
-                "device": "worker-default",
+                "device": _runtime_device(separator),
             },
         }
     )
@@ -137,7 +142,7 @@ def build_real_project(
             "parameters": {
                 "implementation": type(active_transcriber).__name__,
                 "elapsed_ms": round((time.perf_counter() - started) * 1000, 2),
-                "device": "worker-default",
+                "device": _runtime_device(active_transcriber),
                 "detected_notes": len(detected),
             },
         }

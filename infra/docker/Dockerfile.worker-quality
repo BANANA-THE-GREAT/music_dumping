@@ -2,8 +2,9 @@ FROM vocal-score-studio-worker-basic:latest
 
 ARG GAME_COMMIT=e66c31251605e334b1bf0f565252d4987a9065c0
 ARG TORCHCREPE_COMMIT=19e2ec3d494c0797a5ff2a11408ec5838fba6681
-ENV CUDA_VISIBLE_DEVICES="" \
-    GAME_COMMIT=${GAME_COMMIT} \
+ARG PYTORCH_INDEX_URL=https://download.pytorch.org/whl/cpu
+ARG PYTORCH_PACKAGE=torch==2.8.0
+ENV GAME_COMMIT=${GAME_COMMIT} \
     TORCHCREPE_COMMIT=${TORCHCREPE_COMMIT} \
     VSS_GAME_ROOT=/opt/game \
     VSS_TORCHCREPE_ROOT=/opt/torchcrepe \
@@ -16,7 +17,7 @@ RUN mkdir -p /opt/game /opt/torchcrepe \
     && tar -xzf /tmp/torchcrepe.tar.gz -C /opt/torchcrepe --strip-components=1 \
     && rm /tmp/game.tar.gz /tmp/torchcrepe.tar.gz
 RUN pip install --no-cache-dir --force-reinstall \
-      --index-url https://download.pytorch.org/whl/cpu torch==2.8.0 \
+      --index-url "$PYTORCH_INDEX_URL" "$PYTORCH_PACKAGE" \
     && pip install --no-cache-dir \
       lightning==2.6.1 loguru==0.7.3 omegaconf==2.3.0 \
       torchmetrics==1.8.2 colorednoise==2.2.0

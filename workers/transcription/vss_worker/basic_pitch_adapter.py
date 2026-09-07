@@ -10,6 +10,8 @@ from vss_worker.command import run_command
 
 
 class BasicPitchSubprocessTranscriber:
+    device = "cpu"
+
     def transcribe(self, vocal_path: Path) -> list[DetectedNote]:
         output = vocal_path.parent / "note-events.json"
         run_command([sys.executable, "-m", "vss_worker.predict_cli", str(vocal_path), str(output)])
@@ -17,6 +19,8 @@ class BasicPitchSubprocessTranscriber:
 
 
 class BasicPitchTranscriber:
+    device = "cpu"
+
     def __init__(self) -> None:
         self._model: object | None = None
         self._model_lock = Lock()
