@@ -99,7 +99,7 @@ VSS_WORKER_DOCKERFILE=infra/docker/Dockerfile.worker-quality \
   up -d --no-build --wait worker
 ```
 
-GPU 镜像默认使用 PyTorch `2.8.0` 的 CUDA 12.8 wheel，可通过 `VSS_PYTORCH_INDEX_URL` 和 `VSS_PYTORCH_PACKAGE` 覆盖。运行时 `VSS_INFERENCE_DEVICE` 支持 `auto`、`cpu`、`cuda`，默认以 `VSS_CUDA_VISIBLE_DEVICES=0` 只使用一张卡；显式选择 `cuda` 但容器不可用时任务会失败，不会静默回退 CPU。Demucs、GAME 和 torchcrepe 使用同一选择结果。
+GPU 镜像默认使用 PyTorch `2.8.0+cu128` wheel，可通过 `VSS_PYTORCH_INDEX_URL` 和 `VSS_PYTORCH_PACKAGE` 覆盖。构建过程会检查 `torch.version.cuda`，避免误装 CPU wheel。运行时 `VSS_INFERENCE_DEVICE` 支持 `auto`、`cpu`、`cuda`，默认以 `VSS_CUDA_VISIBLE_DEVICES=0` 只使用一张卡；显式选择 `cuda` 但容器不可用时任务会失败，不会静默回退 CPU。Demucs、GAME 和 torchcrepe 使用同一选择结果。
 
 日常启动和修改前端后重新构建：
 

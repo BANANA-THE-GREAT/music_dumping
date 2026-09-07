@@ -66,6 +66,8 @@ curl --fail http://localhost:8000/v1/projects/PROJECT_ID
 
 GPU 模式要求宿主机 Docker 已配置 NVIDIA Container Toolkit。项目默认仍使用 CPU；GPU override 只修改 Worker 的 PyTorch 构建参数、设备环境变量和 GPU 设备申请。
 
+quality 镜像替换 PyTorch 时会先卸载基础镜像中的 CPU wheel，再安装 `torch==2.8.0+cu128`。不要使用 `--force-reinstall`，否则 pip 会从 PyTorch wheel 索引重复下载 setuptools 等已满足依赖，并可能触发上游索引文件的哈希不匹配。镜像构建阶段会通过 `torch.version.cuda` 检查 wheel 类型，GPU 设备是否真正可用仍须在启动后检查。
+
 ```bash
 docker compose -f infra/compose.yaml -f infra/compose.gpu.yaml config
 docker compose -f infra/compose.yaml -f infra/compose.gpu.yaml build worker

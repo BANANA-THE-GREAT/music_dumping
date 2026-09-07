@@ -6,6 +6,7 @@ sources="$root/infra/experiments/sources"
 model="$root/data/models/game/GAME-1.0-medium/model.pt"
 pytorch_index_url=${VSS_PYTORCH_INDEX_URL:-https://download.pytorch.org/whl/cpu}
 pytorch_package=${VSS_PYTORCH_PACKAGE:-torch==2.8.0}
+pytorch_expect_cuda=${VSS_PYTORCH_EXPECT_CUDA:-0}
 
 bash "$root/scripts/prepare-candidate-build-context.sh"
 
@@ -53,5 +54,6 @@ DOCKER_BUILDKIT=0 docker build \
   -f "$root/infra/docker/Dockerfile.worker-quality" \
   --build-arg "PYTORCH_INDEX_URL=$pytorch_index_url" \
   --build-arg "PYTORCH_PACKAGE=$pytorch_package" \
+  --build-arg "PYTORCH_EXPECT_CUDA=$pytorch_expect_cuda" \
   -t vocal-score-studio-worker:latest \
   "$root"

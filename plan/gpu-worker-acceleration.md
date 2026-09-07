@@ -1,6 +1,6 @@
 # Worker GPU 加速计划
 
-状态：接口已实施，实机 GPU 验收待完成。2026-09-07 已加入 CUDA PyTorch 构建参数、GPU Compose override、统一设备选择和 provenance；宿主机仍未安装或注册 NVIDIA Container Toolkit，当前容器无法完成 CUDA 实测。
+状态：接口与 CUDA 镜像构建已完成，实机 GPU 验收待完成。2026-09-07 已加入 GPU Compose override、统一设备选择和 provenance，并成功构建 `torch 2.8.0+cu128` quality 镜像 `4c651676e3e7`；宿主机仍未安装或注册 NVIDIA Container Toolkit，当前容器无法完成 CUDA 设备执行实测。
 
 ## 现状证据
 

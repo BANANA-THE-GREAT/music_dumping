@@ -3,7 +3,8 @@ services:
     build:
       args:
         PYTORCH_INDEX_URL: ${VSS_PYTORCH_INDEX_URL:-https://download.pytorch.org/whl/cu128}
-        PYTORCH_PACKAGE: ${VSS_PYTORCH_PACKAGE:-torch==2.8.0}
+        PYTORCH_PACKAGE: ${VSS_PYTORCH_PACKAGE:-torch==2.8.0+cu128}
+        PYTORCH_EXPECT_CUDA: "1"
     environment:
       CUDA_VISIBLE_DEVICES: ${VSS_CUDA_VISIBLE_DEVICES:-0}
       VSS_INFERENCE_DEVICE: ${VSS_INFERENCE_DEVICE:-auto}

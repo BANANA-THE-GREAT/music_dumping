@@ -2,6 +2,7 @@ FROM python:3.11-slim
 WORKDIR /app
 ARG PYTORCH_INDEX_URL=https://download.pytorch.org/whl/cpu
 ARG PYTORCH_PACKAGE="torch>=2.1"
+ARG PYTORCH_EXPECT_CUDA=0
 ENV PIP_DEFAULT_TIMEOUT=120 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 RUN apt-get update \
@@ -9,6 +10,8 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 # The GPU Compose override replaces both build arguments with a CUDA wheel.
 RUN pip install --no-cache-dir --index-url "$PYTORCH_INDEX_URL" "$PYTORCH_PACKAGE"
+RUN PYTORCH_EXPECT_CUDA="$PYTORCH_EXPECT_CUDA" python -c \
+    "import os, torch; expected = os.environ['PYTORCH_EXPECT_CUDA'] == '1'; assert bool(torch.version.cuda) == expected, (torch.__version__, torch.version.cuda)"
 COPY pyproject.toml ./
 COPY apps/api apps/api
 COPY workers/transcription workers/transcription

@@ -4,6 +4,7 @@ ARG GAME_COMMIT=e66c31251605e334b1bf0f565252d4987a9065c0
 ARG TORCHCREPE_COMMIT=19e2ec3d494c0797a5ff2a11408ec5838fba6681
 ARG PYTORCH_INDEX_URL=https://download.pytorch.org/whl/cpu
 ARG PYTORCH_PACKAGE=torch==2.8.0
+ARG PYTORCH_EXPECT_CUDA=0
 ENV GAME_COMMIT=${GAME_COMMIT} \
     TORCHCREPE_COMMIT=${TORCHCREPE_COMMIT} \
     VSS_GAME_ROOT=/opt/game \
@@ -16,8 +17,11 @@ RUN mkdir -p /opt/game /opt/torchcrepe \
     && tar -xzf /tmp/game.tar.gz -C /opt/game --strip-components=1 \
     && tar -xzf /tmp/torchcrepe.tar.gz -C /opt/torchcrepe --strip-components=1 \
     && rm /tmp/game.tar.gz /tmp/torchcrepe.tar.gz
-RUN pip install --no-cache-dir --force-reinstall \
+RUN pip uninstall -y torch \
+    && pip install --no-cache-dir \
       --index-url "$PYTORCH_INDEX_URL" "$PYTORCH_PACKAGE" \
+    && PYTORCH_EXPECT_CUDA="$PYTORCH_EXPECT_CUDA" python -c \
+      "import os, torch; expected = os.environ['PYTORCH_EXPECT_CUDA'] == '1'; assert bool(torch.version.cuda) == expected, (torch.__version__, torch.version.cuda)" \
     && pip install --no-cache-dir \
       lightning==2.6.1 loguru==0.7.3 omegaconf==2.3.0 \
       torchmetrics==1.8.2 colorednoise==2.2.0
