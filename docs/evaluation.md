@@ -25,6 +25,8 @@ python scripts/diagnose-transcription.py raw-notes.json diagnostics.json \
 
 消融参数包括 `--disable-pitch-range`、`--disable-continuity`、`--disable-stitching`、`--disable-quantization`、`--keep-quantization-conflicts`、最短时值和最低置信度。默认配置固定在 `evaluation/baseline-config.json`，未经记录不得在候选模型之间改变。
 
+GAME 参数诊断使用 `scripts/run-game-tuning-sweep.sh`。网格和选择规则固定在 `evaluation/game-tuning-grid.json`，runner 通过 manifest 的 singer-disjoint split 只读取 tuning 音频。若 tuning 门槛失败，不运行调参后的 holdout；逐片段和 runtime 继续保存在 Git 忽略的 `data/evaluation/vocadito-results/`。
+
 `evaluation/manifest.json` 当前只有 CC0 合成 fixture，用于验证工具本身，不含第三方录音。`evaluation/reports/synthetic-baseline.json` 和 `synthetic-diagnostics.json` 不是实际歌曲质量报告。
 
 Vocadito（Bittner、Pasalo、Bosch、Meseguer Brocal、Rubinstein，DOI `10.5281/zenodo.5578807`，CC BY 4.0）下载到 `data/evaluation/vocadito/` 后，可用 Docker Worker 复现真实孤立人声基线：

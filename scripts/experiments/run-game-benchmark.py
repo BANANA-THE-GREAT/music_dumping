@@ -33,7 +33,21 @@ def main() -> None:
     parser.add_argument("--limit", type=int)
     parser.add_argument("--skip-existing", action="store_true")
     parser.add_argument("--batch-size", type=int, default=1)
+    parser.add_argument("--manifest", type=Path)
+    parser.add_argument("--split", choices=("tuning", "holdout"))
+    parser.add_argument("--boundary-threshold", type=float, default=0.2)
+    parser.add_argument("--presence-threshold", type=float, default=0.2)
+    parser.add_argument("--d3pm-steps", type=int, default=8)
+    parser.add_argument("--language-id", type=int, default=0)
     arguments = parser.parse_args()
+    if arguments.split and arguments.manifest is None:
+        parser.error("--split requires --manifest")
+    if not 0 <= arguments.boundary_threshold <= 1:
+        parser.error("--boundary-threshold must be between 0 and 1")
+    if not 0 <= arguments.presence_threshold <= 1:
+        parser.error("--presence-threshold must be between 0 and 1")
+    if arguments.d3pm_steps < 2:
+        parser.error("--d3pm-steps must be at least 2")
 
     sys.path.insert(0, "/opt/game")
     from inference.api import infer_model, load_inference_model
@@ -112,6 +126,14 @@ def main() -> None:
     torch.set_num_threads(max(1, os.cpu_count() or 1))
 
     audio_files = sorted(arguments.audio_root.glob("vocadito_*.wav"))
+    if arguments.manifest is not None:
+        manifest = json.loads(arguments.manifest.read_text(encoding="utf-8"))
+        selected_ids = {
+            clip["id"]
+            for clip in manifest["clips"]
+            if arguments.split is None or clip["split"] == arguments.split
+        }
+        audio_files = [audio for audio in audio_files if audio.stem in selected_ids]
     if arguments.limit is not None:
         audio_files = audio_files[: arguments.limit]
     output_dir = arguments.output_root / arguments.variant
@@ -141,7 +163,7 @@ def main() -> None:
                 min_interval=200,
                 max_sil_kept=100,
             ),
-            language=0,
+            language=arguments.language_id,
         )
         random.seed(SEED)
         np.random.seed(SEED)
@@ -151,10 +173,12 @@ def main() -> None:
             model=model,
             dataset=dataset,
             config=ValidationConfig(
-                d3pm_sample_ts=[index / 8 for index in range(8)],
-                boundary_decoding_threshold=0.2,
+                d3pm_sample_ts=[
+                    index / arguments.d3pm_steps for index in range(arguments.d3pm_steps)
+                ],
+                boundary_decoding_threshold=arguments.boundary_threshold,
                 boundary_decoding_radius=round(0.02 / model.timestep),
-                note_presence_threshold=0.2,
+                note_presence_threshold=arguments.presence_threshold,
             ),
             batch_size=arguments.batch_size,
             num_workers=0,
@@ -175,13 +199,15 @@ def main() -> None:
         "device": "cpu",
         "seed": SEED,
         "parameters": {
-            "language_id": 0,
+            "manifest": str(arguments.manifest) if arguments.manifest else None,
+            "split": arguments.split,
+            "language_id": arguments.language_id,
             "batch_size": arguments.batch_size,
-            "seg_threshold": 0.2,
+            "seg_threshold": arguments.boundary_threshold,
             "seg_radius_seconds": 0.02,
             "d3pm_t0": 0.0,
-            "d3pm_nsteps": 8,
-            "est_threshold": 0.2,
+            "d3pm_nsteps": arguments.d3pm_steps,
+            "est_threshold": arguments.presence_threshold,
         },
         "model_load_seconds": load_seconds,
         "inference_seconds": inference_seconds,

@@ -42,7 +42,9 @@ def _mean(values: list[float | None]) -> float | None:
     return fmean(present) if present else None
 
 
-def _aggregate(evaluations: list[TranscriptionEvaluation]) -> dict[str, object]:
+def aggregate_evaluations(
+    evaluations: list[TranscriptionEvaluation],
+) -> dict[str, object]:
     if not evaluations:
         return {"clip_count": 0}
 
@@ -105,9 +107,13 @@ def evaluate_manifest(path: Path) -> dict[str, object]:
         "tolerances": tolerances,
         "quality_gate": manifest["quality_gate"],
         "clips": clips,
-        "aggregate": {variant: _aggregate(values) for variant, values in reports.items()},
+        "aggregate": {
+            variant: aggregate_evaluations(values) for variant, values in reports.items()
+        },
         "aggregate_by_split": {
-            split: {variant: _aggregate(values) for variant, values in variants.items()}
+            split: {
+                variant: aggregate_evaluations(values) for variant, values in variants.items()
+            }
             for split, variants in sorted(reports_by_split.items())
         },
     }

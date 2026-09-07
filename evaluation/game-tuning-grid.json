@@ -1,0 +1,58 @@
+{
+  "schema_version": "1.0",
+  "split": "tuning",
+  "model": "GAME 1.0 medium",
+  "selection": {
+    "baseline_variant": "basic_pitch_raw",
+    "minimum_f1_improvement": 0.03,
+    "minimum_recall_improvement": 0.05,
+    "maximum_precision_regression": 0.02,
+    "maximum_failure_rate": 0.02,
+    "ranking": "Maximize onset-offset recall, then F1, among complete candidates satisfying precision, failure-rate, and F1 constraints."
+  },
+  "variants": [
+    {
+      "name": "game_medium_p010_b010_s8",
+      "presence_threshold": 0.1,
+      "boundary_threshold": 0.1,
+      "d3pm_steps": 8
+    },
+    {
+      "name": "game_medium_p010_b020_s8",
+      "presence_threshold": 0.1,
+      "boundary_threshold": 0.2,
+      "d3pm_steps": 8
+    },
+    {
+      "name": "game_medium_p015_b010_s8",
+      "presence_threshold": 0.15,
+      "boundary_threshold": 0.1,
+      "d3pm_steps": 8
+    },
+    {
+      "name": "game_medium_p015_b020_s8",
+      "presence_threshold": 0.15,
+      "boundary_threshold": 0.2,
+      "d3pm_steps": 8
+    },
+    {
+      "name": "game_medium_p020_b010_s8",
+      "presence_threshold": 0.2,
+      "boundary_threshold": 0.1,
+      "d3pm_steps": 8
+    },
+    {
+      "name": "game_medium_p020_b020_s8",
+      "presence_threshold": 0.2,
+      "boundary_threshold": 0.2,
+      "d3pm_steps": 8
+    },
+    {
+      "name": "game_medium_p015_b010_s16",
+      "presence_threshold": 0.15,
+      "boundary_threshold": 0.1,
+      "d3pm_steps": 16,
+      "reason": "Added after the threshold-only grid failed on tuning, before any tuned holdout run."
+    }
+  ]
+}

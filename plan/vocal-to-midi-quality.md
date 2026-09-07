@@ -2,7 +2,7 @@
 
 日期：2026-09-06
 
-状态：实施中。P0 与 P1 已完成；GAME medium 为最佳实验候选，但未通过全部预登记门槛，默认引擎保持 Basic Pitch。真实混音及 Demucs 残留覆盖仍待补充，尚未证明真实歌曲识别准确率提高。
+状态：实施中。P0、P1 与 P1.5 已完成；GAME medium 能明显改善起音检测，但阈值和 D3PM 步数调优仍不能改善严格起止指标。默认引擎保持 Basic Pitch，下一步提前进行 P3 的连续 F0 边界诊断。真实混音及 Demucs 残留覆盖仍待补充，尚未证明真实歌曲识别准确率提高。
 
 ## 1. 目标与边界
 
@@ -97,7 +97,18 @@ ROSVOT 和 RMVPE 不因代码可下载就自动通过权重审查。
 
 P1 验收结论：未通过。GAME medium 的 holdout 起止 F1 相对 Basic Pitch raw 提高 `0.0492`，但 recall 仅提高 `0.0286`，未达到 `0.05` 门槛；SOME 的 F1 和 recall 增幅也未达标。GAME/SOME 均不能及时响应容器停止。详见 `evaluation/reports/vocadito-candidate-comparison.md`。
 
-### P2：接入候选引擎与原始结果保真
+### P1.5：GAME tuning 诊断
+
+- [x] runner 支持显式 split、presence/boundary threshold、D3PM 步数和 language ID，并把参数写入 runtime。
+- [x] 只在 25 段 tuning 上比较 6 组阈值；未使用 holdout 选择参数。
+- [x] 阈值网格失败后增加一次 16-step 诊断；结果与 8-step 完全相同。
+- [x] 按预先写入机器配置的 precision、失败率、F1 和 recall 规则选择；所有配置均未通过 tuning 门槛。
+- [x] 明确区分起音检测与严格起止匹配：最佳配置的起音 F1 为 `0.6305`，起止 F1 仅 `0.3041`。
+
+产物：`evaluation/game-tuning-grid.json`、`evaluation/reports/vocadito-game-tuning.json`、诊断报告和可恢复运行脚本。
+结论：presence `0.10` 至 `0.20` 几乎不影响 recall；boundary `0.10` 仅带来小幅改善；增加 D3PM 步数无收益。停止 GAME 参数扩展，不运行 tuned holdout，不以当前数据微调。先用连续 F0/发声区间验证局部止音校正，再决定是否接入实验引擎。详见 `evaluation/reports/vocadito-game-tuning.md`。
+
+### P2：接入候选引擎与原始结果保真（等待 P3 诊断）
 
 - [ ] 将胜出候选接到后端转录适配器，复用任务取消、进度、错误状态和隔离子进程。
 - [ ] 支持显式选择引擎；模型不存在时显示安装/配置错误，不静默伪装为另一个模型。
@@ -107,7 +118,7 @@ P1 验收结论：未通过。GAME medium 的 holdout 起止 F1 相对 Basic Pit
 
 验收：完整任务可取消、重试、恢复，旧项目仍能打开；结果可追溯到固定模型；切回 Basic Pitch 不丢用户编辑。
 
-### P3：连续音高校验与可解释局部修正
+### P3：连续音高校验与可解释局部修正（下一阶段）
 
 - [ ] 接入 RMVPE，生成与原人声同一时间轴上的 F0 和发声区间。
 - [ ] 先做诊断：疑似漏音、八度错误、多切、误合及无声区误报，并显示相关时间段。
@@ -180,7 +191,7 @@ npm run build
 
 ## 8. 本轮开工顺序
 
-P0 损失定位 → P1 小样本模型对比 → P2 接入胜出候选 → P3 独立 F0 校验 → P4 双版本谱面。
+P0 损失定位 → P1 小样本模型对比 → P1.5 tuning 诊断 → P3 独立 F0 校验 → P2 实验候选接入 → P4 双版本谱面。
 P5 仅在前述评测显示必要时另行启动。
 
 开始前先完成候选许可和模型环境预检；没有可复现的质量报告，不直接替换默认引擎或承诺准确率提升。
