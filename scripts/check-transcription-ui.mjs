@@ -141,6 +141,7 @@ const browser = await chromium.launch({
 const page = await browser.newPage({ viewport: { width: 1300, height: 1000 } });
 const errors = [];
 page.on("pageerror", (e) => errors.push(e.message));
+await page.route("https://fonts.googleapis.com/**", (route) => route.abort());
 await page.addInitScript(() => {
   const Native = window.Worker;
   window.workerStops = 0;
@@ -152,7 +153,7 @@ await page.addInitScript(() => {
   };
 });
 try {
-  await page.goto("http://127.0.0.1:4176");
+  await page.goto("http://127.0.0.1:4176", { waitUntil: "domcontentloaded" });
   await page.selectOption("#recent-project", "preview-test");
   await page.waitForFunction(
     () => document.querySelectorAll("#piano rect").length === 3,

@@ -11,6 +11,7 @@ const browser = await chromium.launch({
 const page = await browser.newPage({ viewport: { width: 1300, height: 1000 } });
 const errors = [];
 await page.addInitScript(() => {
+  HTMLMediaElement.prototype.play = async () => {};
   const NativeContext = window.AudioContext;
   window.audioProbe = { contexts: 0, starts: [], stops: [], analyser: null };
   window.AudioContext = class extends NativeContext {
@@ -95,6 +96,7 @@ try {
   );
   await page.locator("#zoom").fill("1");
   await page.locator("#zoom").dispatchEvent("input");
+  await page.locator('#piano rect[data-note="0"]').scrollIntoViewIfNeeded();
   const target = await page.locator('#piano rect[data-note="0"]').boundingBox();
   await page.mouse.move(
     target.x + target.width / 2,

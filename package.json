@@ -13,5 +13,8 @@
     "contracts:generate": "python scripts/export-openapi.py",
     "dev:web": "npm run dev --workspace @vocal-score/web",
     "dev:api": "python -m uvicorn app.main:app --reload --app-dir apps/api"
+  },
+  "devDependencies": {
+    "playwright": "^1.55.0"
   }
 }
