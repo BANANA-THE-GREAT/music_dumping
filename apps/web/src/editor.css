@@ -236,6 +236,9 @@
   height: 80px;
   border: 1px solid #e5ded2;
 }
+.hidden-audio {
+  display: none;
+}
 
 .audio-modes {
   display: flex;
