@@ -49,7 +49,7 @@ document
   .querySelector("#play")!
   .insertAdjacentHTML(
     "beforebegin",
-    `<select id="playback-version" aria-label="试听版本"><option value="score">谱面试听</option><option value="performance">演唱试听</option></select>`,
+    `<select id="playback-version" aria-label="试听版本"><option value="score">谱面试听</option><option value="performance">演唱试听</option></select><label class="playback-loop"><input id="playback-loop" type="checkbox">片段循环</label>`,
   );
 document
   .querySelector(".toolbar")!
@@ -149,6 +149,8 @@ let analysis: MusicalAnalysis = {
 };
 const scorePlayer = new ScorePlayer();
 let playing = false;
+let syncingAudio = false;
+let syncedAudioRange: { start: number; end: number; loop: boolean } | null = null;
 let transcriptionBusy = false;
 let taskAbort: AbortController | null = null;
 let activeJobId: string | null = null;
@@ -1424,6 +1426,9 @@ document.querySelectorAll<HTMLButtonElement>("[data-view]").forEach((button) =>
 $<HTMLInputElement>("#show-f0").addEventListener("change", () => void render());
 function stop() {
   scorePlayer.stop();
+  syncingAudio = false;
+  syncedAudioRange = null;
+  audio.pause();
   playing = false;
   play.textContent = "▶ 演奏";
   document
@@ -1441,7 +1446,7 @@ play.addEventListener("click", async () => {
       $<HTMLSelectElement>("#playback-version").value === "performance" &&
       Boolean(serverProject?.performance_notes?.length);
     const beatMs = 60_000 / analysis.bpm;
-    const playbackNotes = performancePlayback
+    const allPlaybackNotes = performancePlayback
       ? displayQuantizedNotes(
           (serverProject?.performance_notes ?? []).map((note) => ({
             pitch_midi: note.pitch_midi,
@@ -1454,6 +1459,23 @@ play.addEventListener("click", async () => {
           analysis.mode,
         )
       : notes;
+    const selected = selectedNoteIndex === null ? undefined : notes[selectedNoteIndex];
+    const clipStartSeconds = selected?.startBeat
+      ? selected.startBeat * beatMs / 1000
+      : 0;
+    const clipEndSeconds = selected
+      ? (selected.startBeat + selected.durationBeats) * beatMs / 1000
+      : Math.max(...allPlaybackNotes.map((note) => note.startTimeSeconds + note.durationSeconds), 0);
+    const loopEnabled = $<HTMLInputElement>("#playback-loop").checked;
+    const playbackNotes = selected
+      ? allPlaybackNotes
+          .filter((note) => note.startTimeSeconds < clipEndSeconds && note.startTimeSeconds + note.durationSeconds > clipStartSeconds)
+          .map((note) => ({
+            ...note,
+            startTimeSeconds: Math.max(0, note.startTimeSeconds - clipStartSeconds),
+            durationSeconds: Math.min(note.startTimeSeconds + note.durationSeconds, clipEndSeconds) - Math.max(note.startTimeSeconds, clipStartSeconds),
+          }))
+      : allPlaybackNotes;
     const performanceToScore = performancePlayback
       ? (serverProject?.performance_notes ?? []).map((performanceNote) =>
           serverProject?.notes.findIndex((note) => note.id === performanceNote.id),
@@ -1463,10 +1485,12 @@ play.addEventListener("click", async () => {
       ...document.querySelectorAll<HTMLElement | SVGElement>("[data-note]"),
     ];
     let previousActive = "";
-    await scorePlayer.play(
-      playbackNotes,
-      analysis.bpm,
-      (indices) => {
+    const playClip = async () => {
+      if (!playing) return;
+      await scorePlayer.play(
+        playbackNotes,
+        analysis.bpm,
+        (indices) => {
         const displayedIndices = performancePlayback
           ? indices
               .map((index) => performanceToScore[index] ?? -1)
@@ -1485,15 +1509,47 @@ play.addEventListener("click", async () => {
           }
           el.classList.toggle("playing", hit);
         });
-      },
-      stop,
-    );
+        },
+        () => {
+          if (loopEnabled && playing) {
+            void playClip();
+          } else {
+            stop();
+          }
+        },
+      );
+    };
+    if (sourceBuffer && clipEndSeconds > clipStartSeconds) {
+      syncingAudio = true;
+      syncedAudioRange = {
+        start: clipStartSeconds,
+        end: clipEndSeconds,
+        loop: loopEnabled,
+      };
+      audio.currentTime = Math.min(clipStartSeconds, audio.duration || clipStartSeconds);
+      await audio.play();
+    }
+    await playClip();
   } catch (error) {
     stop();
     status(`播放失败：${error instanceof Error ? error.message : "未知错误"}`);
   }
 });
-audio.addEventListener("play", stop);
+audio.addEventListener("play", () => {
+  if (!syncingAudio) stop();
+});
+audio.addEventListener("timeupdate", () => {
+  if (!syncingAudio || !playing || !syncedAudioRange) return;
+  if (audio.currentTime < syncedAudioRange.end) return;
+  if (syncedAudioRange.loop) {
+    audio.currentTime = syncedAudioRange.start;
+  } else {
+    stop();
+  }
+});
+audio.addEventListener("ended", () => {
+  if (syncingAudio && playing) stop();
+});
 window.addEventListener("pagehide", stop);
 function midiVersion() {
   return $<HTMLSelectElement>("#midi-version").value as

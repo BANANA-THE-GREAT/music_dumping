@@ -27,6 +27,15 @@
   align-items: center;
 }
 
+.playback-loop {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #71695e;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
 .toolbar select {
   padding: 7px;
   border: 1px solid #d6cbbc;
