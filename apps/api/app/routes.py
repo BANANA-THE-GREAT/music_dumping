@@ -170,12 +170,19 @@ def _project_document(project_id: str, session: Session) -> ScoreProject:
 
 
 @router.get("/projects/{project_id}/exports/midi")
-def export_project_midi(project_id: str, session: SessionDep) -> Response:
-    content = project_to_midi(_project_document(project_id, session))
+def export_project_midi(
+    project_id: str,
+    session: SessionDep,
+    version: Literal["score", "performance"] = "score",
+) -> Response:
+    content = project_to_midi(_project_document(project_id, session), version)
+    suffix = ".performance" if version == "performance" else ""
     return Response(
         content=content,
         media_type="audio/midi",
-        headers={"Content-Disposition": f'attachment; filename="{project_id}.mid"'},
+        headers={
+            "Content-Disposition": f'attachment; filename="{project_id}{suffix}.mid"'
+        },
     )
 
 
@@ -311,12 +318,20 @@ def review_boundary_suggestion(
         ),
         None,
     )
+    performance_target = next(
+        (
+            note
+            for note in project.performance_notes or []
+            if suggestion.source_note_id in note.source_note_ids
+        ),
+        None,
+    )
     changes_note = request.action == "accept" or (
         request.action == "reset" and suggestion.review_status == "accepted"
     )
     beat_ms = 60_000 / project.analysis.tempo_map[0].bpm
     if changes_note:
-        if target is None:
+        if target is None or performance_target is None:
             raise HTTPException(status_code=409, detail={"code": "SUGGESTION_TARGET_MISSING"})
         expected_end = (
             suggestion.original_end_ms
@@ -324,6 +339,8 @@ def review_boundary_suggestion(
             else suggestion.proposed_end_ms
         )
         if target.source_end_ms != expected_end:
+            raise HTTPException(status_code=409, detail={"code": "SUGGESTION_TARGET_CHANGED"})
+        if performance_target.source_end_ms != expected_end:
             raise HTTPException(status_code=409, detail={"code": "SUGGESTION_TARGET_CHANGED"})
         if request.action == "reset":
             expected_duration = max(
@@ -338,6 +355,7 @@ def review_boundary_suggestion(
     next_revision = record.revision + 1
     if request.action == "accept":
         assert target is not None
+        assert performance_target is not None
         suggestion.accepted_from_origin = target.origin
         suggestion.accepted_from_quantized_duration = target.quantized_duration
         target.source_end_ms = suggestion.proposed_end_ms
@@ -346,6 +364,8 @@ def review_boundary_suggestion(
             (target.source_end_ms - target.source_start_ms) / beat_ms,
         )
         target.origin = "user"
+        performance_target.source_end_ms = suggestion.proposed_end_ms
+        performance_target.origin = "user"
         suggestion.review_status = "accepted"
         suggestion.reviewed_revision = next_revision
     elif request.action == "reject":
@@ -354,6 +374,7 @@ def review_boundary_suggestion(
     else:
         if changes_note:
             assert target is not None
+            assert performance_target is not None
             target.source_end_ms = suggestion.original_end_ms
             target.quantized_duration = (
                 suggestion.accepted_from_quantized_duration
@@ -364,6 +385,8 @@ def review_boundary_suggestion(
                 )
             )
             target.origin = suggestion.accepted_from_origin or "model"
+            performance_target.source_end_ms = suggestion.original_end_ms
+            performance_target.origin = suggestion.accepted_from_origin or "model"
         suggestion.review_status = "pending"
         suggestion.reviewed_revision = None
         suggestion.accepted_from_origin = None
@@ -421,7 +444,7 @@ def refine_project_melody(
     from vss_worker.adapters import DetectedNote
     from vss_worker.melody import quantized_notes, refine_melody
 
-    from app.schemas import PipelineStep, ScoreNote
+    from app.schemas import PerformanceNote, PipelineStep, ScoreNote
 
     if request.low_pitch > request.high_pitch:
         raise HTTPException(status_code=422, detail="Invalid vocal pitch range")
@@ -430,6 +453,7 @@ def refine_project_melody(
         project.raw_notes = [n.model_copy(deep=True) for n in project.notes]
     if request.mode == "raw":
         project.notes = [n.model_copy(deep=True) for n in project.raw_notes]
+        performance_source = project.raw_notes
     else:
         detected = [
             DetectedNote(
@@ -442,10 +466,24 @@ def refine_project_melody(
             for n in project.raw_notes
         ]
         refined = refine_melody(detected, request.mode, request.low_pitch, request.high_pitch)
-        project.notes = [
+        bpm = project.analysis.tempo_map[0].bpm
+        project.notes = [ScoreNote.model_validate(n) for n in quantized_notes(refined, bpm)]
+        performance_source = [
             ScoreNote.model_validate(n)
-            for n in quantized_notes(refined, project.analysis.tempo_map[0].bpm)
+            for n in quantized_notes(refined, bpm, monophonic=False)
         ]
+    project.performance_notes = [
+        PerformanceNote(
+            id=note.id,
+            source_start_ms=note.source_start_ms,
+            source_end_ms=note.source_end_ms,
+            source_note_ids=list(note.source_note_ids),
+            pitch_midi=note.pitch_midi,
+            confidence=note.confidence,
+            origin=note.origin,
+        )
+        for note in performance_source
+    ]
     project.pipeline.append(
         PipelineStep(
             stage="melody_refinement",

@@ -20,6 +20,22 @@ describe("standard exports", () => {
     expect(midi.header.timeSignatures[0].timeSignature).toEqual([3, 4]);
     expect(midi.tracks[0].notes.length).toBe(notes.length);
   });
+  it("can preserve performance timing independently from score beats", () => {
+    const performanceNotes = [
+      {
+        ...notes[0],
+        startBeat: 1,
+        durationBeats: 1,
+        startTimeSeconds: 0.37,
+        durationSeconds: 0.61,
+      },
+    ];
+    const midi = new Midi(
+      buildMidiBytes(performanceNotes, analysis, "performance").buffer as ArrayBuffer,
+    );
+    expect(midi.tracks[0].notes[0].time).toBeCloseTo(0.37, 2);
+    expect(midi.tracks[0].notes[0].duration).toBeCloseTo(0.61, 2);
+  });
   it("writes MusicXML metadata and every note", () => {
     const xml = buildMusicXml(notes, analysis);
     expect(xml).toContain("<beats>3</beats>");

@@ -590,6 +590,68 @@
         "title": "ModelProvenance",
         "type": "object"
       },
+      "PerformanceNote": {
+        "properties": {
+          "confidence": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence",
+            "type": "number"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "origin": {
+            "enum": [
+              "model",
+              "user"
+            ],
+            "title": "Origin",
+            "type": "string"
+          },
+          "pitch_bends": {
+            "items": {
+              "$ref": "#/components/schemas/PitchBendPoint"
+            },
+            "title": "Pitch Bends",
+            "type": "array"
+          },
+          "pitch_midi": {
+            "maximum": 127.0,
+            "minimum": 0.0,
+            "title": "Pitch Midi",
+            "type": "integer"
+          },
+          "source_end_ms": {
+            "minimum": 0.0,
+            "title": "Source End Ms",
+            "type": "integer"
+          },
+          "source_note_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Source Note Ids",
+            "type": "array"
+          },
+          "source_start_ms": {
+            "minimum": 0.0,
+            "title": "Source Start Ms",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "source_start_ms",
+          "source_end_ms",
+          "pitch_midi",
+          "confidence",
+          "origin"
+        ],
+        "title": "PerformanceNote",
+        "type": "object"
+      },
       "PipelineStep": {
         "properties": {
           "parameters": {
@@ -611,6 +673,27 @@
           "version"
         ],
         "title": "PipelineStep",
+        "type": "object"
+      },
+      "PitchBendPoint": {
+        "properties": {
+          "cents": {
+            "maximum": 200.0,
+            "minimum": -200.0,
+            "title": "Cents",
+            "type": "number"
+          },
+          "offset_ms": {
+            "minimum": 0.0,
+            "title": "Offset Ms",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "offset_ms",
+          "cents"
+        ],
+        "title": "PitchBendPoint",
         "type": "object"
       },
       "ProjectPatch": {
@@ -854,6 +937,20 @@
             },
             "title": "Notes",
             "type": "array"
+          },
+          "performance_notes": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/PerformanceNote"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Performance Notes"
           },
           "pipeline": {
             "items": {
@@ -1615,6 +1712,20 @@
             "required": true,
             "schema": {
               "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "version",
+            "required": false,
+            "schema": {
+              "default": "score",
+              "enum": [
+                "score",
+                "performance"
+              ],
+              "title": "Version",
               "type": "string"
             }
           }

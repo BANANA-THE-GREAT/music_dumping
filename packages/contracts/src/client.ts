@@ -109,8 +109,13 @@ export class VocalScoreApi {
       body: JSON.stringify(request),
     });
   }
-  exportUrl(id: string, format: "midi" | "musicxml"): string {
-    return `${this.baseUrl}/v1/projects/${id}/exports/${format}`;
+  exportUrl(
+    id: string,
+    format: "midi" | "musicxml",
+    version: "score" | "performance" = "score",
+  ): string {
+    const query = format === "midi" ? `?version=${version}` : "";
+    return `${this.baseUrl}/v1/projects/${id}/exports/${format}${query}`;
   }
   audioUrl(id: string, variant: "source" | "vocals" = "source"): string {
     return `${this.baseUrl}/v1/projects/${id}/audio${variant === "vocals" ? "?variant=vocals" : ""}`;

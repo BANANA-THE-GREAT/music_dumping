@@ -78,6 +78,21 @@ describe("F0 evidence", () => {
   });
 });
 
+describe("project exports", () => {
+  it("selects the performance or score MIDI explicitly", () => {
+    const api = new VocalScoreApi("http://api");
+    expect(api.exportUrl("project", "midi")).toBe(
+      "http://api/v1/projects/project/exports/midi?version=score",
+    );
+    expect(api.exportUrl("project", "midi", "performance")).toBe(
+      "http://api/v1/projects/project/exports/midi?version=performance",
+    );
+    expect(api.exportUrl("project", "musicxml", "performance")).toBe(
+      "http://api/v1/projects/project/exports/musicxml",
+    );
+  });
+});
+
 describe("experimental job selection", () => {
   afterEach(() => vi.unstubAllGlobals());
 

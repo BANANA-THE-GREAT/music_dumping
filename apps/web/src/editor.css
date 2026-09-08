@@ -23,6 +23,18 @@
   border-bottom: 1px solid #e5ded2;
 }
 
+.actions {
+  align-items: center;
+}
+
+.toolbar select {
+  padding: 7px;
+  border: 1px solid #d6cbbc;
+  background: #fffdf8;
+  color: #71695e;
+  font-size: 12px;
+}
+
 .edit-actions button {
   padding: 6px 9px;
   color: #71695e;

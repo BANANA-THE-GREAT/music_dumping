@@ -8,7 +8,11 @@ function download(blob: Blob, name: string) {
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
-export function buildMidiBytes(notes: ScoreNote[], analysis: MusicalAnalysis) {
+export function buildMidiBytes(
+  notes: ScoreNote[],
+  analysis: MusicalAnalysis,
+  version: "score" | "performance" = "score",
+) {
   const midi = new Midi();
   midi.header.setTempo(analysis.bpm);
   midi.header.timeSignatures.push({
@@ -20,17 +24,27 @@ export function buildMidiBytes(notes: ScoreNote[], analysis: MusicalAnalysis) {
   notes.forEach((n) =>
     track.addNote({
       midi: n.pitchMidi,
-      time: (n.startBeat * 60) / analysis.bpm,
-      duration: (n.durationBeats * 60) / analysis.bpm,
+      time:
+        version === "performance"
+          ? n.startTimeSeconds
+          : (n.startBeat * 60) / analysis.bpm,
+      duration:
+        version === "performance"
+          ? n.durationSeconds
+          : (n.durationBeats * 60) / analysis.bpm,
       velocity: n.amplitude,
     }),
   );
   return new Uint8Array(midi.toArray());
 }
-export function exportMidi(notes: ScoreNote[], analysis: MusicalAnalysis) {
+export function exportMidi(
+  notes: ScoreNote[],
+  analysis: MusicalAnalysis,
+  version: "score" | "performance" = "score",
+) {
   download(
-    new Blob([buildMidiBytes(notes, analysis)], { type: "audio/midi" }),
-    "vocal-score.mid",
+    new Blob([buildMidiBytes(notes, analysis, version)], { type: "audio/midi" }),
+    version === "performance" ? "vocal-performance.mid" : "vocal-score.mid",
   );
 }
 export function buildMusicXml(notes: ScoreNote[], a: MusicalAnalysis) {

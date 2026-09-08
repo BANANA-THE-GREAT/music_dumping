@@ -168,6 +168,15 @@ def build_real_project(
     )
     progress("postprocessing", 0.86)
     notes = quantized_notes(melody, bpm)
+    performance_source = quantized_notes(melody, bpm, monophonic=False)
+    performance_notes = [
+        {
+            key: value
+            for key, value in note.items()
+            if key not in {"quantized_start", "quantized_duration"}
+        }
+        for note in performance_source
+    ]
     pipeline_steps.append(
         {
             "stage": "melody_refinement",
@@ -199,6 +208,7 @@ def build_real_project(
             "confidence": {"tempo": 0.65, "meter": meter_confidence, "key": 0.6},
         },
         "notes": notes,
+        "performance_notes": performance_notes,
         "raw_notes": quantized_notes(detected, bpm, monophonic=False),
         "transcription_evidence": transcription_evidence,
         "pipeline": [

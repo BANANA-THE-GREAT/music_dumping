@@ -42,6 +42,20 @@ export interface ScoreProjectNote {
   quantized_duration: number;
   origin: "model" | "user";
 }
+export interface PitchBendPoint {
+  offset_ms: number;
+  cents: number;
+}
+export interface PerformanceNote {
+  id: string;
+  source_start_ms: number;
+  source_end_ms: number;
+  source_note_ids?: string[];
+  pitch_midi: number;
+  confidence: number;
+  origin: "model" | "user";
+  pitch_bends: PitchBendPoint[];
+}
 export interface ModelProvenance {
   name: string;
   implementation: string;
@@ -99,6 +113,7 @@ export interface ScoreProject {
     confidence: Record<string, number>;
   };
   notes: ScoreProjectNote[];
+  performance_notes?: PerformanceNote[] | null;
   raw_notes?: ScoreProjectNote[] | null;
   transcription_evidence?: TranscriptionEvidence | null;
   pipeline: Array<{

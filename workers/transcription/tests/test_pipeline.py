@@ -85,6 +85,8 @@ def test_real_pipeline_composes_adapters_and_quantizes(tmp_path: Path) -> None:
     assert document["pipeline"][3]["parameters"]["device"] == "cpu"
     assert document["source"]["vocal_object_key"] == "work/work/stems/vocals.wav"
     assert len(document["raw_notes"]) == 3
+    assert len(document["performance_notes"]) == 3
+    assert "quantized_start" not in document["performance_notes"][0]
     assert stages == [
         "preprocessing",
         "separating",

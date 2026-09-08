@@ -51,10 +51,25 @@ def test_project_edit_uses_optimistic_revision() -> None:
 
 def test_project_can_be_requantized() -> None:
     project = create_project()
+    performance_notes = project["performance_notes"]
+    assert performance_notes
+    performance_notes[1]["source_start_ms"] = performance_notes[0]["source_start_ms"]
+    performance_notes[1]["source_end_ms"] = performance_notes[0]["source_end_ms"]
+    with SessionLocal() as session:
+        record = session.get(ProjectRecord, project["project_id"])
+        record.document = project
+        session.commit()
+    project["notes"][0]["quantized_start"] = 9
+    project["notes"][0]["quantized_duration"] = 9
+    patched = client.patch(
+        f"/v1/projects/{project['project_id']}",
+        json={"expected_revision": project["revision"], "notes": project["notes"]},
+    ).json()
+    assert patched["performance_notes"] == performance_notes
     response = client.post(
         f"/v1/projects/{project['project_id']}/requantize",
         json={
-            "expected_revision": project["revision"],
+            "expected_revision": patched["revision"],
             "bpm": 90,
             "numerator": 3,
             "denominator": 4,
@@ -65,11 +80,31 @@ def test_project_can_be_requantized() -> None:
     )
     assert response.status_code == 200
     result = response.json()
-    assert result["revision"] == 2
+    assert result["revision"] == 3
     assert result["analysis"]["tempo_map"][0]["bpm"] == 90
     assert result["analysis"]["meter_map"][0]["numerator"] == 3
     assert result["analysis"]["key_map"][0]["tonic"] == 7
     assert result["pipeline"][-1]["stage"] == "requantize"
+    assert result["pipeline"][-1]["version"] == "2"
+    assert result["performance_notes"] == performance_notes
+    assert result["notes"][0]["quantized_start"] != 9
+    assert len(result["notes"]) == len(performance_notes)
+    assert result["notes"][0]["quantized_start"] == result["notes"][1]["quantized_start"]
+
+    repeated = client.post(
+        f"/v1/projects/{project['project_id']}/requantize",
+        json={
+            "expected_revision": result["revision"],
+            "bpm": 90,
+            "numerator": 3,
+            "denominator": 4,
+            "tonic": 7,
+            "mode": "minor",
+            "grid": 0.5,
+        },
+    ).json()
+    assert repeated["notes"] == result["notes"]
+    assert repeated["performance_notes"] == performance_notes
 
 
 def test_project_exports_standard_midi_and_musicxml() -> None:
@@ -81,6 +116,18 @@ def test_project_exports_standard_midi_and_musicxml() -> None:
     assert midi.content.startswith(b"MThd")
     assert b"MTrk" in midi.content
     assert midi.headers["content-disposition"].endswith(f'"{project_id}.mid"')
+
+    performance_midi = client.get(
+        f"/v1/projects/{project_id}/exports/midi?version=performance"
+    )
+    assert performance_midi.status_code == 200
+    assert performance_midi.content.startswith(b"MThd")
+    assert performance_midi.headers["content-disposition"].endswith(
+        f'"{project_id}.performance.mid"'
+    )
+    assert client.get(
+        f"/v1/projects/{project_id}/exports/midi?version=unknown"
+    ).status_code == 422
 
     musicxml = client.get(f"/v1/projects/{project_id}/exports/musicxml")
     assert musicxml.status_code == 200
@@ -249,8 +296,11 @@ def test_transcription_evidence_is_optional_and_round_trips() -> None:
     assert legacy["transcription_evidence"] is None
 
     legacy.pop("transcription_evidence")
+    legacy.pop("performance_notes")
     parsed = ScoreProject.model_validate(legacy)
     assert parsed.transcription_evidence is None
+    assert parsed.performance_notes is not None
+    assert parsed.performance_notes[0].source_start_ms == parsed.notes[0].source_start_ms
 
     legacy["transcription_evidence"] = {
         "note_model": {
@@ -307,6 +357,7 @@ def test_boundary_suggestion_review_accept_reject_and_reset() -> None:
     original_duration = project["notes"][0]["quantized_duration"]
     proposed_end = original_end + 70
     project["notes"][0]["source_note_ids"] = ["game-0000"]
+    project["performance_notes"][0]["source_note_ids"] = ["game-0000"]
     project["raw_notes"] = [dict(note) for note in project["notes"]]
     project["transcription_evidence"] = {
         "note_model": {
@@ -348,6 +399,7 @@ def test_boundary_suggestion_review_accept_reject_and_reset() -> None:
     assert reset.json()["notes"][0]["source_end_ms"] == original_end
     assert reset.json()["notes"][0]["quantized_duration"] == original_duration
     assert reset.json()["notes"][0]["origin"] == "model"
+    assert reset.json()["performance_notes"][0]["source_end_ms"] == original_end
     assert reset.json()["transcription_evidence"]["boundary_suggestions"][0][
         "review_status"
     ] == "pending"
@@ -366,6 +418,7 @@ def test_boundary_suggestion_review_accept_reject_and_reset() -> None:
 def test_boundary_suggestion_accept_refuses_changed_target() -> None:
     project = create_project()
     project["notes"][0]["source_note_ids"] = ["game-0000"]
+    project["performance_notes"][0]["source_note_ids"] = ["game-0000"]
     project["transcription_evidence"] = {
         "note_model": {
             "name": "GAME medium",
@@ -399,6 +452,7 @@ def test_boundary_suggestion_accept_refuses_changed_target() -> None:
 def test_boundary_suggestion_reset_preserves_later_duration_edit() -> None:
     project = create_project()
     project["notes"][0]["source_note_ids"] = ["game-0000"]
+    project["performance_notes"][0]["source_note_ids"] = ["game-0000"]
     original_end = project["notes"][0]["source_end_ms"]
     project["transcription_evidence"] = {
         "note_model": {

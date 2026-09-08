@@ -82,6 +82,8 @@ VSS_WORKER_DOCKERFILE=infra/docker/Dockerfile.worker-quality \
 
 构建脚本固定并校验源码与权重哈希。quality Worker 仍支持 Basic Pitch；实验引擎只有在任务中显式选择 `game_f0` 时运行。标准 Worker 收到该选项会返回 `EXPERIMENTAL_ENGINE_NOT_CONFIGURED`，不会回退成假结果或 Basic Pitch。GAME 原始音符、独立 F0 文件和边界建议会分别保存，建议默认保持 pending，不自动改写谱面。钢琴卷帘可叠加有声 F0 和建议前后边界；接受、忽略及撤销均保存 revision，撤销不会覆盖接受后发生的其他时值编辑。
 
+项目同时保存独立的演唱版 `performance_notes` 和谱面版 `notes`。重新量化始终从演唱版的毫秒级时间重建谱面版，不在已有量化结果上累积舍入误差；MIDI 导出可选择谱面版或演唱版，演唱版支持可选的 cents pitch bend，MusicXML 固定使用谱面版。旧 `1.0` 项目缺少演唱版字段时会从现有音符兼容补齐。
+
 NVIDIA GPU 为可选运行模式，不改变默认 CPU Compose。宿主机完成 NVIDIA Container Toolkit 配置后，普通 Worker 可执行：
 
 ```bash

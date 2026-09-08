@@ -115,6 +115,22 @@ class ScoreNote(BaseModel):
     origin: Literal["model", "user"]
 
 
+class PitchBendPoint(BaseModel):
+    offset_ms: int = Field(ge=0)
+    cents: float = Field(ge=-200, le=200)
+
+
+class PerformanceNote(BaseModel):
+    id: str
+    source_start_ms: int = Field(ge=0)
+    source_end_ms: int = Field(ge=0)
+    source_note_ids: list[str] = Field(default_factory=list)
+    pitch_midi: int = Field(ge=0, le=127)
+    confidence: float = Field(ge=0, le=1)
+    origin: Literal["model", "user"]
+    pitch_bends: list[PitchBendPoint] = Field(default_factory=list)
+
+
 class PipelineStep(BaseModel):
     stage: str
     version: str
@@ -179,10 +195,28 @@ class ScoreProject(BaseModel):
     source: SourceAudio
     analysis: Analysis
     notes: list[ScoreNote]
+    performance_notes: list[PerformanceNote] | None = None
     raw_notes: list[ScoreNote] | None = None
     transcription_evidence: TranscriptionEvidence | None = None
     pipeline: list[PipelineStep]
     revision: int = Field(ge=1)
+
+    @model_validator(mode="after")
+    def populate_legacy_performance_notes(self) -> "ScoreProject":
+        if self.performance_notes is None:
+            self.performance_notes = [
+                PerformanceNote(
+                    id=note.id,
+                    source_start_ms=note.source_start_ms,
+                    source_end_ms=note.source_end_ms,
+                    source_note_ids=list(note.source_note_ids),
+                    pitch_midi=note.pitch_midi,
+                    confidence=note.confidence,
+                    origin=note.origin,
+                )
+                for note in self.notes
+            ]
+        return self
 
 
 class ProjectSummary(BaseModel):

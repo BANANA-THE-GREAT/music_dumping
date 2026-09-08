@@ -40,6 +40,12 @@ const FAILED_JOB_KEY = "vocal-score.failed-job";
 document.querySelector<HTMLDivElement>("#app")!.innerHTML =
   `<main><header><div><span class="eyebrow">VOCAL SCORE STUDIO</span><h1>拾音</h1></div><p>从一首歌里分离人声，自动识别速度、拍号与调性，生成可演奏的简谱和五线谱。</p></header><section class="workbench"><aside><label class="drop" id="drop"><input id="file" type="file" accept="audio/*"><span class="drop-icon">↥</span><strong>放入歌曲或人声</strong><small>MP3 · WAV · OGG · FLAC</small></label><audio id="audio" controls></audio><div class="field"><label>人声分离 <output id="isolateValue">82%</output></label><input id="isolate" type="range" min="0" max="100" value="82"><small>适合主唱居中的立体声歌曲</small></div><div class="field"><label>识别灵敏度</label><select id="sensitivity"><option value="0.35">均衡</option><option value="0.48">保守</option><option value="0.25">灵敏</option></select></div><button class="primary" id="transcribe" disabled>自动分析并扒谱</button><button class="ghost" id="example">载入完整示例</button><section id="task-progress" aria-label="转录任务进度"></section><p class="status" id="status" role="status">等待音频</p></aside><article><section class="analysis-panel"><div><span>速度 BPM</span><input id="bpm" type="number" min="40" max="240" value="120"><small id="bpmConfidence">待分析</small></div><div><span>拍号</span><select id="meter"><option value="4">4 / 4</option><option value="3">3 / 4</option></select><small id="meterConfidence">待分析</small></div><div><span>调性</span><section><select id="key">${KEYS.map((k, i) => `<option value="${i}">${k}</option>`).join("")}</select><select id="mode"><option value="major">大调</option><option value="minor">小调</option></select></section><small id="keyConfidence">待分析</small></div></section><div class="toolbar"><div class="tabs"><button class="active" data-view="staff">五线谱</button><button data-view="jianpu">简谱</button></div><div class="actions"><button id="play" disabled>▶ 演奏</button><button id="midi" disabled>导出 MIDI</button><button id="xml" disabled>导出 MusicXML</button></div></div><div id="staff" class="score"></div><div id="jianpu" class="score hidden"></div><div class="empty" id="empty"><div>♪</div><strong>完整乐谱会出现在这里</strong><span>导入歌曲后，一次完成分离、分析与转谱</span></div></article></section><footer>本地处理 · 不上传音频 · 自动识别结果可手动修正</footer></main>`;
 document
+  .querySelector("#midi")!
+  .insertAdjacentHTML(
+    "beforebegin",
+    `<select id="midi-version" aria-label="MIDI 版本"><option value="score">谱面版</option><option value="performance">演唱版</option></select>`,
+  );
+document
   .querySelector(".toolbar")!
   .insertAdjacentHTML(
     "afterend",
@@ -337,7 +343,7 @@ function applyApiProject(project: ApiScoreProject) {
   const tempo = project.analysis.tempo_map[0];
   const meterPoint = project.analysis.meter_map[0];
   const keyPoint = project.analysis.key_map[0];
-  rawNotes = project.notes.map((note) => ({
+  rawNotes = (project.performance_notes ?? project.notes).map((note) => ({
     pitchMidi: note.pitch_midi,
     amplitude: note.confidence,
     startTimeSeconds: note.source_start_ms / 1000,
@@ -978,6 +984,7 @@ async function render() {
   [play, $<HTMLButtonElement>("#midi"), $<HTMLButtonElement>("#xml")].forEach(
     (b) => (b.disabled = !notes.length),
   );
+  $<HTMLSelectElement>("#midi-version").disabled = !notes.length;
 }
 $("#boundary-review").addEventListener("click", async (event) => {
   const button = (event.target as Element).closest<HTMLButtonElement>("button");
@@ -1405,18 +1412,27 @@ play.addEventListener("click", async () => {
 });
 audio.addEventListener("play", stop);
 window.addEventListener("pagehide", stop);
-function downloadServerExport(format: "midi" | "musicxml") {
+function midiVersion() {
+  return $<HTMLSelectElement>("#midi-version").value as
+    | "score"
+    | "performance";
+}
+function downloadServerExport(
+  format: "midi" | "musicxml",
+  version: "score" | "performance" = "score",
+) {
   if (!serverProject) return false;
   const link = document.createElement("a");
-  link.href = api.exportUrl(serverProject.project_id, format);
+  link.href = api.exportUrl(serverProject.project_id, format, version);
   link.download = "";
   link.click();
   return true;
 }
 $("#midi").addEventListener("click", () => {
-  if (!downloadServerExport("midi"))
+  const version = midiVersion();
+  if (!downloadServerExport("midi", version))
     void import("./export").then(({ exportMidi }) =>
-      exportMidi(notes, analysis),
+      exportMidi(notes, analysis, version),
     );
 });
 $("#xml").addEventListener("click", () => {

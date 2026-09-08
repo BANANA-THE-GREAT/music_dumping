@@ -2,10 +2,10 @@ import math
 import struct
 from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import cast
+from typing import Literal, cast
 from xml.etree.ElementTree import Element, SubElement, tostring
 
-from app.schemas import ScoreNote, ScoreProject
+from app.schemas import PerformanceNote, ScoreNote, ScoreProject
 
 TICKS_PER_QUARTER = 480
 DIVISIONS = 8
@@ -44,7 +44,37 @@ def _midi_events(notes: Iterable[ScoreNote]) -> list[tuple[int, int, bytes]]:
     return sorted(events)
 
 
-def project_to_midi(project: ScoreProject) -> bytes:
+def _pitch_bend_message(cents: float) -> bytes:
+    value = max(0, min(16_383, 8_192 + round((cents / 200) * 8_191)))
+    return bytes((0xE0, value & 0x7F, value >> 7))
+
+
+def _performance_midi_events(
+    notes: Iterable[PerformanceNote], milliseconds_per_beat: float
+) -> list[tuple[int, int, bytes]]:
+    events: list[tuple[int, int, bytes]] = []
+    for note in notes:
+        start = round(note.source_start_ms / milliseconds_per_beat * TICKS_PER_QUARTER)
+        end = max(
+            start + 1,
+            round(note.source_end_ms / milliseconds_per_beat * TICKS_PER_QUARTER),
+        )
+        events.append((start, 3, bytes((0x90, note.pitch_midi, 96))))
+        for bend in note.pitch_bends:
+            tick = min(
+                end,
+                start + round(bend.offset_ms / milliseconds_per_beat * TICKS_PER_QUARTER),
+            )
+            events.append((tick, 2, _pitch_bend_message(bend.cents)))
+        events.append((end, 0, bytes((0x80, note.pitch_midi, 0))))
+        if note.pitch_bends:
+            events.append((end, 1, _pitch_bend_message(0)))
+    return sorted(events)
+
+
+def project_to_midi(
+    project: ScoreProject, version: Literal["score", "performance"] = "score"
+) -> bytes:
     tempo = project.analysis.tempo_map[0].bpm
     meter = project.analysis.meter_map[0]
     microseconds = round(60_000_000 / tempo)
@@ -53,7 +83,13 @@ def project_to_midi(project: ScoreProject) -> bytes:
     track.extend(b"\x00\xff\x51\x03" + microseconds.to_bytes(3, "big"))
     track.extend(b"\x00\xff\x58\x04" + bytes((meter.numerator, denominator_power, 24, 8)))
     previous_tick = 0
-    for tick, _, message in _midi_events(project.notes):
+    milliseconds_per_beat = 60_000 / tempo
+    events = (
+        _performance_midi_events(project.performance_notes or [], milliseconds_per_beat)
+        if version == "performance"
+        else _midi_events(project.notes)
+    )
+    for tick, _, message in events:
         track.extend(_variable_length(tick - previous_tick))
         track.extend(message)
         previous_tick = tick
