@@ -270,6 +270,17 @@ class RequantizeRequest(BaseModel):
     grid: float = 0.25
     strength: float = Field(default=1, ge=0, le=1)
     offset_ms: int = Field(default=0, ge=-10_000, le=10_000)
+    tempo_map: list[TempoPoint] | None = None
+
+    @model_validator(mode="after")
+    def normalize_tempo_points(self) -> "RequantizeRequest":
+        if self.tempo_map is None:
+            self.tempo_map = [TempoPoint(time_ms=0, bpm=self.bpm)]
+        else:
+            from app.tempo import normalize_tempo_map
+
+            self.tempo_map = normalize_tempo_map(self.tempo_map)
+        return self
 
     @field_validator("grid")
     @classmethod

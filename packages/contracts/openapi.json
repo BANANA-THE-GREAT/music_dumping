@@ -919,6 +919,20 @@
             "title": "Strength",
             "type": "number"
           },
+          "tempo_map": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/TempoPoint"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tempo Map"
+          },
           "tonic": {
             "maximum": 11.0,
             "minimum": 0.0,

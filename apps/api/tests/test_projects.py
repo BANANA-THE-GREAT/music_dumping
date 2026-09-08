@@ -153,6 +153,42 @@ def test_requantize_supports_disabled_partial_and_triplet_grids() -> None:
     assert partial["quantization"]["offset_ms"] == 40
 
 
+def test_requantize_supports_piecewise_tempo_map() -> None:
+    project = create_project()
+    note = project["performance_notes"][1]
+    note["source_start_ms"] = 1_250
+    note["source_end_ms"] = 1_750
+    with SessionLocal() as session:
+        record = session.get(ProjectRecord, project["project_id"])
+        record.document = project
+        session.commit()
+
+    response = client.post(
+        f"/v1/projects/{project['project_id']}/requantize",
+        json={
+            "expected_revision": project["revision"],
+            "bpm": 120,
+            "numerator": 4,
+            "denominator": 4,
+            "tonic": 0,
+            "mode": "major",
+            "grid": 0.25,
+            "tempo_map": [
+                {"time_ms": 1_000, "bpm": 60},
+                {"time_ms": 0, "bpm": 120},
+            ],
+        },
+    )
+    assert response.status_code == 200
+    result = response.json()
+    assert result["analysis"]["tempo_map"] == [
+        {"time_ms": 0, "bpm": 120},
+        {"time_ms": 1_000, "bpm": 60},
+    ]
+    # 1.25 s = 2 beats at 120 BPM plus 0.25 beats at 60 BPM.
+    assert result["notes"][1]["quantized_start"] == 2.25
+
+
 def test_project_exports_standard_midi_and_musicxml() -> None:
     project = create_project()
     project_id = project["project_id"]

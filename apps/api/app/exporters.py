@@ -5,7 +5,8 @@ from dataclasses import dataclass
 from typing import Literal, cast
 from xml.etree.ElementTree import Element, SubElement, tostring
 
-from app.schemas import PerformanceNote, ScoreNote, ScoreProject
+from app.schemas import PerformanceNote, ScoreNote, ScoreProject, TempoPoint
+from app.tempo import beat_at_ms
 
 TICKS_PER_QUARTER = 480
 DIVISIONS = 8
@@ -50,21 +51,27 @@ def _pitch_bend_message(cents: float) -> bytes:
 
 
 def _performance_midi_events(
-    notes: Iterable[PerformanceNote], milliseconds_per_beat: float
+    notes: Iterable[PerformanceNote],
+    milliseconds_per_beat: float | None = None,
+    tempo_map: list[TempoPoint] | None = None,
 ) -> list[tuple[int, int, bytes]]:
+    def to_beats(time_ms: int) -> float:
+        if tempo_map is not None:
+            return beat_at_ms(time_ms, tempo_map)
+        if milliseconds_per_beat is None:
+            raise ValueError("milliseconds_per_beat or tempo_map is required")
+        return time_ms / milliseconds_per_beat
+
     events: list[tuple[int, int, bytes]] = []
     for note in notes:
-        start = round(note.source_start_ms / milliseconds_per_beat * TICKS_PER_QUARTER)
+        start = round(to_beats(note.source_start_ms) * TICKS_PER_QUARTER)
         end = max(
             start + 1,
-            round(note.source_end_ms / milliseconds_per_beat * TICKS_PER_QUARTER),
+            round(to_beats(note.source_end_ms) * TICKS_PER_QUARTER),
         )
         events.append((start, 3, bytes((0x90, note.pitch_midi, 96))))
         for bend in note.pitch_bends:
-            tick = min(
-                end,
-                start + round(bend.offset_ms / milliseconds_per_beat * TICKS_PER_QUARTER),
-            )
+            tick = min(end, round(to_beats(note.source_start_ms + bend.offset_ms) * TICKS_PER_QUARTER))
             events.append((tick, 2, _pitch_bend_message(bend.cents)))
         events.append((end, 0, bytes((0x80, note.pitch_midi, 0))))
         if note.pitch_bends:
@@ -75,21 +82,31 @@ def _performance_midi_events(
 def project_to_midi(
     project: ScoreProject, version: Literal["score", "performance"] = "score"
 ) -> bytes:
-    tempo = project.analysis.tempo_map[0].bpm
+    tempo_map = project.analysis.tempo_map
     meter = project.analysis.meter_map[0]
-    microseconds = round(60_000_000 / tempo)
     denominator_power = int(math.log2(meter.denominator))
     track = bytearray()
-    track.extend(b"\x00\xff\x51\x03" + microseconds.to_bytes(3, "big"))
-    track.extend(b"\x00\xff\x58\x04" + bytes((meter.numerator, denominator_power, 24, 8)))
-    previous_tick = 0
-    milliseconds_per_beat = 60_000 / tempo
+    tempo_events = [
+        (
+            round(beat_at_ms(point.time_ms, tempo_map) * TICKS_PER_QUARTER),
+            4,
+            b"\xff\x51\x03" + round(60_000_000 / point.bpm).to_bytes(3, "big"),
+        )
+        for point in tempo_map
+    ]
     events = (
-        _performance_midi_events(project.performance_notes or [], milliseconds_per_beat)
+        _performance_midi_events(project.performance_notes or [], tempo_map=tempo_map)
         if version == "performance"
         else _midi_events(project.notes)
     )
-    for tick, _, message in events:
+    meter_event = (
+        0,
+        5,
+        b"\xff\x58\x04" + bytes((meter.numerator, denominator_power, 24, 8)),
+    )
+    combined = sorted([meter_event, *tempo_events, *events])
+    previous_tick = 0
+    for tick, _, message in combined:
         track.extend(_variable_length(tick - previous_tick))
         track.extend(message)
         previous_tick = tick

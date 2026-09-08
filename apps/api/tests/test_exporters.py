@@ -1,5 +1,5 @@
 from app.exporters import TICKS_PER_QUARTER, _performance_midi_events
-from app.schemas import PerformanceNote
+from app.schemas import PerformanceNote, TempoPoint
 
 
 def test_performance_midi_uses_source_timing_and_pitch_bends() -> None:
@@ -49,3 +49,23 @@ def test_performance_midi_resets_bend_before_an_adjacent_note() -> None:
     ]
 
     assert [event[1] for event in boundary] == [0, 1, 2, 3]
+
+
+def test_performance_midi_uses_piecewise_tempo_map() -> None:
+    note = PerformanceNote(
+        id="tempo-note",
+        source_start_ms=1_250,
+        source_end_ms=1_750,
+        pitch_midi=60,
+        confidence=0.9,
+        origin="model",
+    )
+    events = _performance_midi_events(
+        [note],
+        tempo_map=[
+            TempoPoint(time_ms=0, bpm=120),
+            TempoPoint(time_ms=1_000, bpm=60),
+        ],
+    )
+    assert events[0][0] == round(2.25 * TICKS_PER_QUARTER)
+    assert events[1][0] == round(2.75 * TICKS_PER_QUARTER)

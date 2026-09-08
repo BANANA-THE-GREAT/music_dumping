@@ -9,15 +9,16 @@ from app.schemas import (
     ScoreProject,
     TempoPoint,
 )
+from app.tempo import beat_at_ms
 
 
 def requantize(project: ScoreProject, request: RequantizeRequest) -> ScoreProject:
-    milliseconds_per_beat = 60_000 / request.bpm
-    offset_beats = request.offset_ms / milliseconds_per_beat
+    tempo_map = request.tempo_map or [TempoPoint(time_ms=0, bpm=request.bpm)]
+    offset_beats = beat_at_ms(max(0, request.offset_ms), tempo_map)
     quantized: list[ScoreNote] = []
     for performance_note in project.performance_notes or []:
-        raw_start = performance_note.source_start_ms / milliseconds_per_beat
-        raw_end = performance_note.source_end_ms / milliseconds_per_beat
+        raw_start = beat_at_ms(performance_note.source_start_ms, tempo_map)
+        raw_end = beat_at_ms(performance_note.source_end_ms, tempo_map)
         if request.enabled:
             snapped_start = (
                 round((raw_start - offset_beats) / request.grid) * request.grid
@@ -64,7 +65,7 @@ def requantize(project: ScoreProject, request: RequantizeRequest) -> ScoreProjec
         ],
     )
 
-    project.analysis.tempo_map = [TempoPoint(time_ms=0, bpm=request.bpm)]
+    project.analysis.tempo_map = list(tempo_map)
     project.analysis.meter_map = [
         MeterPoint(beat=0, numerator=request.numerator, denominator=request.denominator)
     ]
@@ -85,6 +86,7 @@ def requantize(project: ScoreProject, request: RequantizeRequest) -> ScoreProjec
                 "offset_ms": request.offset_ms,
                 "conflicts": len(project.quantization.conflicts),
                 "source": "performance_notes",
+                "tempo_map": [point.model_dump() for point in tempo_map],
             },
         )
     )

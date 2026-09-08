@@ -150,6 +150,7 @@ export interface RequantizeRequest {
   grid: number;
   strength?: number;
   offset_ms?: number;
+  tempo_map?: Array<{ time_ms: number; bpm: number }>;
 }
 export interface BoundarySuggestionReviewRequest {
   expected_revision: number;
