@@ -29,6 +29,15 @@ GAME 参数诊断使用 `scripts/run-game-tuning-sweep.sh`。网格和选择规�
 
 连续 F0 边界诊断使用 `scripts/run-f0-boundary-benchmark.sh`。torchcrepe 参数和 tuning 网格固定在 `evaluation/f0-diagnostic-config.json`；只有 tuning 规则通过后才读取预先写定的 `evaluation/f0-holdout-config.json` 运行一次 holdout。报告分别为 `evaluation/reports/vocadito-f0-diagnostics.json`、`vocadito-f0-holdout.json` 和 `vocadito-f0-boundary-comparison.md`。当前边界调整只属于评测代码，不会覆盖项目或用户编辑。
 
+P5.1 的简单谐波试听从现有 F0 JSONL 生成诊断 WAV，不参与默认转录链路，也不比较逐采样波形误差：
+
+```bash
+python scripts/synthesize-harmonic.py f0.jsonl harmonic.wav \
+  --report harmonic.json --periodicity-threshold 0.5 --harmonics 8
+```
+
+输出报告记录帧数、发声帧数、采样率、谐波数和 periodicity 阈值；原始 F0、音频和试听结果不进入 Git。
+
 `evaluation/manifest.json` 当前只有 CC0 合成 fixture，用于验证工具本身，不含第三方录音。`evaluation/reports/synthetic-baseline.json` 和 `synthetic-diagnostics.json` 不是实际歌曲质量报告。
 
 Vocadito（Bittner、Pasalo、Bosch、Meseguer Brocal、Rubinstein，DOI `10.5281/zenodo.5578807`，CC BY 4.0）下载到 `data/evaluation/vocadito/` 后，可用 Docker Worker 复现真实孤立人声基线：
