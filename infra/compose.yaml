@@ -2,6 +2,7 @@ name: vocal-score-studio
 services:
   postgres:
     image: postgres:17-alpine
+    pull_policy: if_not_present
     environment:
       POSTGRES_USER: vocal_score
       POSTGRES_PASSWORD: vocal_score_dev
@@ -14,6 +15,7 @@ services:
       retries: 10
   redis:
     image: redis:8-alpine
+    pull_policy: if_not_present
     command: redis-server --appendonly yes
     volumes: [redis-data:/data]
     healthcheck:
@@ -23,6 +25,7 @@ services:
       retries: 10
   minio:
     image: minio/minio:latest
+    pull_policy: if_not_present
     command: server /data --console-address :9001
     environment:
       MINIO_ROOT_USER: vocal_score

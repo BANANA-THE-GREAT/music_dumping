@@ -64,7 +64,7 @@ python -m pip install -e ".[models]"
 前端在 Node.js 22 构建容器中安装 npm 依赖；音频处理工具和模型运行依赖安装在后端 Worker 镜像中，与宿主机的其他项目隔离。
 
 ```bash
-docker compose -f infra/compose.yaml up -d --build --wait web worker
+docker compose -f infra/compose.yaml up -d --wait web worker
 ```
 
 Web 默认位于 `http://localhost:8888`，API 位于 `http://localhost:8000`。API 容器启动前自动执行 Alembic migration。
@@ -114,12 +114,15 @@ GPU 镜像默认使用 PyTorch `2.8.0+cu128` wheel，可通过 `VSS_PYTORCH_INDE
 
 GPU override 默认设置 `HF_HUB_OFFLINE=1`，让 Demucs 直接读取 `model-cache`，避免每个任务等待 Hugging Face 远端元数据检查。全新环境首次下载 Demucs 权重时，临时在启动命令前设置 `VSS_HF_HUB_OFFLINE=0`；权重缓存完成后恢复默认离线模式。
 
-日常启动和修改前端后重新构建：
+日常启动和修改前端后的命令：
 
 ```bash
 docker compose -f infra/compose.yaml up -d --wait web worker
-docker compose -f infra/compose.yaml up -d --build --wait web
+docker compose -f infra/compose.yaml build web
+docker compose -f infra/compose.yaml up -d --wait web
 ```
+
+没有修改镜像相关代码时只执行第一条；`build web` 只在前端源码、依赖或 Dockerfile 变化后执行。
 
 前端采用构建后由 Nginx 提供静态文件的方式，修改源代码后需重新构建 Web 镜像；运行和构建均不依赖宿主机或 `/tmp` 中的 Node/npm。容器数据保存到 Docker 卷，与本地开发的 `data/` 目录独立。
 
