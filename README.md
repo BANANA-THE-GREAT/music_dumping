@@ -88,7 +88,7 @@ VSS_WORKER_DOCKERFILE=infra/docker/Dockerfile.worker-quality \
 
 钢琴卷帘以轮廓显示演唱版真实时间、以实心块显示谱面版量化时间，并继续叠加 F0 与边界证据；同起点冲突会高亮。合成试听可以在演唱版真实时值和谱面版量化时值之间切换。
 
-P5.1 提供独立的简单谐波诊断试听：`python scripts/synthesize-harmonic.py f0.jsonl harmonic.wav --report harmonic.json`。该工具只根据 F0 和 periodicity 生成 WAV，用于听辨音高、发声区间和边界，不改变默认转录链路。
+P5.1 提供独立的简单谐波诊断试听：`python scripts/synthesize-harmonic.py f0.jsonl harmonic.wav --report harmonic.json`。该工具只根据 F0 和 periodicity 生成 WAV，用于听辨音高、发声区间和边界，不改变默认转录链路。`scripts/evaluate-f0-alignment.py` 可在固定范围内检查统一延迟，但不做时间拉伸。
 
 浏览器端到端验收使用固定版本的 Playwright `1.55.0` 和 Chromium 镜像 `mcr.microsoft.com/playwright:v1.55.0-noble`，不进入生产 Nginx 镜像。启动 Compose 服务后运行 `scripts/run-browser-checks.sh`；可用 `SCORE_URL` 覆盖测试地址。
 

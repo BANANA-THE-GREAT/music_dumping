@@ -4,10 +4,27 @@ from pathlib import Path
 from vss_worker.adapters import DetectedNote
 from vss_worker.f0_diagnostics import (
     adjust_note_offsets,
+    estimate_global_delay,
     evaluate_f0_threshold,
     evaluate_fixed_f0_boundary,
     summarize_f0_counts,
 )
+
+
+def test_global_delay_is_bounded_without_time_warp() -> None:
+    result = estimate_global_delay(
+        [0, 0.01, 0.02, 0.03],
+        [440, 440, 440, 0],
+        {
+            "times_seconds": [0, 0.01, 0.02, 0.03],
+            "f0_hz": [440, 440, 440, 0],
+            "periodicity": [0.9, 0.9, 0.9, 0.1],
+        },
+        maximum_delay_ms=30,
+        step_ms=10,
+    )
+    assert result["delay_ms"] == 0
+    assert result["paired_voiced_frames"] == 3
 
 
 def test_f0_metrics_separate_voicing_and_pitch_accuracy() -> None:

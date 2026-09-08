@@ -80,6 +80,56 @@ def evaluate_f0_threshold(
     return counts
 
 
+def estimate_global_delay(
+    reference_times: list[float],
+    reference_f0: list[float],
+    prediction: dict[str, list[float]],
+    *,
+    maximum_delay_ms: float = 100,
+    step_ms: float = 10,
+    periodicity_threshold: float = 0.5,
+) -> dict[str, float | int | None]:
+    """Find one bounded delay; never stretches or locally warps the timeline."""
+    if step_ms <= 0 or maximum_delay_ms < 0:
+        raise ValueError("delay bounds must be non-negative and step must be positive")
+    candidates = range(
+        round(-maximum_delay_ms / step_ms), round(maximum_delay_ms / step_ms) + 1
+    )
+    best: tuple[float, float, int] | None = None
+    for candidate in candidates:
+        delay_ms = candidate * step_ms
+        errors = []
+        paired = 0
+        for time_value, predicted_hz, periodicity in zip(
+            prediction["times_seconds"],
+            prediction["f0_hz"],
+            prediction["periodicity"],
+            strict=True,
+        ):
+            shifted_time = time_value + delay_ms / 1000
+            if shifted_time < reference_times[0] or shifted_time > reference_times[-1]:
+                continue
+            reference_hz = reference_f0[_nearest(reference_times, shifted_time)]
+            if (
+                periodicity >= periodicity_threshold
+                and predicted_hz > 0
+                and reference_hz > 0
+            ):
+                errors.append(_cents_error(predicted_hz, reference_hz))
+                paired += 1
+        mean_error = sum(errors) / len(errors) if errors else math.inf
+        score = (mean_error, abs(delay_ms), -paired)
+        if best is None or score < (best[0], abs(best[1]), -best[2]):
+            best = (mean_error, delay_ms, paired)
+    if best is None or not math.isfinite(best[0]):
+        return {"delay_ms": None, "mean_pitch_error_cents": None, "paired_voiced_frames": 0}
+    return {
+        "delay_ms": best[1],
+        "mean_pitch_error_cents": best[0],
+        "paired_voiced_frames": best[2],
+    }
+
+
 def _ratio(numerator: int, denominator: int) -> float:
     return numerator / denominator if denominator else 0.0
 

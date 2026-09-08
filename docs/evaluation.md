@@ -38,6 +38,17 @@ python scripts/synthesize-harmonic.py f0.jsonl harmonic.wav \
 
 输出报告记录帧数、发声帧数、采样率、谐波数和 periodicity 阈值；原始 F0、音频和试听结果不进入 Git。
 
+如需检查模型输出与标注之间的有限全局延迟，可使用：
+
+```bash
+python scripts/evaluate-f0-alignment.py \
+  data/evaluation/vocadito/Annotations/F0/vocadito_16_f0.csv \
+  data/evaluation/vocadito-results/torchcrepe_full_holdout/vocadito_16.json \
+  --report f0-alignment.json
+```
+
+该检查只搜索固定范围内的统一时间平移，不执行时间规整；报告中的 F0 误差不能替代音符级质量评测。
+
 `evaluation/manifest.json` 当前只有 CC0 合成 fixture，用于验证工具本身，不含第三方录音。`evaluation/reports/synthetic-baseline.json` 和 `synthetic-diagnostics.json` 不是实际歌曲质量报告。
 
 Vocadito（Bittner、Pasalo、Bosch、Meseguer Brocal、Rubinstein，DOI `10.5281/zenodo.5578807`，CC BY 4.0）下载到 `data/evaluation/vocadito/` 后，可用 Docker Worker 复现真实孤立人声基线：
