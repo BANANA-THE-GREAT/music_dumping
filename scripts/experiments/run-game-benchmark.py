@@ -39,6 +39,7 @@ def main() -> None:
     parser.add_argument("--presence-threshold", type=float, default=0.2)
     parser.add_argument("--d3pm-steps", type=int, default=8)
     parser.add_argument("--language-id", type=int, default=0)
+    parser.add_argument("--device", choices=("cpu", "cuda"), default="cpu")
     arguments = parser.parse_args()
     if arguments.split and arguments.manifest is None:
         parser.error("--split requires --manifest")
@@ -123,7 +124,13 @@ def main() -> None:
     random.seed(SEED)
     np.random.seed(SEED)
     torch.manual_seed(SEED)
-    torch.set_num_threads(max(1, os.cpu_count() or 1))
+    if arguments.device == "cpu":
+        torch.set_num_threads(max(1, os.cpu_count() or 1))
+    else:
+        if not torch.cuda.is_available():
+            raise RuntimeError("CUDA was requested but torch.cuda.is_available() is false")
+        torch.cuda.manual_seed_all(SEED)
+        torch.cuda.reset_peak_memory_stats()
 
     audio_files = sorted(arguments.audio_root.glob("vocadito_*.wav"))
     if arguments.manifest is not None:
@@ -196,7 +203,7 @@ def main() -> None:
         "variant": arguments.variant,
         "upstream_commit": os.environ.get("GAME_COMMIT"),
         "model_sha256": sha256(arguments.model),
-        "device": "cpu",
+        "device": arguments.device,
         "seed": SEED,
         "parameters": {
             "manifest": str(arguments.manifest) if arguments.manifest else None,
@@ -212,6 +219,9 @@ def main() -> None:
         "model_load_seconds": load_seconds,
         "inference_seconds": inference_seconds,
         "peak_rss_kib": resource.getrusage(resource.RUSAGE_SELF).ru_maxrss,
+        "peak_cuda_memory_bytes": (
+            torch.cuda.max_memory_allocated() if arguments.device == "cuda" else 0
+        ),
         "clip_count": len(note_counts),
         "failures": failures,
         "note_counts": note_counts,

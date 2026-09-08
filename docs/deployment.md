@@ -81,6 +81,10 @@ docker compose -f infra/compose.yaml -f infra/compose.gpu.yaml exec worker \
 
 设置 `VSS_INFERENCE_DEVICE=cpu` 可以让 GPU 镜像临时走 CPU；设置为 `cuda` 时不可用即报错；默认 `auto` 根据 PyTorch 的 CUDA 检测结果选择。GPU override 默认设置 `VSS_CUDA_VISIBLE_DEVICES=0`，避免 GAME 自动启用多卡预测。实验 GAME + torchcrepe GPU 镜像使用 `scripts/build-quality-worker-gpu.sh` 构建，启动时还需设置 `VSS_WORKER_DOCKERFILE=infra/docker/Dockerfile.worker-quality` 并添加 `--no-build`。
 
+GPU override 同时默认设置 `HF_HUB_OFFLINE=1`。Demucs 权重已经存在于 `model-cache` 时，这会跳过每个子进程的远端元数据请求；本机实测模型加载由 `69.41s` 降至 `0.34s`。空缓存首次下载时使用 `VSS_HF_HUB_OFFLINE=0` 启动一次，确认权重落盘后再恢复离线模式。
+
+2026-09-08 的实机验收环境为 RTX 5060 Ti 16 GiB、PyTorch `2.8.0+cu128`、CUDA `12.8`。15 段 Vocadito holdout 的 GPU 等价性报告位于 `evaluation/reports/gpu-holdout-comparison.json`；真实 quality 任务峰值显存约 `3.35 GiB`。当前 Worker 仍按单并发串行运行 Demucs、GAME 和 torchcrepe，不要仅凭显存余量提高 Celery 并发。
+
 ## 升级与回滚
 
 升级前创建数据库和 `app-data` 备份，再构建带固定 Git 提交号的镜像。先运行 migration 和健康检查，再切换 Web 流量。代码回滚不能自动回滚数据库结构；若迁移不向后兼容，应恢复成组备份，而不是只降级镜像。

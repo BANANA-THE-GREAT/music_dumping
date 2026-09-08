@@ -31,7 +31,7 @@ def selected_audio(audio_root: Path, manifest_path: Path, split: str) -> list[Pa
     ]
 
 
-def predict(audio_path: Path, batch_size: int) -> dict[str, object]:
+def predict(audio_path: Path, batch_size: int, device: str) -> dict[str, object]:
     waveform, sample_rate = soundfile.read(
         audio_path, dtype="float32", always_2d=True
     )
@@ -47,7 +47,7 @@ def predict(audio_path: Path, batch_size: int) -> dict[str, object]:
         decoder=torchcrepe.decode.viterbi,
         return_periodicity=True,
         batch_size=batch_size,
-        device="cpu",
+        device=device,
         pad=True,
     )
     periodicity = torchcrepe.filter.median(periodicity, 3)
@@ -74,9 +74,15 @@ def main() -> None:
     parser.add_argument("--variant", default="torchcrepe_full")
     parser.add_argument("--batch-size", type=int, default=512)
     parser.add_argument("--limit", type=int)
+    parser.add_argument("--device", choices=("cpu", "cuda"), default="cpu")
     arguments = parser.parse_args()
 
-    torch.set_num_threads(max(1, os.cpu_count() or 1))
+    if arguments.device == "cpu":
+        torch.set_num_threads(max(1, os.cpu_count() or 1))
+    else:
+        if not torch.cuda.is_available():
+            raise RuntimeError("CUDA was requested but torch.cuda.is_available() is false")
+        torch.cuda.reset_peak_memory_stats()
     model_path = Path(torchcrepe.__file__).parent / "assets" / "full.pth"
     audio_files = selected_audio(arguments.audio_root, arguments.manifest, arguments.split)
     if arguments.limit is not None:
@@ -87,7 +93,7 @@ def main() -> None:
     for audio_path in audio_files:
         try:
             started = time.perf_counter()
-            frames = predict(audio_path, arguments.batch_size)
+            frames = predict(audio_path, arguments.batch_size, arguments.device)
             elapsed = time.perf_counter() - started
             output_dir.mkdir(parents=True, exist_ok=True)
             (output_dir / f"{audio_path.stem}.json").write_text(
@@ -110,7 +116,7 @@ def main() -> None:
         "variant": arguments.variant,
         "upstream_commit": os.environ.get("TORCHCREPE_COMMIT"),
         "model_sha256": sha256(model_path),
-        "device": "cpu",
+        "device": arguments.device,
         "parameters": {
             "split": arguments.split,
             "model": "full",
@@ -123,6 +129,9 @@ def main() -> None:
             "batch_size": arguments.batch_size,
         },
         "peak_rss_kib": resource.getrusage(resource.RUSAGE_SELF).ru_maxrss,
+        "peak_cuda_memory_bytes": (
+            torch.cuda.max_memory_allocated() if arguments.device == "cuda" else 0
+        ),
         "clips": clips,
         "failures": failures,
     }

@@ -104,6 +104,8 @@ VSS_WORKER_DOCKERFILE=infra/docker/Dockerfile.worker-quality \
 
 GPU 镜像默认使用 PyTorch `2.8.0+cu128` wheel，可通过 `VSS_PYTORCH_INDEX_URL` 和 `VSS_PYTORCH_PACKAGE` 覆盖。构建过程会检查 `torch.version.cuda`，避免误装 CPU wheel。运行时 `VSS_INFERENCE_DEVICE` 支持 `auto`、`cpu`、`cuda`，默认以 `VSS_CUDA_VISIBLE_DEVICES=0` 只使用一张卡；显式选择 `cuda` 但容器不可用时任务会失败，不会静默回退 CPU。Demucs、GAME 和 torchcrepe 使用同一选择结果。
 
+GPU override 默认设置 `HF_HUB_OFFLINE=1`，让 Demucs 直接读取 `model-cache`，避免每个任务等待 Hugging Face 远端元数据检查。全新环境首次下载 Demucs 权重时，临时在启动命令前设置 `VSS_HF_HUB_OFFLINE=0`；权重缓存完成后恢复默认离线模式。
+
 日常启动和修改前端后重新构建：
 
 ```bash

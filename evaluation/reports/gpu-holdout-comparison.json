@@ -1,0 +1,1129 @@
+{
+  "schema_version": "1.1",
+  "date": "2026-09-08",
+  "split": "holdout",
+  "thresholds": {
+    "maximum_game_f1_regression": 0.03,
+    "maximum_voicing_disagreement_rate": 0.01,
+    "maximum_f0_reference_metric_regression": 0.005,
+    "f0_reference_pitch_tolerance_cents": 50.0,
+    "direct_pitch_mae_target_cents": 5.0
+  },
+  "cpu_game": {
+    "clip_count": 15,
+    "onset_pitch": {
+      "precision_macro": 0.7131929329669997,
+      "recall_macro": 0.6505568413712289,
+      "f1_macro": 0.6777861193425418,
+      "mean_onset_error_ms": 11.231323835067935,
+      "mean_offset_error_ms": 86.39212261645046
+    },
+    "onset_offset_pitch": {
+      "precision_macro": 0.3818451793111789,
+      "recall_macro": 0.3486412083170101,
+      "f1_macro": 0.36312090671588493,
+      "mean_onset_error_ms": 11.537240544798587,
+      "mean_offset_error_ms": 30.208902059560348
+    },
+    "errors": {
+      "missed_notes": 546,
+      "extra_notes": 478,
+      "octave_errors": 0,
+      "possible_splits": 51,
+      "possible_merges": 37,
+      "weak_note_misses": 0
+    }
+  },
+  "gpu_game": {
+    "clip_count": 15,
+    "onset_pitch": {
+      "precision_macro": 0.6977955593762758,
+      "recall_macro": 0.6423829235421962,
+      "f1_macro": 0.6655867313707067,
+      "mean_onset_error_ms": 11.102216560274972,
+      "mean_offset_error_ms": 87.54212664658021
+    },
+    "onset_offset_pitch": {
+      "precision_macro": 0.38196947096476536,
+      "recall_macro": 0.3524736856086565,
+      "f1_macro": 0.3648762368831326,
+      "mean_onset_error_ms": 11.411016858809154,
+      "mean_offset_error_ms": 29.841879614857067
+    },
+    "errors": {
+      "missed_notes": 541,
+      "extra_notes": 478,
+      "octave_errors": 0,
+      "possible_splits": 59,
+      "possible_merges": 39,
+      "weak_note_misses": 0
+    }
+  },
+  "game_deltas": {
+    "onset_pitch_f1": -0.012199387971835174,
+    "onset_offset_pitch_f1": 0.0017553301672476596
+  },
+  "f0_comparison": {
+    "total_frames": 32401,
+    "frame_count_mismatches": 0,
+    "voicing_disagreements": 0,
+    "voicing_disagreement_rate": 0.0,
+    "pitch_mae_cents": 9.272916338757437,
+    "pitch_median_absolute_error_cents": 7.976403684289559,
+    "pitch_p95_absolute_error_cents": 22.112632344088638,
+    "pitch_max_absolute_error_cents": 37.666591614642265,
+    "pitch_mean_signed_error_cents": -0.07724173014632676,
+    "pitch_within_50_cents_rate": 1.0,
+    "clips": {
+      "vocadito_1": {
+        "frame_count_cpu": 3322,
+        "frame_count_gpu": 3322,
+        "voicing_disagreements": 0,
+        "pitch_mae_cents": 9.405357112797535
+      },
+      "vocadito_3": {
+        "frame_count_cpu": 2174,
+        "frame_count_gpu": 2174,
+        "voicing_disagreements": 0,
+        "pitch_mae_cents": 8.899946756060707
+      },
+      "vocadito_7": {
+        "frame_count_cpu": 1947,
+        "frame_count_gpu": 1947,
+        "voicing_disagreements": 0,
+        "pitch_mae_cents": 9.464142532699684
+      },
+      "vocadito_8": {
+        "frame_count_cpu": 1705,
+        "frame_count_gpu": 1705,
+        "voicing_disagreements": 0,
+        "pitch_mae_cents": 9.628277458839152
+      },
+      "vocadito_9": {
+        "frame_count_cpu": 2038,
+        "frame_count_gpu": 2038,
+        "voicing_disagreements": 0,
+        "pitch_mae_cents": 9.59029702250922
+      },
+      "vocadito_12": {
+        "frame_count_cpu": 1516,
+        "frame_count_gpu": 1516,
+        "voicing_disagreements": 0,
+        "pitch_mae_cents": 9.0580293520173
+      },
+      "vocadito_16": {
+        "frame_count_cpu": 1728,
+        "frame_count_gpu": 1728,
+        "voicing_disagreements": 0,
+        "pitch_mae_cents": 9.478945083070867
+      },
+      "vocadito_26": {
+        "frame_count_cpu": 1286,
+        "frame_count_gpu": 1286,
+        "voicing_disagreements": 0,
+        "pitch_mae_cents": 9.107103738759285
+      },
+      "vocadito_28": {
+        "frame_count_cpu": 1290,
+        "frame_count_gpu": 1290,
+        "voicing_disagreements": 0,
+        "pitch_mae_cents": 9.219891335825434
+      },
+      "vocadito_35": {
+        "frame_count_cpu": 1381,
+        "frame_count_gpu": 1381,
+        "voicing_disagreements": 0,
+        "pitch_mae_cents": 8.984615011617954
+      },
+      "vocadito_36": {
+        "frame_count_cpu": 2328,
+        "frame_count_gpu": 2328,
+        "voicing_disagreements": 0,
+        "pitch_mae_cents": 9.481306159055073
+      },
+      "vocadito_37": {
+        "frame_count_cpu": 3874,
+        "frame_count_gpu": 3874,
+        "voicing_disagreements": 0,
+        "pitch_mae_cents": 9.294309493845551
+      },
+      "vocadito_38": {
+        "frame_count_cpu": 2785,
+        "frame_count_gpu": 2785,
+        "voicing_disagreements": 0,
+        "pitch_mae_cents": 9.261246203217565
+      },
+      "vocadito_39": {
+        "frame_count_cpu": 3169,
+        "frame_count_gpu": 3169,
+        "voicing_disagreements": 0,
+        "pitch_mae_cents": 9.297617279576246
+      },
+      "vocadito_40": {
+        "frame_count_cpu": 1858,
+        "frame_count_gpu": 1858,
+        "voicing_disagreements": 0,
+        "pitch_mae_cents": 8.954352671906745
+      }
+    }
+  },
+  "f0_reference": {
+    "cpu": {
+      "frames": 32401,
+      "reference_voiced": 20941,
+      "predicted_voiced": 18618,
+      "voiced_true_positive": 17154,
+      "pitch_true_positive": 17067,
+      "chroma_true_positive": 17067,
+      "voiced_precision": 0.9213664195939414,
+      "voiced_recall": 0.8191585884150709,
+      "voiced_f1": 0.8672615586844965,
+      "pitch_precision": 0.9166935223976796,
+      "pitch_recall": 0.8150040590229692,
+      "pitch_f1": 0.8628630652948759,
+      "raw_pitch_accuracy": 0.9949282966072053,
+      "raw_chroma_accuracy": 0.9949282966072053
+    },
+    "gpu": {
+      "frames": 32401,
+      "reference_voiced": 20941,
+      "predicted_voiced": 18618,
+      "voiced_true_positive": 17154,
+      "pitch_true_positive": 17065,
+      "chroma_true_positive": 17065,
+      "voiced_precision": 0.9213664195939414,
+      "voiced_recall": 0.8191585884150709,
+      "voiced_f1": 0.8672615586844965,
+      "pitch_precision": 0.9165860994736277,
+      "pitch_recall": 0.8149085526001624,
+      "pitch_f1": 0.86276195050431,
+      "raw_pitch_accuracy": 0.9948117057246123,
+      "raw_chroma_accuracy": 0.9948117057246123
+    },
+    "deltas": {
+      "voiced_f1": 0.0,
+      "pitch_f1": -0.00010111479056584827,
+      "raw_pitch_accuracy": -0.00011659088259297068
+    }
+  },
+  "diagnostics": {
+    "direct_pitch_mae_target_met": false,
+    "direct_pitch_comparison_is_quality_gate": false,
+    "rationale": "CPU output is not ground truth; CUDA numerical differences can alter torchcrepe's locally weighted pitch estimate without changing its accuracy against the Vocadito reference F0."
+  },
+  "clips": {
+    "cpu_game": {
+      "vocadito_1": {
+        "onset_pitch": {
+          "true_positives": 40,
+          "false_positives": 27,
+          "false_negatives": 19,
+          "precision": 0.5970149253731343,
+          "recall": 0.6779661016949152,
+          "f1": 0.6349206349206349,
+          "mean_onset_error_ms": 9.515371476690603,
+          "mean_offset_error_ms": 86.75788052163384
+        },
+        "onset_offset_pitch": {
+          "true_positives": 19,
+          "false_positives": 48,
+          "false_negatives": 40,
+          "precision": 0.2835820895522388,
+          "recall": 0.3220338983050847,
+          "f1": 0.30158730158730157,
+          "mean_onset_error_ms": 10.74364609570298,
+          "mean_offset_error_ms": 31.427464385253536
+        },
+        "errors": {
+          "missed_notes": 40,
+          "extra_notes": 48,
+          "octave_errors": 0,
+          "possible_splits": 6,
+          "possible_merges": 1,
+          "weak_note_misses": 0
+        }
+      },
+      "vocadito_3": {
+        "onset_pitch": {
+          "true_positives": 34,
+          "false_positives": 12,
+          "false_negatives": 17,
+          "precision": 0.7391304347826086,
+          "recall": 0.6666666666666666,
+          "f1": 0.7010309278350515,
+          "mean_onset_error_ms": 8.241916558226578,
+          "mean_offset_error_ms": 51.07435927286651
+        },
+        "onset_offset_pitch": {
+          "true_positives": 24,
+          "false_positives": 22,
+          "false_negatives": 27,
+          "precision": 0.5217391304347826,
+          "recall": 0.47058823529411764,
+          "f1": 0.49484536082474223,
+          "mean_onset_error_ms": 7.861921339567775,
+          "mean_offset_error_ms": 29.01726982838441
+        },
+        "errors": {
+          "missed_notes": 27,
+          "extra_notes": 22,
+          "octave_errors": 0,
+          "possible_splits": 2,
+          "possible_merges": 0,
+          "weak_note_misses": 0
+        }
+      },
+      "vocadito_7": {
+        "onset_pitch": {
+          "true_positives": 35,
+          "false_positives": 14,
+          "false_negatives": 12,
+          "precision": 0.7142857142857143,
+          "recall": 0.7446808510638298,
+          "f1": 0.7291666666666666,
+          "mean_onset_error_ms": 5.907954278270822,
+          "mean_offset_error_ms": 90.81637620204111
+        },
+        "onset_offset_pitch": {
+          "true_positives": 16,
+          "false_positives": 33,
+          "false_negatives": 31,
+          "precision": 0.32653061224489793,
+          "recall": 0.3404255319148936,
+          "f1": 0.3333333333333333,
+          "mean_onset_error_ms": 6.618426572273142,
+          "mean_offset_error_ms": 27.432113714984897
+        },
+        "errors": {
+          "missed_notes": 31,
+          "extra_notes": 33,
+          "octave_errors": 0,
+          "possible_splits": 7,
+          "possible_merges": 2,
+          "weak_note_misses": 0
+        }
+      },
+      "vocadito_8": {
+        "onset_pitch": {
+          "true_positives": 31,
+          "false_positives": 4,
+          "false_negatives": 9,
+          "precision": 0.8857142857142857,
+          "recall": 0.775,
+          "f1": 0.8266666666666667,
+          "mean_onset_error_ms": 9.846354276943046,
+          "mean_offset_error_ms": 83.74292115829351
+        },
+        "onset_offset_pitch": {
+          "true_positives": 15,
+          "false_positives": 20,
+          "false_negatives": 25,
+          "precision": 0.42857142857142855,
+          "recall": 0.375,
+          "f1": 0.39999999999999997,
+          "mean_onset_error_ms": 11.937933359141002,
+          "mean_offset_error_ms": 34.85709073247052
+        },
+        "errors": {
+          "missed_notes": 25,
+          "extra_notes": 20,
+          "octave_errors": 0,
+          "possible_splits": 2,
+          "possible_merges": 2,
+          "weak_note_misses": 0
+        }
+      },
+      "vocadito_9": {
+        "onset_pitch": {
+          "true_positives": 44,
+          "false_positives": 26,
+          "false_negatives": 18,
+          "precision": 0.6285714285714286,
+          "recall": 0.7096774193548387,
+          "f1": 0.6666666666666666,
+          "mean_onset_error_ms": 12.386711962696397,
+          "mean_offset_error_ms": 60.53895914127986
+        },
+        "onset_offset_pitch": {
+          "true_positives": 24,
+          "false_positives": 46,
+          "false_negatives": 38,
+          "precision": 0.34285714285714286,
+          "recall": 0.3870967741935484,
+          "f1": 0.3636363636363636,
+          "mean_onset_error_ms": 10.339300525181987,
+          "mean_offset_error_ms": 23.712182802444584
+        },
+        "errors": {
+          "missed_notes": 38,
+          "extra_notes": 46,
+          "octave_errors": 0,
+          "possible_splits": 6,
+          "possible_merges": 3,
+          "weak_note_misses": 0
+        }
+      },
+      "vocadito_12": {
+        "onset_pitch": {
+          "true_positives": 20,
+          "false_positives": 7,
+          "false_negatives": 7,
+          "precision": 0.7407407407407407,
+          "recall": 0.7407407407407407,
+          "f1": 0.7407407407407407,
+          "mean_onset_error_ms": 9.87302925144059,
+          "mean_offset_error_ms": 82.54879290432123
+        },
+        "onset_offset_pitch": {
+          "true_positives": 15,
+          "false_positives": 12,
+          "false_negatives": 12,
+          "precision": 0.5555555555555556,
+          "recall": 0.5555555555555556,
+          "f1": 0.5555555555555556,
+          "mean_onset_error_ms": 10.984138510758717,
+          "mean_offset_error_ms": 36.38553267391771
+        },
+        "errors": {
+          "missed_notes": 12,
+          "extra_notes": 12,
+          "octave_errors": 0,
+          "possible_splits": 3,
+          "possible_merges": 2,
+          "weak_note_misses": 0
+        }
+      },
+      "vocadito_16": {
+        "onset_pitch": {
+          "true_positives": 31,
+          "false_positives": 11,
+          "false_negatives": 16,
+          "precision": 0.7380952380952381,
+          "recall": 0.6595744680851063,
+          "f1": 0.6966292134831461,
+          "mean_onset_error_ms": 11.70503563506732,
+          "mean_offset_error_ms": 71.6758618442855
+        },
+        "onset_offset_pitch": {
+          "true_positives": 15,
+          "false_positives": 27,
+          "false_negatives": 32,
+          "precision": 0.35714285714285715,
+          "recall": 0.3191489361702128,
+          "f1": 0.3370786516853933,
+          "mean_onset_error_ms": 13.000644604663,
+          "mean_offset_error_ms": 29.49670681642265
+        },
+        "errors": {
+          "missed_notes": 32,
+          "extra_notes": 27,
+          "octave_errors": 0,
+          "possible_splits": 2,
+          "possible_merges": 1,
+          "weak_note_misses": 0
+        }
+      },
+      "vocadito_26": {
+        "onset_pitch": {
+          "true_positives": 43,
+          "false_positives": 17,
+          "false_negatives": 30,
+          "precision": 0.7166666666666667,
+          "recall": 0.589041095890411,
+          "f1": 0.6466165413533834,
+          "mean_onset_error_ms": 14.441344768365052,
+          "mean_offset_error_ms": 63.82624735824233
+        },
+        "onset_offset_pitch": {
+          "true_positives": 26,
+          "false_positives": 34,
+          "false_negatives": 47,
+          "precision": 0.43333333333333335,
+          "recall": 0.3561643835616438,
+          "f1": 0.39097744360902253,
+          "mean_onset_error_ms": 11.85074255248066,
+          "mean_offset_error_ms": 21.308959901731097
+        },
+        "errors": {
+          "missed_notes": 47,
+          "extra_notes": 34,
+          "octave_errors": 0,
+          "possible_splits": 0,
+          "possible_merges": 7,
+          "weak_note_misses": 0
+        }
+      },
+      "vocadito_28": {
+        "onset_pitch": {
+          "true_positives": 27,
+          "false_positives": 18,
+          "false_negatives": 17,
+          "precision": 0.6,
+          "recall": 0.6136363636363636,
+          "f1": 0.6067415730337078,
+          "mean_onset_error_ms": 15.242330309763716,
+          "mean_offset_error_ms": 91.07170590807209
+        },
+        "onset_offset_pitch": {
+          "true_positives": 13,
+          "false_positives": 32,
+          "false_negatives": 31,
+          "precision": 0.28888888888888886,
+          "recall": 0.29545454545454547,
+          "f1": 0.2921348314606741,
+          "mean_onset_error_ms": 16.329998979966632,
+          "mean_offset_error_ms": 23.35960259648252
+        },
+        "errors": {
+          "missed_notes": 31,
+          "extra_notes": 32,
+          "octave_errors": 0,
+          "possible_splits": 6,
+          "possible_merges": 3,
+          "weak_note_misses": 0
+        }
+      },
+      "vocadito_35": {
+        "onset_pitch": {
+          "true_positives": 17,
+          "false_positives": 9,
+          "false_negatives": 20,
+          "precision": 0.6538461538461539,
+          "recall": 0.4594594594594595,
+          "f1": 0.5396825396825398,
+          "mean_onset_error_ms": 15.62218735048532,
+          "mean_offset_error_ms": 101.84189525320613
+        },
+        "onset_offset_pitch": {
+          "true_positives": 9,
+          "false_positives": 17,
+          "false_negatives": 28,
+          "precision": 0.34615384615384615,
+          "recall": 0.24324324324324326,
+          "f1": 0.2857142857142857,
+          "mean_onset_error_ms": 17.331766676595034,
+          "mean_offset_error_ms": 35.01108993356672
+        },
+        "errors": {
+          "missed_notes": 28,
+          "extra_notes": 17,
+          "octave_errors": 0,
+          "possible_splits": 0,
+          "possible_merges": 1,
+          "weak_note_misses": 0
+        }
+      },
+      "vocadito_36": {
+        "onset_pitch": {
+          "true_positives": 40,
+          "false_positives": 14,
+          "false_negatives": 27,
+          "precision": 0.7407407407407407,
+          "recall": 0.5970149253731343,
+          "f1": 0.6611570247933883,
+          "mean_onset_error_ms": 7.748385522921112,
+          "mean_offset_error_ms": 119.8705971176209
+        },
+        "onset_offset_pitch": {
+          "true_positives": 11,
+          "false_positives": 43,
+          "false_negatives": 56,
+          "precision": 0.2037037037037037,
+          "recall": 0.16417910447761194,
+          "f1": 0.18181818181818182,
+          "mean_onset_error_ms": 9.377579381888667,
+          "mean_offset_error_ms": 49.78331660146232
+        },
+        "errors": {
+          "missed_notes": 56,
+          "extra_notes": 43,
+          "octave_errors": 0,
+          "possible_splits": 4,
+          "possible_merges": 4,
+          "weak_note_misses": 0
+        }
+      },
+      "vocadito_37": {
+        "onset_pitch": {
+          "true_positives": 30,
+          "false_positives": 12,
+          "false_negatives": 21,
+          "precision": 0.7142857142857143,
+          "recall": 0.5882352941176471,
+          "f1": 0.6451612903225806,
+          "mean_onset_error_ms": 14.401244854182654,
+          "mean_offset_error_ms": 115.49968126114054
+        },
+        "onset_offset_pitch": {
+          "true_positives": 21,
+          "false_positives": 21,
+          "false_negatives": 30,
+          "precision": 0.5,
+          "recall": 0.4117647058823529,
+          "f1": 0.45161290322580644,
+          "mean_onset_error_ms": 16.289603174153353,
+          "mean_offset_error_ms": 42.15209274426818
+        },
+        "errors": {
+          "missed_notes": 30,
+          "extra_notes": 21,
+          "octave_errors": 0,
+          "possible_splits": 2,
+          "possible_merges": 1,
+          "weak_note_misses": 0
+        }
+      },
+      "vocadito_38": {
+        "onset_pitch": {
+          "true_positives": 49,
+          "false_positives": 17,
+          "false_negatives": 29,
+          "precision": 0.7424242424242424,
+          "recall": 0.6282051282051282,
+          "f1": 0.6805555555555556,
+          "mean_onset_error_ms": 10.30087357711613,
+          "mean_offset_error_ms": 104.93216960121865
+        },
+        "onset_offset_pitch": {
+          "true_positives": 17,
+          "false_positives": 49,
+          "false_negatives": 61,
+          "precision": 0.25757575757575757,
+          "recall": 0.21794871794871795,
+          "f1": 0.2361111111111111,
+          "mean_onset_error_ms": 8.422002490126754,
+          "mean_offset_error_ms": 18.415486168413704
+        },
+        "errors": {
+          "missed_notes": 61,
+          "extra_notes": 49,
+          "octave_errors": 0,
+          "possible_splits": 5,
+          "possible_merges": 3,
+          "weak_note_misses": 0
+        }
+      },
+      "vocadito_39": {
+        "onset_pitch": {
+          "true_positives": 57,
+          "false_positives": 28,
+          "false_negatives": 35,
+          "precision": 0.6705882352941176,
+          "recall": 0.6195652173913043,
+          "f1": 0.6440677966101694,
+          "mean_onset_error_ms": 12.36743725178186,
+          "mean_offset_error_ms": 99.51859541115103
+        },
+        "onset_offset_pitch": {
+          "true_positives": 28,
+          "false_positives": 57,
+          "false_negatives": 64,
+          "precision": 0.32941176470588235,
+          "recall": 0.30434782608695654,
+          "f1": 0.3163841807909605,
+          "mean_onset_error_ms": 13.063626142394932,
+          "mean_offset_error_ms": 19.693835329008007
+        },
+        "errors": {
+          "missed_notes": 64,
+          "extra_notes": 57,
+          "octave_errors": 0,
+          "possible_splits": 6,
+          "possible_merges": 3,
+          "weak_note_misses": 0
+        }
+      },
+      "vocadito_40": {
+        "onset_pitch": {
+          "true_positives": 31,
+          "false_positives": 7,
+          "false_negatives": 14,
+          "precision": 0.8157894736842105,
+          "recall": 0.6888888888888889,
+          "f1": 0.746987951807229,
+          "mean_onset_error_ms": 10.86968045206782,
+          "mean_offset_error_ms": 72.16579629138376
+        },
+        "onset_offset_pitch": {
+          "true_positives": 21,
+          "false_positives": 17,
+          "false_negatives": 24,
+          "precision": 0.5526315789473685,
+          "recall": 0.4666666666666667,
+          "f1": 0.5060240963855421,
+          "mean_onset_error_ms": 8.907277767084178,
+          "mean_offset_error_ms": 31.08078666459437
+        },
+        "errors": {
+          "missed_notes": 24,
+          "extra_notes": 17,
+          "octave_errors": 0,
+          "possible_splits": 0,
+          "possible_merges": 4,
+          "weak_note_misses": 0
+        }
+      }
+    },
+    "gpu_game": {
+      "vocadito_1": {
+        "onset_pitch": {
+          "true_positives": 40,
+          "false_positives": 27,
+          "false_negatives": 19,
+          "precision": 0.5970149253731343,
+          "recall": 0.6779661016949152,
+          "f1": 0.6349206349206349,
+          "mean_onset_error_ms": 9.977947680203158,
+          "mean_offset_error_ms": 87.40980630270381
+        },
+        "onset_offset_pitch": {
+          "true_positives": 20,
+          "false_positives": 47,
+          "false_negatives": 39,
+          "precision": 0.29850746268656714,
+          "recall": 0.3389830508474576,
+          "f1": 0.31746031746031744,
+          "mean_onset_error_ms": 10.214425086449918,
+          "mean_offset_error_ms": 28.82437224570902
+        },
+        "errors": {
+          "missed_notes": 39,
+          "extra_notes": 47,
+          "octave_errors": 0,
+          "possible_splits": 6,
+          "possible_merges": 2,
+          "weak_note_misses": 0
+        }
+      },
+      "vocadito_3": {
+        "onset_pitch": {
+          "true_positives": 34,
+          "false_positives": 13,
+          "false_negatives": 17,
+          "precision": 0.723404255319149,
+          "recall": 0.6666666666666666,
+          "f1": 0.6938775510204082,
+          "mean_onset_error_ms": 7.672388538688144,
+          "mean_offset_error_ms": 56.25436157049368
+        },
+        "onset_offset_pitch": {
+          "true_positives": 23,
+          "false_positives": 24,
+          "false_negatives": 28,
+          "precision": 0.48936170212765956,
+          "recall": 0.45098039215686275,
+          "f1": 0.46938775510204084,
+          "mean_onset_error_ms": 6.350240151905812,
+          "mean_offset_error_ms": 26.470357732995115
+        },
+        "errors": {
+          "missed_notes": 28,
+          "extra_notes": 24,
+          "octave_errors": 0,
+          "possible_splits": 3,
+          "possible_merges": 0,
+          "weak_note_misses": 0
+        }
+      },
+      "vocadito_7": {
+        "onset_pitch": {
+          "true_positives": 39,
+          "false_positives": 14,
+          "false_negatives": 8,
+          "precision": 0.7358490566037735,
+          "recall": 0.8297872340425532,
+          "f1": 0.78,
+          "mean_onset_error_ms": 7.289904401812596,
+          "mean_offset_error_ms": 92.72517392817947
+        },
+        "onset_offset_pitch": {
+          "true_positives": 18,
+          "false_positives": 35,
+          "false_negatives": 29,
+          "precision": 0.33962264150943394,
+          "recall": 0.3829787234042553,
+          "f1": 0.36,
+          "mean_onset_error_ms": 7.2726019164867335,
+          "mean_offset_error_ms": 29.371406567542074
+        },
+        "errors": {
+          "missed_notes": 29,
+          "extra_notes": 35,
+          "octave_errors": 0,
+          "possible_splits": 10,
+          "possible_merges": 2,
+          "weak_note_misses": 0
+        }
+      },
+      "vocadito_8": {
+        "onset_pitch": {
+          "true_positives": 31,
+          "false_positives": 4,
+          "false_negatives": 9,
+          "precision": 0.8857142857142857,
+          "recall": 0.775,
+          "f1": 0.8266666666666667,
+          "mean_onset_error_ms": 10.551471462602143,
+          "mean_offset_error_ms": 80.83968273872998
+        },
+        "onset_offset_pitch": {
+          "true_positives": 16,
+          "false_positives": 19,
+          "false_negatives": 24,
+          "precision": 0.45714285714285713,
+          "recall": 0.4,
+          "f1": 0.42666666666666664,
+          "mean_onset_error_ms": 12.813102975767134,
+          "mean_offset_error_ms": 34.566229940475296
+        },
+        "errors": {
+          "missed_notes": 24,
+          "extra_notes": 19,
+          "octave_errors": 0,
+          "possible_splits": 1,
+          "possible_merges": 1,
+          "weak_note_misses": 0
+        }
+      },
+      "vocadito_9": {
+        "onset_pitch": {
+          "true_positives": 48,
+          "false_positives": 26,
+          "false_negatives": 14,
+          "precision": 0.6486486486486487,
+          "recall": 0.7741935483870968,
+          "f1": 0.7058823529411764,
+          "mean_onset_error_ms": 12.348460945841424,
+          "mean_offset_error_ms": 60.49698890162667
+        },
+        "onset_offset_pitch": {
+          "true_positives": 27,
+          "false_positives": 47,
+          "false_negatives": 35,
+          "precision": 0.36486486486486486,
+          "recall": 0.43548387096774194,
+          "f1": 0.39705882352941174,
+          "mean_onset_error_ms": 9.685202273369578,
+          "mean_offset_error_ms": 22.142463750212478
+        },
+        "errors": {
+          "missed_notes": 35,
+          "extra_notes": 47,
+          "octave_errors": 0,
+          "possible_splits": 8,
+          "possible_merges": 3,
+          "weak_note_misses": 0
+        }
+      },
+      "vocadito_12": {
+        "onset_pitch": {
+          "true_positives": 18,
+          "false_positives": 9,
+          "false_negatives": 9,
+          "precision": 0.6666666666666666,
+          "recall": 0.6666666666666666,
+          "f1": 0.6666666666666666,
+          "mean_onset_error_ms": 9.686367743354062,
+          "mean_offset_error_ms": 65.20662818743884
+        },
+        "onset_offset_pitch": {
+          "true_positives": 14,
+          "false_positives": 13,
+          "false_negatives": 13,
+          "precision": 0.5185185185185185,
+          "recall": 0.5185185185185185,
+          "f1": 0.5185185185185185,
+          "mean_onset_error_ms": 10.239789250357703,
+          "mean_offset_error_ms": 36.87078983866662
+        },
+        "errors": {
+          "missed_notes": 13,
+          "extra_notes": 13,
+          "octave_errors": 0,
+          "possible_splits": 2,
+          "possible_merges": 2,
+          "weak_note_misses": 0
+        }
+      },
+      "vocadito_16": {
+        "onset_pitch": {
+          "true_positives": 29,
+          "false_positives": 12,
+          "false_negatives": 18,
+          "precision": 0.7073170731707317,
+          "recall": 0.6170212765957447,
+          "f1": 0.6590909090909092,
+          "mean_onset_error_ms": 10.490981633800082,
+          "mean_offset_error_ms": 70.15791871355567
+        },
+        "onset_offset_pitch": {
+          "true_positives": 14,
+          "false_positives": 27,
+          "false_negatives": 33,
+          "precision": 0.34146341463414637,
+          "recall": 0.2978723404255319,
+          "f1": 0.3181818181818182,
+          "mean_onset_error_ms": 10.699551143737677,
+          "mean_offset_error_ms": 31.60185372432172
+        },
+        "errors": {
+          "missed_notes": 33,
+          "extra_notes": 27,
+          "octave_errors": 0,
+          "possible_splits": 2,
+          "possible_merges": 2,
+          "weak_note_misses": 0
+        }
+      },
+      "vocadito_26": {
+        "onset_pitch": {
+          "true_positives": 42,
+          "false_positives": 18,
+          "false_negatives": 31,
+          "precision": 0.7,
+          "recall": 0.5753424657534246,
+          "f1": 0.6315789473684211,
+          "mean_onset_error_ms": 13.75719968034932,
+          "mean_offset_error_ms": 67.29609875606722
+        },
+        "onset_offset_pitch": {
+          "true_positives": 26,
+          "false_positives": 34,
+          "false_negatives": 47,
+          "precision": 0.43333333333333335,
+          "recall": 0.3561643835616438,
+          "f1": 0.39097744360902253,
+          "mean_onset_error_ms": 11.551585835594596,
+          "mean_offset_error_ms": 22.067769651064445
+        },
+        "errors": {
+          "missed_notes": 47,
+          "extra_notes": 34,
+          "octave_errors": 0,
+          "possible_splits": 3,
+          "possible_merges": 7,
+          "weak_note_misses": 0
+        }
+      },
+      "vocadito_28": {
+        "onset_pitch": {
+          "true_positives": 26,
+          "false_positives": 19,
+          "false_negatives": 18,
+          "precision": 0.5777777777777777,
+          "recall": 0.5909090909090909,
+          "f1": 0.5842696629213482,
+          "mean_onset_error_ms": 15.156988742074905,
+          "mean_offset_error_ms": 87.83188215999665
+        },
+        "onset_offset_pitch": {
+          "true_positives": 14,
+          "false_positives": 31,
+          "false_negatives": 30,
+          "precision": 0.3111111111111111,
+          "recall": 0.3181818181818182,
+          "f1": 0.31460674157303375,
+          "mean_onset_error_ms": 16.927424288107893,
+          "mean_offset_error_ms": 24.310059441589324
+        },
+        "errors": {
+          "missed_notes": 30,
+          "extra_notes": 31,
+          "octave_errors": 0,
+          "possible_splits": 7,
+          "possible_merges": 3,
+          "weak_note_misses": 0
+        }
+      },
+      "vocadito_35": {
+        "onset_pitch": {
+          "true_positives": 17,
+          "false_positives": 9,
+          "false_negatives": 20,
+          "precision": 0.6538461538461539,
+          "recall": 0.4594594594594595,
+          "f1": 0.5396825396825398,
+          "mean_onset_error_ms": 14.44571788421981,
+          "mean_offset_error_ms": 101.84167085924933
+        },
+        "onset_offset_pitch": {
+          "true_positives": 9,
+          "false_positives": 17,
+          "false_negatives": 28,
+          "precision": 0.34615384615384615,
+          "recall": 0.24324324324324326,
+          "f1": 0.2857142857142857,
+          "mean_onset_error_ms": 16.220736097981753,
+          "mean_offset_error_ms": 35.01087800594085
+        },
+        "errors": {
+          "missed_notes": 28,
+          "extra_notes": 17,
+          "octave_errors": 0,
+          "possible_splits": 0,
+          "possible_merges": 1,
+          "weak_note_misses": 0
+        }
+      },
+      "vocadito_36": {
+        "onset_pitch": {
+          "true_positives": 39,
+          "false_positives": 15,
+          "false_negatives": 28,
+          "precision": 0.7222222222222222,
+          "recall": 0.582089552238806,
+          "f1": 0.6446280991735538,
+          "mean_onset_error_ms": 8.736994995793392,
+          "mean_offset_error_ms": 117.55567536622505
+        },
+        "onset_offset_pitch": {
+          "true_positives": 12,
+          "false_positives": 42,
+          "false_negatives": 55,
+          "precision": 0.2222222222222222,
+          "recall": 0.1791044776119403,
+          "f1": 0.1983471074380165,
+          "mean_onset_error_ms": 14.396985494364438,
+          "mean_offset_error_ms": 47.34297552032951
+        },
+        "errors": {
+          "missed_notes": 55,
+          "extra_notes": 42,
+          "octave_errors": 0,
+          "possible_splits": 4,
+          "possible_merges": 4,
+          "weak_note_misses": 0
+        }
+      },
+      "vocadito_37": {
+        "onset_pitch": {
+          "true_positives": 27,
+          "false_positives": 17,
+          "false_negatives": 24,
+          "precision": 0.6136363636363636,
+          "recall": 0.5294117647058824,
+          "f1": 0.5684210526315789,
+          "mean_onset_error_ms": 13.119182106734222,
+          "mean_offset_error_ms": 155.29870034010546
+        },
+        "onset_offset_pitch": {
+          "true_positives": 18,
+          "false_positives": 26,
+          "false_negatives": 33,
+          "precision": 0.4090909090909091,
+          "recall": 0.35294117647058826,
+          "f1": 0.37894736842105264,
+          "mean_onset_error_ms": 14.042535495198194,
+          "mean_offset_error_ms": 34.74821815729401
+        },
+        "errors": {
+          "missed_notes": 33,
+          "extra_notes": 26,
+          "octave_errors": 0,
+          "possible_splits": 3,
+          "possible_merges": 1,
+          "weak_note_misses": 0
+        }
+      },
+      "vocadito_38": {
+        "onset_pitch": {
+          "true_positives": 48,
+          "false_positives": 17,
+          "false_negatives": 30,
+          "precision": 0.7384615384615385,
+          "recall": 0.6153846153846154,
+          "f1": 0.6713286713286714,
+          "mean_onset_error_ms": 10.84175725630701,
+          "mean_offset_error_ms": 102.45513351697541
+        },
+        "onset_offset_pitch": {
+          "true_positives": 18,
+          "false_positives": 47,
+          "false_negatives": 60,
+          "precision": 0.27692307692307694,
+          "recall": 0.23076923076923078,
+          "f1": 0.25174825174825183,
+          "mean_onset_error_ms": 8.830259071390813,
+          "mean_offset_error_ms": 18.11407410062649
+        },
+        "errors": {
+          "missed_notes": 60,
+          "extra_notes": 47,
+          "octave_errors": 0,
+          "possible_splits": 5,
+          "possible_merges": 3,
+          "weak_note_misses": 0
+        }
+      },
+      "vocadito_39": {
+        "onset_pitch": {
+          "true_positives": 54,
+          "false_positives": 28,
+          "false_negatives": 38,
+          "precision": 0.6585365853658537,
+          "recall": 0.5869565217391305,
+          "f1": 0.6206896551724138,
+          "mean_onset_error_ms": 11.5515979135584,
+          "mean_offset_error_ms": 95.96348119096432
+        },
+        "onset_offset_pitch": {
+          "true_positives": 29,
+          "false_positives": 53,
+          "false_negatives": 63,
+          "precision": 0.35365853658536583,
+          "recall": 0.31521739130434784,
+          "f1": 0.33333333333333337,
+          "mean_onset_error_ms": 12.738195062335725,
+          "mean_offset_error_ms": 21.31897550294885
+        },
+        "errors": {
+          "missed_notes": 63,
+          "extra_notes": 53,
+          "octave_errors": 0,
+          "possible_splits": 5,
+          "possible_merges": 4,
+          "weak_note_misses": 0
+        }
+      },
+      "vocadito_40": {
+        "onset_pitch": {
+          "true_positives": 31,
+          "false_positives": 6,
+          "false_negatives": 14,
+          "precision": 0.8378378378378378,
+          "recall": 0.6888888888888889,
+          "f1": 0.7560975609756098,
+          "mean_onset_error_ms": 10.906287418785901,
+          "mean_offset_error_ms": 71.79869716639163
+        },
+        "onset_offset_pitch": {
+          "true_positives": 21,
+          "false_positives": 16,
+          "false_negatives": 24,
+          "precision": 0.5675675675675675,
+          "recall": 0.4666666666666667,
+          "f1": 0.5121951219512195,
+          "mean_onset_error_ms": 9.182618739089342,
+          "mean_offset_error_ms": 34.86777004314022
+        },
+        "errors": {
+          "missed_notes": 24,
+          "extra_notes": 16,
+          "octave_errors": 0,
+          "possible_splits": 0,
+          "possible_merges": 4,
+          "weak_note_misses": 0
+        }
+      }
+    }
+  },
+  "checks": {
+    "game_onset_pitch_f1": true,
+    "game_onset_offset_pitch_f1": true,
+    "f0_frame_counts": true,
+    "f0_voicing": true,
+    "f0_reference_pitch_f1": true,
+    "f0_reference_raw_pitch_accuracy": true
+  },
+  "passed": true
+}
