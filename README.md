@@ -86,6 +86,8 @@ VSS_WORKER_DOCKERFILE=infra/docker/Dockerfile.worker-quality \
 
 谱面量化可以关闭，并支持直拍、三连音/六连音网格、0–100% 吸附强度和毫秒级节拍偏移。量化配置与同起点冲突保存在项目中；冲突音符会全部保留并在界面提示，不会静默删除置信度较低的候选。
 
+钢琴卷帘以轮廓显示演唱版真实时间、以实心块显示谱面版量化时间，并继续叠加 F0 与边界证据；同起点冲突会高亮。合成试听可以在演唱版真实时值和谱面版量化时值之间切换。
+
 NVIDIA GPU 为可选运行模式，不改变默认 CPU Compose。宿主机完成 NVIDIA Container Toolkit 配置后，普通 Worker 可执行：
 
 ```bash

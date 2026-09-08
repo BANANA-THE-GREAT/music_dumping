@@ -64,8 +64,14 @@ describe("piano roll", () => {
           status: "pending",
         },
       ],
+      performanceNotes: [
+        { startSeconds: 0.07, endSeconds: 0.46, pitchMidi: 60 },
+      ],
+      conflictNoteIndices: [0],
     });
     expect(svg).toContain('class="f0-track"');
     expect(svg).toContain('class="boundary-guide pending"');
+    expect(svg).toContain('class="performance-note"');
+    expect(svg).toContain("roll-note conflict");
   });
 });

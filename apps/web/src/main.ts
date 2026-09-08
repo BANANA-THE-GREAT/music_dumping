@@ -46,6 +46,12 @@ document
     `<select id="midi-version" aria-label="MIDI 版本"><option value="score">谱面版</option><option value="performance">演唱版</option></select>`,
   );
 document
+  .querySelector("#play")!
+  .insertAdjacentHTML(
+    "beforebegin",
+    `<select id="playback-version" aria-label="试听版本"><option value="score">谱面试听</option><option value="performance">演唱试听</option></select>`,
+  );
+document
   .querySelector(".toolbar")!
   .insertAdjacentHTML(
     "afterend",
@@ -1000,16 +1006,31 @@ async function render() {
           status: suggestion.review_status,
         }))
     : [];
+  const performanceNotes = (serverProject?.performance_notes ?? []).map((note) => ({
+    startSeconds: note.source_start_ms / 1000,
+    endSeconds: note.source_end_ms / 1000,
+    pitchMidi: note.pitch_midi,
+  }));
+  const conflictIds = new Set(
+    serverProject?.quantization?.conflicts.flatMap((conflict) => conflict.note_ids) ?? [],
+  );
+  const conflictNoteIndices = serverProject
+    ? serverProject.notes.flatMap((note, index) =>
+        conflictIds.has(note.id) ? [index] : [],
+      )
+    : [];
   $("#piano").innerHTML = renderPianoRoll(
     notes,
     selectedNoteIndex,
     900,
     280,
-    evidenceProject
+    serverProject || evidenceProject
       ? {
           bpm: analysis.bpm,
           frames: $<HTMLInputElement>("#show-f0").checked ? f0Frames : [],
           boundaries: boundaryMarkers,
+          performanceNotes,
+          conflictNoteIndices,
         }
       : undefined,
   );
@@ -1019,6 +1040,7 @@ async function render() {
     (b) => (b.disabled = !notes.length),
   );
   $<HTMLSelectElement>("#midi-version").disabled = !notes.length;
+  $<HTMLSelectElement>("#playback-version").disabled = !notes.length;
 }
 $("#boundary-review").addEventListener("click", async (event) => {
   const button = (event.target as Element).closest<HTMLButtonElement>("button");
@@ -1415,18 +1437,45 @@ play.addEventListener("click", async () => {
   play.textContent = "■ 停止";
   audio.pause();
   try {
+    const performancePlayback =
+      $<HTMLSelectElement>("#playback-version").value === "performance" &&
+      Boolean(serverProject?.performance_notes?.length);
+    const beatMs = 60_000 / analysis.bpm;
+    const playbackNotes = performancePlayback
+      ? displayQuantizedNotes(
+          (serverProject?.performance_notes ?? []).map((note) => ({
+            pitch_midi: note.pitch_midi,
+            confidence: note.confidence,
+            quantized_start: note.source_start_ms / beatMs,
+            quantized_duration: (note.source_end_ms - note.source_start_ms) / beatMs,
+          })),
+          analysis.bpm,
+          keyRootMidi(analysis.keyPitchClass),
+          analysis.mode,
+        )
+      : notes;
+    const performanceToScore = performancePlayback
+      ? (serverProject?.performance_notes ?? []).map((performanceNote) =>
+          serverProject?.notes.findIndex((note) => note.id === performanceNote.id),
+        )
+      : [];
     const elements = [
       ...document.querySelectorAll<HTMLElement | SVGElement>("[data-note]"),
     ];
     let previousActive = "";
     await scorePlayer.play(
-      notes,
+      playbackNotes,
       analysis.bpm,
       (indices) => {
-        const key = indices.join(",");
+        const displayedIndices = performancePlayback
+          ? indices
+              .map((index) => performanceToScore[index] ?? -1)
+              .filter((index) => index >= 0)
+          : indices;
+        const key = displayedIndices.join(",");
         if (key === previousActive) return;
         previousActive = key;
-        const active = new Set(indices);
+        const active = new Set(displayedIndices);
         elements.forEach((el) => {
           const hit = active.has(Number(el.dataset.note));
           if (hit && !el.classList.contains("playing")) {

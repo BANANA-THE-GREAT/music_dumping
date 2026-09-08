@@ -27,6 +27,12 @@ export interface PianoRollEvidence {
   bpm: number;
   frames: F0Frame[];
   boundaries: PianoRollBoundaryMarker[];
+  performanceNotes?: Array<{
+    startSeconds: number;
+    endSeconds: number;
+    pitchMidi: number;
+  }>;
+  conflictNoteIndices?: number[];
   periodicityThreshold?: number;
 }
 
@@ -63,24 +69,58 @@ export function renderPianoRoll(
   height = 280,
   evidence?: PianoRollEvidence,
 ): string {
-  const rectangles = pianoRollLayout(notes, width, height);
-  const { endBeat, lowPitch, highPitch } = pianoRollMetrics(notes);
+  const baseMetrics = pianoRollMetrics(notes);
+  const performanceNotes = evidence?.performanceNotes ?? [];
+  const bpm = evidence?.bpm || 120;
+  const performanceEndBeat =
+    Math.max(...performanceNotes.map((note) => note.endSeconds), 0) *
+    (bpm / 60);
+  const endBeat = Math.max(baseMetrics.endBeat, performanceEndBeat, 4);
+  const lowPitch =
+    Math.min(
+      baseMetrics.lowPitch + 2,
+      ...performanceNotes.map((note) => note.pitchMidi),
+      60,
+    ) - 2;
+  const highPitch =
+    Math.max(
+      baseMetrics.highPitch - 2,
+      ...performanceNotes.map((note) => note.pitchMidi),
+      60,
+    ) + 2;
+  const rowHeight = height / (highPitch - lowPitch + 1);
+  const rectangles = notes.map((note, index) => ({
+    index,
+    x: (note.startBeat / endBeat) * width,
+    y: (highPitch - note.pitchMidi) * rowHeight,
+    width: Math.max(3, (note.durationBeats / endBeat) * width),
+    height: Math.max(3, rowHeight - 1),
+    pitch: note.pitchMidi,
+  }));
   const beatLines = Array.from({ length: Math.ceil(endBeat) + 1 }, (_, beat) => {
     const x = (beat / endBeat) * width;
     return `<line x1="${x}" y1="0" x2="${x}" y2="${height}" class="${beat % 4 === 0 ? "bar" : "beat"}" />`;
   }).join("");
   const noteRects = rectangles
-    .map(
-      (rect) =>
-        `<rect data-note="${rect.index}" x="${rect.x.toFixed(2)}" y="${rect.y.toFixed(2)}" width="${rect.width.toFixed(2)}" height="${rect.height.toFixed(2)}" class="roll-note${selectedIndex === rect.index ? " selected" : ""}"><title>MIDI ${rect.pitch}</title></rect>`,
-    )
+    .map((rect) => {
+      const conflict = evidence?.conflictNoteIndices?.includes(rect.index);
+      return `<rect data-note="${rect.index}" x="${rect.x.toFixed(2)}" y="${rect.y.toFixed(2)}" width="${rect.width.toFixed(2)}" height="${rect.height.toFixed(2)}" class="roll-note${selectedIndex === rect.index ? " selected" : ""}${conflict ? " conflict" : ""}"><title>MIDI ${rect.pitch}${conflict ? " · 同起点冲突" : ""}</title></rect>`;
+    })
     .join("");
-  const durationSeconds = (endBeat * 60) / (evidence?.bpm || 120);
+  const durationSeconds = (endBeat * 60) / bpm;
   const pitchY = (pitch: number) =>
     ((highPitch - pitch + 0.5) / (highPitch - lowPitch + 1)) * height;
   const timeX = (seconds: number) =>
     Math.max(0, Math.min(width, (seconds / durationSeconds) * width));
   const threshold = evidence?.periodicityThreshold ?? 0.4;
+  const performanceRects = performanceNotes
+    .map((note) => {
+      const x = timeX(note.startSeconds);
+      const endX = timeX(note.endSeconds);
+      const y = pitchY(note.pitchMidi) - rowHeight / 2;
+      return `<rect class="performance-note" x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${Math.max(2, endX - x).toFixed(2)}" height="${Math.max(3, rowHeight - 1).toFixed(2)}"><title>演唱版 MIDI ${note.pitchMidi}</title></rect>`;
+    })
+    .join("");
   const f0Runs: string[][] = [];
   let currentRun: string[] = [];
   for (const frame of evidence?.frames ?? []) {
@@ -114,5 +154,5 @@ export function renderPianoRoll(
       return `<g class="boundary-guide ${boundary.status}"><line x1="${originalX.toFixed(2)}" y1="${y.toFixed(2)}" x2="${proposedX.toFixed(2)}" y2="${y.toFixed(2)}" /><line x1="${originalX.toFixed(2)}" y1="${(y - 7).toFixed(2)}" x2="${originalX.toFixed(2)}" y2="${(y + 7).toFixed(2)}" /><line x1="${proposedX.toFixed(2)}" y1="${(y - 9).toFixed(2)}" x2="${proposedX.toFixed(2)}" y2="${(y + 9).toFixed(2)}" /></g>`;
     })
     .join("");
-  return `<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="钢琴卷帘">${beatLines}${f0Paths}${boundaryGuides}${noteRects}</svg>`;
+  return `<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="钢琴卷帘">${beatLines}${performanceRects}${f0Paths}${boundaryGuides}${noteRects}</svg>`;
 }

@@ -218,6 +218,16 @@ try {
       confidence: 0.9,
       origin: "model",
     })),
+    performance_notes: [60, 64].map((pitch, index) => ({
+      id: `saved-${index}`,
+      source_note_ids: [`source-${index}`],
+      pitch_midi: pitch,
+      source_start_ms: index * 500 + 30,
+      source_end_ms: index * 500 + 470,
+      confidence: 0.9,
+      origin: "model",
+      pitch_bends: [],
+    })),
     transcription_evidence: {
       note_model: {
         name: "GAME medium",
@@ -330,8 +340,10 @@ try {
     .waitFor({ state: "attached" });
   await page.selectOption("#recent-project", "editor-check");
   await page.waitForFunction(
-    () => document.querySelectorAll("#piano rect").length === 2,
+    () => document.querySelectorAll("#piano .roll-note").length === 2,
   );
+  assert.equal(await page.locator("#piano .performance-note").count(), 2);
+  await page.selectOption("#playback-version", "performance");
   await page.selectOption("#quantize-grid", "0.3333333333333333");
   await page.fill("#quantize-strength", "50");
   await page.fill("#quantize-offset", "40");
@@ -339,6 +351,7 @@ try {
   await page.waitForFunction(() =>
     document.querySelector("#quantization-result").textContent.includes("1 处"),
   );
+  assert.equal(await page.locator("#piano .roll-note.conflict").count(), 2);
   assert.equal(requantizeRequest.grid, 1 / 3);
   assert.equal(requantizeRequest.strength, 0.5);
   assert.equal(requantizeRequest.offset_ms, 40);

@@ -111,6 +111,20 @@
   cursor: pointer;
 }
 
+.piano-roll .performance-note {
+  fill: #137b7014;
+  stroke: #137b70;
+  stroke-width: 1.4;
+  stroke-dasharray: 4 2;
+  pointer-events: none;
+  vector-effect: non-scaling-stroke;
+}
+
+.piano-roll .roll-note.conflict {
+  fill: #d69a28;
+  stroke: #7a5613;
+}
+
 .piano-roll .roll-note.selected {
   fill: #f1b08d;
   stroke: #641f0e;
