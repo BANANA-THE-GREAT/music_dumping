@@ -205,6 +205,11 @@ def build_real_project(
             "audio_object_key": object_key,
             "vocal_object_key": f"work/{work_dir.name}/{vocal.relative_to(work_dir).as_posix()}",
         },
+        "transcription_input": {
+            "variant": "vocal_stem",
+            "object_key": f"work/{work_dir.name}/{vocal.relative_to(work_dir).as_posix()}",
+            "separator": type(separator).__name__,
+        },
         "analysis": {
             "tempo_map": [{"time_ms": 0, "bpm": bpm}],
             "meter_map": [{"beat": 0, "numerator": numerator, "denominator": denominator}],

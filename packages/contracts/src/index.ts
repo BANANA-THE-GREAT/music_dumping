@@ -138,6 +138,11 @@ export interface ScoreProject {
     audio_object_key: string;
     vocal_object_key: string | null;
   };
+  transcription_input?: {
+    variant: "source" | "vocal_stem";
+    object_key: string;
+    separator?: string | null;
+  } | null;
   analysis: {
     tempo_map: Array<{ time_ms: number; bpm: number }>;
     meter_map: Array<{ beat: number; numerator: number; denominator: number }>;

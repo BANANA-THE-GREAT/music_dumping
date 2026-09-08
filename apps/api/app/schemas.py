@@ -104,6 +104,12 @@ class SourceAudio(BaseModel):
     vocal_object_key: str | None = None
 
 
+class TranscriptionInput(BaseModel):
+    variant: Literal["source", "vocal_stem"]
+    object_key: str
+    separator: str | None = None
+
+
 class ScoreNote(BaseModel):
     id: str
     source_start_ms: int = Field(ge=0)
@@ -221,6 +227,7 @@ class ScoreProject(BaseModel):
     score_name: str | None = None
     engine: str | None = None
     source: SourceAudio
+    transcription_input: TranscriptionInput | None = None
     analysis: Analysis
     notes: list[ScoreNote]
     performance_notes: list[PerformanceNote] | None = None
