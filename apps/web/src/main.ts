@@ -49,7 +49,7 @@ document
   .querySelector("#play")!
   .insertAdjacentHTML(
     "beforebegin",
-    `<select id="playback-version" aria-label="试听版本"><option value="score">谱面试听</option><option value="performance">演唱试听</option></select><label class="playback-loop"><input id="playback-loop" type="checkbox">片段循环</label>`,
+    `<select id="playback-version" aria-label="试听版本"><option value="score">谱面版</option><option value="performance">演唱版</option></select><select id="playback-mode" aria-label="试听音轨"><option value="mix-vocals" selected>谱面 + 人声</option><option value="score">只听谱面</option><option value="source">只听原曲</option><option value="vocals">只听人声</option><option value="mix-source">谱面 + 原曲</option></select><label class="playback-loop"><input id="playback-loop" type="checkbox">片段循环</label>`,
   );
 document
   .querySelector(".toolbar")!
@@ -61,7 +61,7 @@ document
   .querySelector(".edit-actions")!
   .insertAdjacentHTML(
     "afterend",
-    `<section class="waveform-panel"><span>源音频波形</span><canvas id="waveform" width="900" height="100"></canvas></section>`,
+    `<section class="playback-controls"><p class="context-help"><strong>演唱版</strong>保留真实演唱时间；<strong>谱面版</strong>对齐节拍网格，适合阅读和演奏。</p><label>谱面音量 <output id="score-volume-value">80%</output><input id="score-volume" type="range" min="0" max="100" value="80"></label><label>原曲音量 <output id="source-volume-value">35%</output><input id="source-volume" type="range" min="0" max="100" value="35"></label><label>人声音量 <output id="vocal-volume-value">55%</output><input id="vocal-volume" type="range" min="0" max="100" value="55"></label><label>音频偏移 ms <input id="audio-offset" type="number" min="-2000" max="2000" step="10" value="0"></label><small>只做统一平移，不改变 tempo 或音符时值</small></section><section class="waveform-panel"><span>源音频波形</span><canvas id="waveform" width="900" height="100"></canvas></section>`,
   );
 document
   .querySelector(".tabs")!
@@ -108,16 +108,16 @@ $(".waveform-panel").insertAdjacentHTML(
 );
 $(".melody-controls").insertAdjacentHTML(
   "afterend",
-  `<section class="quantization-controls"><label class="toggle"><input id="quantize-enabled" type="checkbox" checked> 量化</label><label>网格<select id="quantize-grid"><option value="0.125">1/8 拍</option><option value="0.16666666666666666">六连音</option><option value="0.25" selected>1/4 拍</option><option value="0.3333333333333333">三连音</option><option value="0.5">1/2 拍</option><option value="1">1 拍</option></select></label><label>强度 <output id="quantize-strength-value">100%</output><input id="quantize-strength" type="range" min="0" max="100" value="100"></label><label>节拍偏移 ms<input id="quantize-offset" type="number" min="-10000" max="10000" value="0"></label><button id="apply-quantization" disabled>应用量化</button><output id="quantization-result"></output></section>`,
+  `<section class="quantization-controls"><p class="context-help"><strong>量化</strong>只修改谱面版，把音符吸附到节拍网格；演唱版的真实时间不会改变。</p><label class="toggle"><input id="quantize-enabled" type="checkbox" checked> 量化</label><label>网格<select id="quantize-grid"><option value="0.125">1/8 拍</option><option value="0.16666666666666666">六连音</option><option value="0.25" selected>1/4 拍</option><option value="0.3333333333333333">三连音</option><option value="0.5">1/2 拍</option><option value="1">1 拍</option></select></label><label>强度 <output id="quantize-strength-value">100%</output><input id="quantize-strength" type="range" min="0" max="100" value="100"></label><label>节拍偏移 ms<input id="quantize-offset" type="number" min="-10000" max="10000" value="0"></label><button id="apply-quantization" disabled>应用量化</button><output id="quantization-result"></output></section>`,
 );
 $(".quantization-controls").insertAdjacentHTML(
   "afterend",
-  `<section id="boundary-review" class="boundary-review hidden" aria-label="F0 止音建议"><header><strong>止音建议</strong><output id="boundary-summary"></output></header><div id="boundary-list"></div></section>`,
+    `<section id="boundary-review" class="boundary-review hidden" aria-label="F0 止音建议"><header><strong>止音建议</strong><output id="boundary-summary"></output></header><p class="context-help">根据 F0 发声证据提示音符可能应提前或延后结束，只在接受后修改音符。</p><div class="boundary-batch"><label>自动接受阈值 <output id="boundary-threshold-value">85%</output><input id="boundary-threshold" type="range" min="0" max="100" value="85"></label><button id="preview-boundaries" type="button">预览高置信建议</button><button id="accept-boundaries" type="button">批量接受</button><button id="reset-boundaries" type="button">撤销最近批次</button><output id="boundary-batch-result"></output></div><div id="boundary-list"></div></section>`,
 );
 const vocalPreview = new VocalPreview(audio, $("#vocal-preview"));
 audio.insertAdjacentHTML(
   "afterend",
-  `<div class="field"><label>处理引擎</label><select id="engine"><option value="server-high">后端高质量 · Demucs</option><option value="server-experimental">实验 · GAME + F0</option><option value="server-demo">后端演示 · 快速</option><option value="local">浏览器本地模式</option></select><small>实验模式需要 quality Worker</small></div>`,
+  `<div class="field"><label>处理引擎</label><select id="engine"><option value="server-high">Basic Pitch · Demucs</option><option value="server-experimental" selected>GAME + F0 · 推荐</option><option value="server-demo">后端演示 · 快速</option><option value="local">浏览器本地模式</option></select><small>GAME + F0 需要 quality Worker，未配置时不会静默回退</small></div>`,
 );
 document
   .querySelector("aside")!
@@ -148,9 +148,15 @@ let analysis: MusicalAnalysis = {
   confidence: { bpm: 0, meter: 0, key: 0 },
 };
 const scorePlayer = new ScorePlayer();
+const vocalMixAudio = document.createElement("audio");
+vocalMixAudio.preload = "auto";
+vocalMixAudio.className = "hidden-audio";
+document.body.append(vocalMixAudio);
 let playing = false;
 let syncingAudio = false;
 let syncedAudioRange: { start: number; end: number; loop: boolean } | null = null;
+let sourceAudioUrl = "";
+let vocalsAudioUrl = "";
 let transcriptionBusy = false;
 let taskAbort: AbortController | null = null;
 let activeJobId: string | null = null;
@@ -419,17 +425,23 @@ function renderBoundaryReview() {
         `<div class="boundary-row"><button class="boundary-locate" data-boundary-locate="${encodeURIComponent(suggestion.source_note_id)}" title="定位并试听" aria-label="定位并试听">▶</button><div class="boundary-change"><strong>${boundaryTime(suggestion.original_end_ms)} → ${boundaryTime(suggestion.proposed_end_ms)}</strong><span>${boundaryReasonLabel(suggestion)} · ${boundaryDeltaLabel(suggestion)}</span></div><meter min="0" max="1" value="${suggestion.confidence}" title="F0 置信度 ${Math.round(suggestion.confidence * 100)}%"></meter><output>${Math.round(suggestion.confidence * 100)}%</output><div class="boundary-actions">${reviewActions(suggestion)}</div></div>`,
     )
     .join("");
+  const threshold = Number($<HTMLInputElement>("#boundary-threshold").value) / 100;
+  const eligible = pending.filter((suggestion) => suggestion.confidence >= threshold).length;
+  $("#boundary-batch-result").textContent = `${eligible} 条建议达到阈值`;
+  $<HTMLButtonElement>("#accept-boundaries").disabled = editSaving || transcriptionBusy || eligible === 0;
+  $<HTMLButtonElement>("#reset-boundaries").disabled = editSaving || transcriptionBusy || !serverProject.transcription_evidence?.last_boundary_batch_id;
   panel
     .querySelectorAll<HTMLButtonElement>("button")
     .forEach((button) => (button.disabled = editSaving || transcriptionBusy));
 }
 async function loadServerAudio(project: ApiScoreProject) {
   const url = api.audioUrl(project.project_id);
+  sourceAudioUrl = url;
+  vocalsAudioUrl = project.source.vocal_object_key ? api.audioUrl(project.project_id, "vocals") : "";
+  vocalMixAudio.src = vocalsAudioUrl;
   vocalPreview.setSource(url);
   vocalPreview.setVocals(
-    project.source.vocal_object_key
-      ? api.audioUrl(project.project_id, "vocals")
-      : "",
+    vocalsAudioUrl,
   );
   try {
     const response = await fetch(url);
@@ -607,13 +619,13 @@ async function resumeActiveJob() {
 async function refreshProjects() {
   const select = $<HTMLSelectElement>("#recent-project");
   try {
-    const projects = await api.listProjects();
+    const projects = await api.listProjectCatalog();
     select.innerHTML =
       `<option value="">选择已保存项目…</option>` +
       projects
         .map(
           (project) =>
-            `<option value="${project.project_id}">${project.file_name} · ${project.note_count} 音符 · r${project.revision}</option>`,
+            `<option value="${project.project_id}">${project.project_name} / ${project.score_name} · ${project.engine} · ${project.note_count} 音符</option>`,
         )
         .join("");
     if (serverProject) select.value = serverProject.project_id;
@@ -649,6 +661,50 @@ $<HTMLSelectElement>("#recent-project").addEventListener(
     }
   },
 );
+$<HTMLInputElement>("#boundary-threshold").addEventListener("input", () => {
+  $("#boundary-threshold-value").textContent = `${$<HTMLInputElement>("#boundary-threshold").value}%`;
+  renderBoundaryReview();
+});
+$("#preview-boundaries").addEventListener("click", () => {
+  renderBoundaryReview();
+  const threshold = Number($<HTMLInputElement>("#boundary-threshold").value);
+  status(`已筛选置信度不低于 ${threshold}% 的止音建议`);
+});
+$("#accept-boundaries").addEventListener("click", async () => {
+  if (!serverProject) return;
+  const threshold = Number($<HTMLInputElement>("#boundary-threshold").value) / 100;
+  const count = (serverProject.transcription_evidence?.boundary_suggestions ?? []).filter(
+    (suggestion) => suggestion.review_status === "pending" && suggestion.confidence >= threshold,
+  ).length;
+  if (!count || !confirm(`将批量接受 ${count} 条止音建议，是否继续？`)) return;
+  try {
+    serverProject = await api.reviewBoundaryBatch(serverProject.project_id, {
+      expected_revision: serverProject.revision,
+      threshold,
+      action: "accept",
+    });
+    applyApiProject(serverProject);
+    await render();
+    status(`已批量接受 ${count} 条止音建议`);
+  } catch (error) {
+    status(`批量接受失败：${error instanceof Error ? error.message : "未知错误"}`);
+  }
+});
+$("#reset-boundaries").addEventListener("click", async () => {
+  if (!serverProject) return;
+  try {
+    serverProject = await api.reviewBoundaryBatch(serverProject.project_id, {
+      expected_revision: serverProject.revision,
+      threshold: 0,
+      action: "reset",
+    });
+    applyApiProject(serverProject);
+    await render();
+    status("已撤销最近一批止音建议");
+  } catch (error) {
+    status(`撤销失败：${error instanceof Error ? error.message : "未知错误"}`);
+  }
+});
 $("#refresh-projects").addEventListener("click", () => void refreshProjects());
 $("#delete-project").addEventListener("click", async () => {
   const projectId = $<HTMLSelectElement>("#recent-project").value;
@@ -1429,6 +1485,7 @@ function stop() {
   syncingAudio = false;
   syncedAudioRange = null;
   audio.pause();
+  vocalMixAudio.pause();
   playing = false;
   play.textContent = "▶ 演奏";
   document
@@ -1441,6 +1498,7 @@ play.addEventListener("click", async () => {
   playing = true;
   play.textContent = "■ 停止";
   audio.pause();
+  vocalMixAudio.pause();
   try {
     const performancePlayback =
       $<HTMLSelectElement>("#playback-version").value === "performance" &&
@@ -1467,6 +1525,20 @@ play.addEventListener("click", async () => {
       ? (selected.startBeat + selected.durationBeats) * beatMs / 1000
       : Math.max(...allPlaybackNotes.map((note) => note.startTimeSeconds + note.durationSeconds), 0);
     const loopEnabled = $<HTMLInputElement>("#playback-loop").checked;
+    const playbackMode = $<HTMLSelectElement>("#playback-mode").value;
+    const offsetSeconds = Number($<HTMLInputElement>("#audio-offset").value || 0) / 1000;
+    const audioEnabled = playbackMode !== "score";
+    const sourceEnabled = playbackMode === "source" || playbackMode === "mix-source";
+    const vocalsEnabled = playbackMode === "vocals" || playbackMode === "mix-vocals";
+    const scoreEnabled = playbackMode === "score" || playbackMode === "mix-source" || playbackMode === "mix-vocals";
+    if (sourceEnabled) {
+      audio.src = sourceAudioUrl || audio.src;
+      audio.volume = Number($<HTMLInputElement>("#source-volume").value) / 100;
+    } else if (vocalsEnabled) {
+      audio.src = vocalsAudioUrl || audio.src;
+      audio.volume = Number($<HTMLInputElement>("#vocal-volume").value) / 100;
+    }
+    vocalMixAudio.volume = Number($<HTMLInputElement>(sourceEnabled ? "#vocal-volume" : "#source-volume").value) / 100;
     const playbackNotes = selected
       ? allPlaybackNotes
           .filter((note) => note.startTimeSeconds < clipEndSeconds && note.startTimeSeconds + note.durationSeconds > clipStartSeconds)
@@ -1517,19 +1589,26 @@ play.addEventListener("click", async () => {
             stop();
           }
         },
+        Number($<HTMLInputElement>("#score-volume").value) / 100,
       );
     };
-    if (sourceBuffer && clipEndSeconds > clipStartSeconds) {
+    if (audioEnabled && sourceBuffer && clipEndSeconds > clipStartSeconds) {
       syncingAudio = true;
       syncedAudioRange = {
-        start: clipStartSeconds,
-        end: clipEndSeconds,
+        start: Math.max(0, clipStartSeconds + offsetSeconds),
+        end: Math.max(0, clipEndSeconds + offsetSeconds),
         loop: loopEnabled,
       };
-      audio.currentTime = Math.min(clipStartSeconds, audio.duration || clipStartSeconds);
-      await audio.play();
+      audio.currentTime = Math.max(0, Math.min(clipStartSeconds + offsetSeconds, audio.duration || clipStartSeconds + offsetSeconds));
+      if (sourceEnabled && vocalsAudioUrl) {
+        vocalMixAudio.currentTime = Math.max(0, Math.min(clipStartSeconds + offsetSeconds, vocalMixAudio.duration || clipStartSeconds + offsetSeconds));
+        await Promise.all([audio.play(), vocalMixAudio.play()]);
+      } else await audio.play();
     }
-    await playClip();
+    if (scoreEnabled) await playClip();
+    else if (audioEnabled) {
+      audio.addEventListener("ended", stop, { once: true });
+    }
   } catch (error) {
     stop();
     status(`播放失败：${error instanceof Error ? error.message : "未知错误"}`);
@@ -1543,6 +1622,7 @@ audio.addEventListener("timeupdate", () => {
   if (audio.currentTime < syncedAudioRange.end) return;
   if (syncedAudioRange.loop) {
     audio.currentTime = syncedAudioRange.start;
+    vocalMixAudio.currentTime = syncedAudioRange.start;
   } else {
     stop();
   }
@@ -1550,6 +1630,27 @@ audio.addEventListener("timeupdate", () => {
 audio.addEventListener("ended", () => {
   if (syncingAudio && playing) stop();
 });
+vocalMixAudio.addEventListener("timeupdate", () => {
+  if (syncingAudio && playing && syncedAudioRange && vocalMixAudio.currentTime >= syncedAudioRange.end && syncedAudioRange.loop) {
+    vocalMixAudio.currentTime = syncedAudioRange.start;
+  }
+});
+for (const [id, output] of [["score-volume", "score-volume-value"], ["source-volume", "source-volume-value"], ["vocal-volume", "vocal-volume-value"]] as const) {
+  $<HTMLInputElement>(`#${id}`).addEventListener("input", () => {
+    const value = $<HTMLInputElement>(`#${id}`).value;
+    $(`#${output}`).textContent = `${value}%`;
+    localStorage.setItem(`vocal-score.${id}`, value);
+    if (id === "source-volume" && audio.src === sourceAudioUrl) audio.volume = Number(value) / 100;
+    if (id === "vocal-volume" && audio.src === vocalsAudioUrl) audio.volume = Number(value) / 100;
+  });
+  const saved = localStorage.getItem(`vocal-score.${id}`);
+  if (saved) $<HTMLInputElement>(`#${id}`).value = saved;
+}
+$<HTMLInputElement>("#audio-offset").addEventListener("change", () => {
+  localStorage.setItem("vocal-score.audio-offset", $<HTMLInputElement>("#audio-offset").value);
+});
+const savedAudioOffset = localStorage.getItem("vocal-score.audio-offset");
+if (savedAudioOffset) $<HTMLInputElement>("#audio-offset").value = savedAudioOffset;
 window.addEventListener("pagehide", stop);
 function midiVersion() {
   return $<HTMLSelectElement>("#midi-version").value as

@@ -99,11 +99,18 @@ export interface BoundarySuggestion {
   reviewed_revision?: number | null;
   accepted_from_origin?: "model" | "user" | null;
   accepted_from_quantized_duration?: number | null;
+  review_batch_id?: string | null;
 }
 export interface TranscriptionEvidence {
   note_model: ModelProvenance;
   f0_track?: F0TrackArtifact | null;
   boundary_suggestions: BoundarySuggestion[];
+  last_boundary_batch_id?: string | null;
+}
+export interface BoundaryBatchReviewRequest {
+  expected_revision: number;
+  threshold: number;
+  action: "preview" | "accept" | "reset";
 }
 export interface ScoreProject {
   schema_version: "1.0";

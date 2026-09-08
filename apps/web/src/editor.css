@@ -21,6 +21,12 @@
   gap: 5px;
   padding: 10px 0;
   border-bottom: 1px solid #e5ded2;
+  position: sticky;
+  top: 12px;
+  z-index: 5;
+  background: #fffdf8;
+  width: max-content;
+  max-width: 100%;
 }
 
 .actions {
@@ -173,6 +179,36 @@
   padding: 10px 0 0;
 }
 
+.playback-controls {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(120px, 1fr));
+  gap: 10px;
+  padding: 12px 0;
+  border-bottom: 1px solid #ded6ca;
+}
+.playback-controls label {
+  display: grid;
+  gap: 5px;
+  color: #71695e;
+  font-size: 11px;
+}
+.playback-controls input[type="number"] {
+  width: 110px;
+}
+.playback-controls .context-help,
+.playback-controls > small {
+  grid-column: 1 / -1;
+}
+.context-help {
+  margin: 0;
+  color: #8a8174;
+  font-size: 11px;
+  line-height: 1.5;
+}
+.context-help strong {
+  color: #5f584e;
+}
+
 .waveform-panel > span {
   display: block;
   margin-bottom: 5px;
@@ -272,6 +308,32 @@
 .boundary-review {
   padding: 14px 0;
   border-bottom: 1px solid #ded6ca;
+}
+.boundary-batch {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 8px;
+  margin: 8px 0;
+}
+.boundary-batch label {
+  display: grid;
+  gap: 4px;
+  color: #71695e;
+  font-size: 11px;
+}
+.boundary-batch button {
+  min-height: 30px;
+  padding: 5px 8px;
+  border: 1px solid #d6cbbc;
+  background: #fffdf8;
+  color: #5f584e;
+  cursor: pointer;
+}
+.boundary-batch output:last-child {
+  flex-basis: 100%;
+  color: #50766e;
+  font-size: 10px;
 }
 .boundary-review > header {
   display: flex;
@@ -449,6 +511,17 @@
   }
   .boundary-actions {
     min-width: 65px;
+  }
+  .edit-actions {
+    position: sticky;
+    top: 0;
+    width: 100%;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    padding: 8px 0;
+  }
+  .playback-controls {
+    grid-template-columns: repeat(2, minmax(120px, 1fr));
   }
 }
 @media (prefers-reduced-motion: reduce) {

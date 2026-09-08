@@ -77,6 +77,7 @@ export class ScorePlayer {
     bpm: number,
     highlight: (indices: number[]) => void,
     ended: () => void,
+    volume = 0.8,
   ) {
     this.stop();
     const generation = this.generation;
@@ -89,7 +90,7 @@ export class ScorePlayer {
     await context.resume();
     if (generation !== this.generation) return;
     const master = (this.master = context.createGain());
-    master.gain.value = 0.8;
+    master.gain.value = Math.max(0, Math.min(1, volume));
     const compressor = context.createDynamicsCompressor();
     master.connect(compressor).connect(context.destination);
     this.clearHighlight = () => highlight([]);

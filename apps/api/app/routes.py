@@ -1,5 +1,6 @@
 import math
 import time
+from uuid import uuid4
 from collections.abc import Iterator
 from typing import Annotated, Literal
 
@@ -17,6 +18,7 @@ from app.project_service import requantize
 from app.repository import create_job, create_upload, job_response
 from app.schemas import (
     BoundarySuggestionReviewRequest,
+    BoundaryBatchReviewRequest,
     JobCreate,
     JobResponse,
     JobStage,
@@ -204,6 +206,17 @@ def rename_project(project_id: str, request: ProjectRenameRequest, session: Sess
     record, project = _editable_project(project_id, request.expected_revision, session)
     project.score_name = request.name
     return _save_project(record, project, session)
+
+
+@router.patch("/uploads/{upload_id}/name", response_model=UploadResponse)
+def rename_audio_project(upload_id: str, request: ProjectRenameRequest, session: SessionDep) -> UploadResponse:
+    upload = session.get(UploadRecord, upload_id)
+    if upload is None:
+        raise HTTPException(status_code=404, detail="Upload not found")
+    upload.project_name = request.name
+    session.commit()
+    session.refresh(upload)
+    return UploadResponse.model_validate(upload, from_attributes=True)
 
 
 @router.get("/projects/{project_id}/exports/midi")
@@ -435,6 +448,73 @@ def review_boundary_suggestion(
             parameters={"suggestion_id": suggestion.id, "action": request.action},
         )
     )
+    return _save_project(record, project, session)
+
+
+@router.post("/projects/{project_id}/boundary-suggestions/batch", response_model=ScoreProject)
+def review_boundary_batch(
+    project_id: str,
+    request: BoundaryBatchReviewRequest,
+    session: SessionDep,
+) -> ScoreProject:
+    record, project = _editable_project(project_id, request.expected_revision, session)
+    evidence = project.transcription_evidence
+    if evidence is None:
+        raise HTTPException(status_code=404, detail={"code": "SUGGESTION_NOT_FOUND"})
+    pending = [
+        item for item in evidence.boundary_suggestions
+        if item.review_status == "pending" and item.confidence >= request.threshold
+    ]
+    if request.action == "preview":
+        return project
+    if request.action == "reset":
+        batch_id = evidence.last_boundary_batch_id
+        if not batch_id:
+            raise HTTPException(status_code=409, detail={"code": "NO_BOUNDARY_BATCH"})
+        restored = 0
+        for suggestion in evidence.boundary_suggestions:
+            if suggestion.review_batch_id != batch_id or suggestion.review_status != "accepted":
+                continue
+            target = next((note for note in project.notes if suggestion.source_note_id in note.source_note_ids), None)
+            performance_target = next((note for note in project.performance_notes or [] if suggestion.source_note_id in note.source_note_ids), None)
+            if target is None or performance_target is None or target.source_end_ms != suggestion.proposed_end_ms:
+                continue
+            target.source_end_ms = suggestion.original_end_ms
+            target.quantized_duration = suggestion.accepted_from_quantized_duration or max(0.01, (target.source_end_ms - target.source_start_ms) / (60_000 / project.analysis.tempo_map[0].bpm))
+            target.origin = suggestion.accepted_from_origin or "model"
+            performance_target.source_end_ms = suggestion.original_end_ms
+            performance_target.origin = suggestion.accepted_from_origin or "model"
+            suggestion.review_status = "pending"
+            suggestion.reviewed_revision = None
+            suggestion.review_batch_id = None
+            suggestion.accepted_from_origin = None
+            suggestion.accepted_from_quantized_duration = None
+            restored += 1
+        evidence.last_boundary_batch_id = None
+        project.pipeline.append(PipelineStep(stage="boundary_suggestion_batch_reset", version="1", parameters={"restored": restored, "batch_id": batch_id}))
+        return _save_project(record, project, session)
+
+    batch_id = str(uuid4())
+    changed = 0
+    beat_ms = 60_000 / project.analysis.tempo_map[0].bpm
+    for suggestion in pending:
+        target = next((note for note in project.notes if suggestion.source_note_id in note.source_note_ids), None)
+        performance_target = next((note for note in project.performance_notes or [] if suggestion.source_note_id in note.source_note_ids), None)
+        if target is None or performance_target is None or target.source_end_ms != suggestion.original_end_ms:
+            continue
+        suggestion.accepted_from_origin = target.origin
+        suggestion.accepted_from_quantized_duration = target.quantized_duration
+        target.source_end_ms = suggestion.proposed_end_ms
+        target.quantized_duration = max(0.01, (target.source_end_ms - target.source_start_ms) / beat_ms)
+        target.origin = "user"
+        performance_target.source_end_ms = suggestion.proposed_end_ms
+        performance_target.origin = "user"
+        suggestion.review_status = "accepted"
+        suggestion.review_batch_id = batch_id
+        suggestion.reviewed_revision = record.revision + 1
+        changed += 1
+    evidence.last_boundary_batch_id = batch_id if changed else None
+    project.pipeline.append(PipelineStep(stage="boundary_suggestion_batch_accept", version="1", parameters={"threshold": request.threshold, "accepted": changed, "batch_id": batch_id}))
     return _save_project(record, project, session)
 
 

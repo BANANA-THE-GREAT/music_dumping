@@ -1,5 +1,6 @@
 import type {
   BoundarySuggestionReviewRequest,
+  BoundaryBatchReviewRequest,
   F0Frame,
   JobResponse,
   MelodyOptions,
@@ -82,6 +83,13 @@ export class VocalScoreApi {
       body: JSON.stringify({ expected_revision: expectedRevision, name }),
     });
   }
+  renameAudioProject(id: string, name: string): Promise<UploadResponse> {
+    return this.request(`/v1/uploads/${id}/name`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ expected_revision: 1, name }),
+    });
+  }
   deleteProject(id: string): Promise<void> {
     return this.request(`/v1/projects/${id}`, { method: "DELETE" });
   }
@@ -109,6 +117,13 @@ export class VocalScoreApi {
         body: JSON.stringify(request),
       },
     );
+  }
+  reviewBoundaryBatch(id: string, request: BoundaryBatchReviewRequest): Promise<ScoreProject> {
+    return this.request(`/v1/projects/${id}/boundary-suggestions/batch`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(request),
+    });
   }
   requantizeProject(
     id: string,
