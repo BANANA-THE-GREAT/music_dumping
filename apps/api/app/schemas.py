@@ -131,6 +131,19 @@ class PerformanceNote(BaseModel):
     pitch_bends: list[PitchBendPoint] = Field(default_factory=list)
 
 
+class QuantizationConflict(BaseModel):
+    beat: float = Field(ge=0)
+    note_ids: list[str] = Field(min_length=2)
+
+
+class QuantizationSettings(BaseModel):
+    enabled: bool = True
+    grid: float = Field(default=0.25, gt=0)
+    strength: float = Field(default=1, ge=0, le=1)
+    offset_ms: int = 0
+    conflicts: list[QuantizationConflict] = Field(default_factory=list)
+
+
 class PipelineStep(BaseModel):
     stage: str
     version: str
@@ -196,6 +209,7 @@ class ScoreProject(BaseModel):
     analysis: Analysis
     notes: list[ScoreNote]
     performance_notes: list[PerformanceNote] | None = None
+    quantization: QuantizationSettings = Field(default_factory=QuantizationSettings)
     raw_notes: list[ScoreNote] | None = None
     transcription_evidence: TranscriptionEvidence | None = None
     pipeline: list[PipelineStep]
@@ -252,14 +266,19 @@ class RequantizeRequest(BaseModel):
     denominator: Literal[2, 4, 8, 16]
     tonic: int = Field(ge=0, le=11)
     mode: Literal["major", "minor"]
+    enabled: bool = True
     grid: float = 0.25
+    strength: float = Field(default=1, ge=0, le=1)
+    offset_ms: int = Field(default=0, ge=-10_000, le=10_000)
 
     @field_validator("grid")
     @classmethod
     def validate_grid(cls, value: float) -> float:
-        if value not in {0.125, 0.25, 0.5, 1.0}:
-            raise ValueError("grid must be one of 0.125, 0.25, 0.5, or 1.0")
-        return value
+        choices = (0.125, 1 / 6, 0.25, 1 / 3, 0.5, 1.0)
+        closest = min(choices, key=lambda choice: abs(choice - value))
+        if abs(closest - value) > 1e-6:
+            raise ValueError("grid must be a supported straight or triplet value")
+        return closest
 
 
 class ErrorResponse(BaseModel):

@@ -200,6 +200,13 @@ try {
       key_map: [{ beat: 0, tonic: 0, mode: "major" }],
       confidence: { tempo: 0.9, meter: 0.9, key: 0.9 },
     },
+    quantization: {
+      enabled: true,
+      grid: 0.25,
+      strength: 1,
+      offset_ms: 0,
+      conflicts: [],
+    },
     notes: [60, 64].map((pitch, index) => ({
       id: `saved-${index}`,
       source_note_ids: [`source-${index}`],
@@ -289,6 +296,23 @@ try {
       await route.fulfill({ json: project });
     },
   );
+  let requantizeRequest;
+  await page.route(
+    "**/api/v1/projects/editor-check/requantize",
+    async (route) => {
+      requantizeRequest = route.request().postDataJSON();
+      assert.equal(requantizeRequest.expected_revision, project.revision);
+      project.quantization = {
+        enabled: requantizeRequest.enabled,
+        grid: requantizeRequest.grid,
+        strength: requantizeRequest.strength,
+        offset_ms: requantizeRequest.offset_ms,
+        conflicts: [{ beat: 1, note_ids: ["saved-0", "saved-1"] }],
+      };
+      project.revision++;
+      await route.fulfill({ json: project });
+    },
+  );
   await page.route("**/api/v1/projects/editor-check", async (route) => {
     if (route.request().method() === "PATCH") {
       const body = route.request().postDataJSON();
@@ -308,6 +332,16 @@ try {
   await page.waitForFunction(
     () => document.querySelectorAll("#piano rect").length === 2,
   );
+  await page.selectOption("#quantize-grid", "0.3333333333333333");
+  await page.fill("#quantize-strength", "50");
+  await page.fill("#quantize-offset", "40");
+  await page.click("#apply-quantization");
+  await page.waitForFunction(() =>
+    document.querySelector("#quantization-result").textContent.includes("1 处"),
+  );
+  assert.equal(requantizeRequest.grid, 1 / 3);
+  assert.equal(requantizeRequest.strength, 0.5);
+  assert.equal(requantizeRequest.offset_ms, 40);
   await page.locator(".boundary-locate").click();
   assert.equal(await page.locator("#piano").isVisible(), true);
   assert.equal(await page.locator("#piano .f0-track").count(), 1);
@@ -326,12 +360,12 @@ try {
   await page.locator('#jianpu [data-note="0"]').first().click();
   await page.click("#pitch-up");
   await page.waitForFunction(() =>
-    document.querySelector("#status").textContent.includes("修订 4"),
+    document.querySelector("#status").textContent.includes("修订 5"),
   );
   assert.equal(project.notes[0].pitch_midi, 61);
   await page.click("#undo");
   await page.waitForFunction(() =>
-    document.querySelector("#status").textContent.includes("修订 5"),
+    document.querySelector("#status").textContent.includes("修订 6"),
   );
   assert.equal(project.notes[0].pitch_midi, 60);
   assert.equal(saved.length, 2);
@@ -341,7 +375,7 @@ try {
   );
   assert.deepEqual(errors, []);
   console.log(
-    "PASS: F0 overlay, boundary accept/reset, server edit revision sequencing and local example reset (mock API only)",
+    "PASS: quantization controls, F0 overlay, boundary review, revision sequencing and local reset (mock API only)",
   );
   console.log(
     "PASS: staff selection, cross-view pitch editing, undo, numbered bars, split, example reset, Ctrl-wheel zoom, drag, desktop/mobile layout",

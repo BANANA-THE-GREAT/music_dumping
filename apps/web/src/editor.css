@@ -213,6 +213,39 @@
   color: #50766e;
   font-size: 12px;
 }
+.quantization-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 10px;
+  padding: 14px 0;
+  border-bottom: 1px solid #ded6ca;
+}
+.quantization-controls label {
+  display: grid;
+  gap: 5px;
+  font-size: 12px;
+}
+.quantization-controls .toggle {
+  display: flex;
+  align-items: center;
+  min-height: 34px;
+}
+.quantization-controls input[type="number"] {
+  width: 110px;
+}
+.quantization-controls button {
+  padding: 8px 12px;
+  border: 1px solid #c6d7d2;
+  background: #eaf4f0;
+  color: #185f52;
+  cursor: pointer;
+}
+.quantization-controls > output:last-child {
+  flex-basis: 100%;
+  color: #71695e;
+  font-size: 12px;
+}
 .boundary-review {
   padding: 14px 0;
   border-bottom: 1px solid #ded6ca;

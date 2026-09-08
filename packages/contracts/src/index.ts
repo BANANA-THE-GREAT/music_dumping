@@ -56,6 +56,13 @@ export interface PerformanceNote {
   origin: "model" | "user";
   pitch_bends: PitchBendPoint[];
 }
+export interface QuantizationSettings {
+  enabled: boolean;
+  grid: number;
+  strength: number;
+  offset_ms: number;
+  conflicts: Array<{ beat: number; note_ids: string[] }>;
+}
 export interface ModelProvenance {
   name: string;
   implementation: string;
@@ -114,6 +121,7 @@ export interface ScoreProject {
   };
   notes: ScoreProjectNote[];
   performance_notes?: PerformanceNote[] | null;
+  quantization?: QuantizationSettings;
   raw_notes?: ScoreProjectNote[] | null;
   transcription_evidence?: TranscriptionEvidence | null;
   pipeline: Array<{
@@ -138,7 +146,10 @@ export interface RequantizeRequest {
   denominator: 2 | 4 | 8 | 16;
   tonic: number;
   mode: "major" | "minor";
+  enabled?: boolean;
   grid: number;
+  strength?: number;
+  offset_ms?: number;
 }
 export interface BoundarySuggestionReviewRequest {
   expected_revision: number;

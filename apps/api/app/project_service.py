@@ -2,6 +2,8 @@ from app.schemas import (
     KeyPoint,
     MeterPoint,
     PipelineStep,
+    QuantizationConflict,
+    QuantizationSettings,
     RequantizeRequest,
     ScoreNote,
     ScoreProject,
@@ -11,26 +13,56 @@ from app.schemas import (
 
 def requantize(project: ScoreProject, request: RequantizeRequest) -> ScoreProject:
     milliseconds_per_beat = 60_000 / request.bpm
+    offset_beats = request.offset_ms / milliseconds_per_beat
     quantized: list[ScoreNote] = []
-    for note in project.performance_notes or []:
-        raw_start = note.source_start_ms / milliseconds_per_beat
-        raw_duration = (note.source_end_ms - note.source_start_ms) / milliseconds_per_beat
+    for performance_note in project.performance_notes or []:
+        raw_start = performance_note.source_start_ms / milliseconds_per_beat
+        raw_end = performance_note.source_end_ms / milliseconds_per_beat
+        if request.enabled:
+            snapped_start = (
+                round((raw_start - offset_beats) / request.grid) * request.grid
+                + offset_beats
+            )
+            snapped_end = (
+                round((raw_end - offset_beats) / request.grid) * request.grid
+                + offset_beats
+            )
+            start = raw_start + (snapped_start - raw_start) * request.strength
+            end = raw_end + (snapped_end - raw_end) * request.strength
+            minimum_duration = (
+                request.grid * request.strength if request.strength > 0 else 0.01
+            )
+        else:
+            start, end = raw_start, raw_end
+            minimum_duration = 0.01
         quantized.append(
             ScoreNote(
-                id=note.id,
-                source_start_ms=note.source_start_ms,
-                source_end_ms=note.source_end_ms,
-                source_note_ids=list(note.source_note_ids),
-                pitch_midi=note.pitch_midi,
-                confidence=note.confidence,
-                quantized_start=round(raw_start / request.grid) * request.grid,
-                quantized_duration=max(
-                    request.grid, round(raw_duration / request.grid) * request.grid
-                ),
-                origin=note.origin,
+                id=performance_note.id,
+                source_start_ms=performance_note.source_start_ms,
+                source_end_ms=performance_note.source_end_ms,
+                source_note_ids=list(performance_note.source_note_ids),
+                pitch_midi=performance_note.pitch_midi,
+                confidence=performance_note.confidence,
+                quantized_start=max(0, start),
+                quantized_duration=max(minimum_duration, end - start),
+                origin=performance_note.origin,
             )
         )
     project.notes = quantized
+    by_start: dict[float, list[str]] = {}
+    for score_note in quantized:
+        by_start.setdefault(round(score_note.quantized_start, 6), []).append(score_note.id)
+    project.quantization = QuantizationSettings(
+        enabled=request.enabled,
+        grid=request.grid,
+        strength=request.strength,
+        offset_ms=request.offset_ms,
+        conflicts=[
+            QuantizationConflict(beat=beat, note_ids=note_ids)
+            for beat, note_ids in sorted(by_start.items())
+            if len(note_ids) > 1
+        ],
+    )
 
     project.analysis.tempo_map = [TempoPoint(time_ms=0, bpm=request.bpm)]
     project.analysis.meter_map = [
@@ -40,7 +72,7 @@ def requantize(project: ScoreProject, request: RequantizeRequest) -> ScoreProjec
     project.pipeline.append(
         PipelineStep(
             stage="requantize",
-            version="2",
+            version="3",
             parameters={
                 "bpm": request.bpm,
                 "numerator": request.numerator,
@@ -48,6 +80,10 @@ def requantize(project: ScoreProject, request: RequantizeRequest) -> ScoreProjec
                 "tonic": request.tonic,
                 "mode": request.mode,
                 "grid": request.grid,
+                "enabled": request.enabled,
+                "strength": request.strength,
+                "offset_ms": request.offset_ms,
+                "conflicts": len(project.quantization.conflicts),
                 "source": "performance_notes",
             },
         )

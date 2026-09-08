@@ -102,6 +102,10 @@ $(".waveform-panel").insertAdjacentHTML(
 );
 $(".melody-controls").insertAdjacentHTML(
   "afterend",
+  `<section class="quantization-controls"><label class="toggle"><input id="quantize-enabled" type="checkbox" checked> 量化</label><label>网格<select id="quantize-grid"><option value="0.125">1/8 拍</option><option value="0.16666666666666666">六连音</option><option value="0.25" selected>1/4 拍</option><option value="0.3333333333333333">三连音</option><option value="0.5">1/2 拍</option><option value="1">1 拍</option></select></label><label>强度 <output id="quantize-strength-value">100%</output><input id="quantize-strength" type="range" min="0" max="100" value="100"></label><label>节拍偏移 ms<input id="quantize-offset" type="number" min="-10000" max="10000" value="0"></label><button id="apply-quantization" disabled>应用量化</button><output id="quantization-result"></output></section>`,
+);
+$(".quantization-controls").insertAdjacentHTML(
+  "afterend",
   `<section id="boundary-review" class="boundary-review hidden" aria-label="F0 止音建议"><header><strong>止音建议</strong><output id="boundary-summary"></output></header><div id="boundary-list"></div></section>`,
 );
 const vocalPreview = new VocalPreview(audio, $("#vocal-preview"));
@@ -231,6 +235,7 @@ async function load(file: File) {
   status("正在解码音频…");
   sourceFile = file;
   serverProject = null;
+  syncQuantization(null);
   clearF0Evidence();
   vocalPreview.setSource(URL.createObjectURL(file));
   localOriginalNotes = [];
@@ -311,6 +316,7 @@ async function runLocal() {
   if (!sourceBuffer) return;
   stop();
   serverProject = null;
+  syncQuantization(null);
   clearF0Evidence();
   scoreHistory = null;
   selectedNoteIndex = null;
@@ -363,6 +369,7 @@ function applyApiProject(project: ApiScoreProject) {
       key: project.analysis.confidence.key ?? 0,
     },
   };
+  syncQuantization(project);
 }
 function boundaryTime(milliseconds: number) {
   const minutes = Math.floor(milliseconds / 60_000);
@@ -647,6 +654,7 @@ $("#delete-project").addEventListener("click", async () => {
     if (serverProject?.project_id === projectId) {
       stop();
       serverProject = null;
+      syncQuantization(null);
       clearF0Evidence();
       scoreHistory = null;
       selectedNoteIndex = null;
@@ -699,6 +707,23 @@ function sync() {
   $("#bpmConfidence").textContent = conf(analysis.confidence.bpm);
   $("#meterConfidence").textContent = conf(analysis.confidence.meter);
   $("#keyConfidence").textContent = conf(analysis.confidence.key);
+}
+function syncQuantization(project: ApiScoreProject | null) {
+  const settings = project?.quantization;
+  $<HTMLInputElement>("#quantize-enabled").checked = settings?.enabled ?? true;
+  $<HTMLSelectElement>("#quantize-grid").value = String(settings?.grid ?? 0.25);
+  $<HTMLInputElement>("#quantize-strength").value = String(
+    Math.round((settings?.strength ?? 1) * 100),
+  );
+  $("#quantize-strength-value").textContent =
+    `${$<HTMLInputElement>("#quantize-strength").value}%`;
+  $<HTMLInputElement>("#quantize-offset").value = String(settings?.offset_ms ?? 0);
+  $<HTMLButtonElement>("#apply-quantization").disabled = !project;
+  $("#quantization-result").textContent = settings?.conflicts.length
+    ? `${settings.conflicts.length} 处同起点冲突已保留`
+    : project
+      ? "无同起点冲突"
+      : "";
 }
 function melodyOptions() {
   const low = $<HTMLInputElement>("#melody-low"),
@@ -829,7 +854,10 @@ async function update() {
         denominator: analysis.meterDenominator,
         tonic: analysis.keyPitchClass,
         mode: analysis.mode,
-        grid: 0.25,
+        enabled: $<HTMLInputElement>("#quantize-enabled").checked,
+        grid: Number($<HTMLSelectElement>("#quantize-grid").value),
+        strength: Number($<HTMLInputElement>("#quantize-strength").value) / 100,
+        offset_ms: Number($<HTMLInputElement>("#quantize-offset").value),
       });
       applyApiProject(serverProject);
       render();
@@ -842,12 +870,18 @@ async function update() {
   }
 }
 [bpm, meter, key, mode].forEach((el) => el.addEventListener("change", update));
+$<HTMLInputElement>("#quantize-strength").addEventListener("input", () => {
+  $("#quantize-strength-value").textContent =
+    `${$<HTMLInputElement>("#quantize-strength").value}%`;
+});
+$("#apply-quantization").addEventListener("click", () => void update());
 $("#example").addEventListener("click", () => {
   stop();
   scoreHistory = null;
   selectedNoteIndex = null;
   taskProgress.reset();
   serverProject = null;
+  syncQuantization(null);
   clearF0Evidence();
   rawNotes = demoNotes();
   localOriginalNotes = rawNotes.map((n) => ({ ...n }));

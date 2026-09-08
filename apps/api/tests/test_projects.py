@@ -85,11 +85,12 @@ def test_project_can_be_requantized() -> None:
     assert result["analysis"]["meter_map"][0]["numerator"] == 3
     assert result["analysis"]["key_map"][0]["tonic"] == 7
     assert result["pipeline"][-1]["stage"] == "requantize"
-    assert result["pipeline"][-1]["version"] == "2"
+    assert result["pipeline"][-1]["version"] == "3"
     assert result["performance_notes"] == performance_notes
     assert result["notes"][0]["quantized_start"] != 9
     assert len(result["notes"]) == len(performance_notes)
     assert result["notes"][0]["quantized_start"] == result["notes"][1]["quantized_start"]
+    assert len(result["quantization"]["conflicts"]) == 1
 
     repeated = client.post(
         f"/v1/projects/{project['project_id']}/requantize",
@@ -105,6 +106,51 @@ def test_project_can_be_requantized() -> None:
     ).json()
     assert repeated["notes"] == result["notes"]
     assert repeated["performance_notes"] == performance_notes
+
+
+def test_requantize_supports_disabled_partial_and_triplet_grids() -> None:
+    project = create_project()
+    note = project["performance_notes"][0]
+    raw_start = note["source_start_ms"] / 500
+
+    disabled = client.post(
+        f"/v1/projects/{project['project_id']}/requantize",
+        json={
+            "expected_revision": project["revision"],
+            "bpm": 120,
+            "numerator": 4,
+            "denominator": 4,
+            "tonic": 0,
+            "mode": "major",
+            "enabled": False,
+            "grid": 1 / 6,
+            "strength": 1,
+            "offset_ms": 0,
+        },
+    ).json()
+    assert disabled["notes"][0]["quantized_start"] == raw_start
+    assert disabled["quantization"]["enabled"] is False
+    assert disabled["quantization"]["grid"] == 1 / 6
+
+    partial = client.post(
+        f"/v1/projects/{project['project_id']}/requantize",
+        json={
+            "expected_revision": disabled["revision"],
+            "bpm": 120,
+            "numerator": 4,
+            "denominator": 4,
+            "tonic": 0,
+            "mode": "major",
+            "enabled": True,
+            "grid": 1 / 3,
+            "strength": 0.5,
+            "offset_ms": 40,
+        },
+    ).json()
+    snapped = round((raw_start - 0.08) / (1 / 3)) * (1 / 3) + 0.08
+    assert partial["notes"][0]["quantized_start"] == (raw_start + snapped) / 2
+    assert partial["quantization"]["strength"] == 0.5
+    assert partial["quantization"]["offset_ms"] == 40
 
 
 def test_project_exports_standard_midi_and_musicxml() -> None:

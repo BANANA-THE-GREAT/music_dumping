@@ -763,6 +763,65 @@
         "title": "ProjectSummary",
         "type": "object"
       },
+      "QuantizationConflict": {
+        "properties": {
+          "beat": {
+            "minimum": 0.0,
+            "title": "Beat",
+            "type": "number"
+          },
+          "note_ids": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 2,
+            "title": "Note Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "beat",
+          "note_ids"
+        ],
+        "title": "QuantizationConflict",
+        "type": "object"
+      },
+      "QuantizationSettings": {
+        "properties": {
+          "conflicts": {
+            "items": {
+              "$ref": "#/components/schemas/QuantizationConflict"
+            },
+            "title": "Conflicts",
+            "type": "array"
+          },
+          "enabled": {
+            "default": true,
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "grid": {
+            "default": 0.25,
+            "exclusiveMinimum": 0.0,
+            "title": "Grid",
+            "type": "number"
+          },
+          "offset_ms": {
+            "default": 0,
+            "title": "Offset Ms",
+            "type": "integer"
+          },
+          "strength": {
+            "default": 1,
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Strength",
+            "type": "number"
+          }
+        },
+        "title": "QuantizationSettings",
+        "type": "object"
+      },
       "ReadinessResponse": {
         "properties": {
           "checks": {
@@ -817,6 +876,11 @@
             "title": "Denominator",
             "type": "integer"
           },
+          "enabled": {
+            "default": true,
+            "title": "Enabled",
+            "type": "boolean"
+          },
           "expected_revision": {
             "minimum": 1.0,
             "title": "Expected Revision",
@@ -840,6 +904,20 @@
             "minimum": 1.0,
             "title": "Numerator",
             "type": "integer"
+          },
+          "offset_ms": {
+            "default": 0,
+            "maximum": 10000.0,
+            "minimum": -10000.0,
+            "title": "Offset Ms",
+            "type": "integer"
+          },
+          "strength": {
+            "default": 1,
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Strength",
+            "type": "number"
           },
           "tonic": {
             "maximum": 11.0,
@@ -962,6 +1040,9 @@
           "project_id": {
             "title": "Project Id",
             "type": "string"
+          },
+          "quantization": {
+            "$ref": "#/components/schemas/QuantizationSettings"
           },
           "raw_notes": {
             "anyOf": [

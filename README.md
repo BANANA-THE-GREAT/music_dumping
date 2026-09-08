@@ -84,6 +84,8 @@ VSS_WORKER_DOCKERFILE=infra/docker/Dockerfile.worker-quality \
 
 项目同时保存独立的演唱版 `performance_notes` 和谱面版 `notes`。重新量化始终从演唱版的毫秒级时间重建谱面版，不在已有量化结果上累积舍入误差；MIDI 导出可选择谱面版或演唱版，演唱版支持可选的 cents pitch bend，MusicXML 固定使用谱面版。旧 `1.0` 项目缺少演唱版字段时会从现有音符兼容补齐。
 
+谱面量化可以关闭，并支持直拍、三连音/六连音网格、0–100% 吸附强度和毫秒级节拍偏移。量化配置与同起点冲突保存在项目中；冲突音符会全部保留并在界面提示，不会静默删除置信度较低的候选。
+
 NVIDIA GPU 为可选运行模式，不改变默认 CPU Compose。宿主机完成 NVIDIA Container Toolkit 配置后，普通 Worker 可执行：
 
 ```bash
