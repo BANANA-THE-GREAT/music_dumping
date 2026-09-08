@@ -497,12 +497,17 @@ async function recoverRevisionConflict(error: unknown) {
 async function runServer(quality: "demo" | "high" | "experimental") {
   if (!sourceFile) return;
   taskProgress.start("prepare", "正在上传音频");
-  status("正在上传音频…");
-  const upload = await api.upload(sourceFile, taskAbort?.signal);
-  checkTaskCancelled();
+  let uploadId = serverProject?.project_group_id;
+  if (!uploadId) {
+    status("正在上传音频…");
+    uploadId = (await api.upload(sourceFile, taskAbort?.signal)).id;
+    checkTaskCancelled();
+  } else {
+    status("复用当前项目的原始音频…");
+  }
   taskProgress.start("prepare", "正在提交处理任务");
   status("已进入后端处理队列…");
-  const submitted = await api.createJob(upload.id, quality);
+  const submitted = await api.createJob(uploadId, quality);
   localStorage.setItem(ACTIVE_JOB_KEY, submitted.id);
   activeJobId = submitted.id;
   await cancelSubmittedJob(submitted.id);
