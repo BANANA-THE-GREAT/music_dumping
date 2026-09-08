@@ -202,6 +202,7 @@ try {
     },
     notes: [60, 64].map((pitch, index) => ({
       id: `saved-${index}`,
+      source_note_ids: [`source-${index}`],
       pitch_midi: pitch,
       source_start_ms: index * 500,
       source_end_ms: index * 500 + 500,
@@ -210,6 +211,40 @@ try {
       confidence: 0.9,
       origin: "model",
     })),
+    transcription_evidence: {
+      note_model: {
+        name: "GAME medium",
+        implementation: "browser-check",
+        code_revision: "test",
+        parameters: {},
+      },
+      f0_track: {
+        object_key: "work/editor-check/evidence/f0.jsonl",
+        format: "jsonl",
+        frame_period_ms: 10,
+        frame_count: 3,
+        voiced_frame_count: 3,
+        duration_ms: 30,
+        provenance: {
+          name: "torchcrepe full",
+          implementation: "browser-check",
+          code_revision: "test",
+          parameters: {},
+        },
+      },
+      boundary_suggestions: [
+        {
+          id: "boundary-1",
+          source_note_id: "source-0",
+          kind: "adjust_end",
+          original_end_ms: 500,
+          proposed_end_ms: 570,
+          confidence: 0.9,
+          reason: "f0_voicing_extension",
+          review_status: "pending",
+        },
+      ],
+    },
     pipeline: [],
   };
   const saved = [];
@@ -227,6 +262,32 @@ try {
   );
   await page.route("**/api/v1/projects/editor-check/audio", (route) =>
     route.abort(),
+  );
+  await page.route("**/api/v1/projects/editor-check/evidence/f0", (route) =>
+    route.fulfill({
+      contentType: "application/x-ndjson",
+      body:
+        '{"time_seconds":0,"f0_hz":261.63,"periodicity":0.9}\n' +
+        '{"time_seconds":0.01,"f0_hz":262,"periodicity":0.8}\n' +
+        '{"time_seconds":0.02,"f0_hz":262.2,"periodicity":0.85}\n',
+    }),
+  );
+  await page.route(
+    "**/api/v1/projects/editor-check/boundary-suggestions/boundary-1",
+    async (route) => {
+      const body = route.request().postDataJSON();
+      assert.equal(body.expected_revision, project.revision);
+      const suggestion = project.transcription_evidence.boundary_suggestions[0];
+      if (body.action === "accept") {
+        project.notes[0].source_end_ms = suggestion.proposed_end_ms;
+        suggestion.review_status = "accepted";
+      } else if (body.action === "reset") {
+        project.notes[0].source_end_ms = suggestion.original_end_ms;
+        suggestion.review_status = "pending";
+      } else suggestion.review_status = "rejected";
+      project.revision++;
+      await route.fulfill({ json: project });
+    },
   );
   await page.route("**/api/v1/projects/editor-check", async (route) => {
     if (route.request().method() === "PATCH") {
@@ -247,15 +308,30 @@ try {
   await page.waitForFunction(
     () => document.querySelectorAll("#piano rect").length === 2,
   );
+  await page.locator(".boundary-locate").click();
+  assert.equal(await page.locator("#piano").isVisible(), true);
+  assert.equal(await page.locator("#piano .f0-track").count(), 1);
+  assert.equal(await page.locator("#piano .boundary-guide.pending").count(), 1);
+  await page.locator('[data-boundary-action="accept"]').click();
+  await page.waitForFunction(
+    () => document.querySelector(".boundary-state.accepted"),
+  );
+  assert.equal(project.notes[0].source_end_ms, 570);
+  await page.locator('[data-boundary-action="reset"]').click();
+  await page.waitForFunction(
+    () => document.querySelector('[data-boundary-action="accept"]'),
+  );
+  assert.equal(project.notes[0].source_end_ms, 500);
+  await page.click('[data-view="jianpu"]');
   await page.locator('#jianpu [data-note="0"]').first().click();
   await page.click("#pitch-up");
   await page.waitForFunction(() =>
-    document.querySelector("#status").textContent.includes("修订 2"),
+    document.querySelector("#status").textContent.includes("修订 4"),
   );
   assert.equal(project.notes[0].pitch_midi, 61);
   await page.click("#undo");
   await page.waitForFunction(() =>
-    document.querySelector("#status").textContent.includes("修订 3"),
+    document.querySelector("#status").textContent.includes("修订 5"),
   );
   assert.equal(project.notes[0].pitch_midi, 60);
   assert.equal(saved.length, 2);
@@ -265,7 +341,7 @@ try {
   );
   assert.deepEqual(errors, []);
   console.log(
-    "PASS: server-project edit persistence, revision sequencing, undo and switching back to local example (mock API only)",
+    "PASS: F0 overlay, boundary accept/reset, server edit revision sequencing and local example reset (mock API only)",
   );
   console.log(
     "PASS: staff selection, cross-view pitch editing, undo, numbered bars, split, example reset, Ctrl-wheel zoom, drag, desktop/mobile layout",

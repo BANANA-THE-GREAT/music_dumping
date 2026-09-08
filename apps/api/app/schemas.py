@@ -157,6 +157,8 @@ class BoundarySuggestion(BaseModel):
     reason: Literal["f0_voicing_extension", "f0_voicing_contraction"]
     review_status: Literal["pending", "accepted", "rejected"] = "pending"
     reviewed_revision: int | None = Field(default=None, ge=1)
+    accepted_from_origin: Literal["model", "user"] | None = None
+    accepted_from_quantized_duration: float | None = Field(default=None, gt=0)
 
     @model_validator(mode="after")
     def validate_changed_boundary(self) -> "BoundarySuggestion":

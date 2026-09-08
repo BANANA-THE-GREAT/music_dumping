@@ -60,6 +60,11 @@ export interface F0TrackArtifact {
   duration_ms: number;
   provenance: ModelProvenance;
 }
+export interface F0Frame {
+  time_seconds: number;
+  f0_hz: number;
+  periodicity: number;
+}
 export interface BoundarySuggestion {
   id: string;
   source_note_id: string;
@@ -70,6 +75,8 @@ export interface BoundarySuggestion {
   reason: "f0_voicing_extension" | "f0_voicing_contraction";
   review_status: "pending" | "accepted" | "rejected";
   reviewed_revision?: number | null;
+  accepted_from_origin?: "model" | "user" | null;
+  accepted_from_quantized_duration?: number | null;
 }
 export interface TranscriptionEvidence {
   note_model: ModelProvenance;

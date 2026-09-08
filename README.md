@@ -80,7 +80,7 @@ VSS_WORKER_DOCKERFILE=infra/docker/Dockerfile.worker-quality \
   docker compose -f infra/compose.yaml up -d --wait worker
 ```
 
-构建脚本固定并校验源码与权重哈希。quality Worker 仍支持 Basic Pitch；实验引擎只有在任务中显式选择 `game_f0` 时运行。标准 Worker 收到该选项会返回 `EXPERIMENTAL_ENGINE_NOT_CONFIGURED`，不会回退成假结果或 Basic Pitch。GAME 原始音符、独立 F0 文件和边界建议会分别保存，建议默认保持 pending，不自动改写谱面。
+构建脚本固定并校验源码与权重哈希。quality Worker 仍支持 Basic Pitch；实验引擎只有在任务中显式选择 `game_f0` 时运行。标准 Worker 收到该选项会返回 `EXPERIMENTAL_ENGINE_NOT_CONFIGURED`，不会回退成假结果或 Basic Pitch。GAME 原始音符、独立 F0 文件和边界建议会分别保存，建议默认保持 pending，不自动改写谱面。钢琴卷帘可叠加有声 F0 和建议前后边界；接受、忽略及撤销均保存 revision，撤销不会覆盖接受后发生的其他时值编辑。
 
 NVIDIA GPU 为可选运行模式，不改变默认 CPU Compose。宿主机完成 NVIDIA Container Toolkit 配置后，普通 Worker 可执行：
 

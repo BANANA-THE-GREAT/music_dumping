@@ -1,5 +1,6 @@
 import type {
   BoundarySuggestionReviewRequest,
+  F0Frame,
   JobResponse,
   MelodyOptions,
   ProjectSummary,
@@ -19,20 +20,21 @@ export class ApiError extends Error {
 }
 export class VocalScoreApi {
   constructor(private baseUrl = "/api") {}
+  private async fail(response: Response): Promise<never> {
+    let message = `API request failed (${response.status})`;
+    let detail: unknown;
+    try {
+      const body = await response.json();
+      detail = body.detail;
+      if (typeof detail === "string") message = detail;
+      else if (detail && typeof detail === "object" && "code" in detail)
+        message = String(detail.code);
+    } catch {}
+    throw new ApiError(response.status, message, detail);
+  }
   private async request<T>(path: string, init?: RequestInit): Promise<T> {
     const response = await fetch(`${this.baseUrl}${path}`, init);
-    if (!response.ok) {
-      let message = `API request failed (${response.status})`;
-      let detail: unknown;
-      try {
-        const body = await response.json();
-        detail = body.detail;
-        if (typeof detail === "string") message = detail;
-        else if (detail && typeof detail === "object" && "code" in detail)
-          message = String(detail.code);
-      } catch {}
-      throw new ApiError(response.status, message, detail);
-    }
+    if (!response.ok) await this.fail(response);
     return response.status === 204
       ? (undefined as T)
       : (response.json() as Promise<T>);
@@ -112,6 +114,14 @@ export class VocalScoreApi {
   }
   audioUrl(id: string, variant: "source" | "vocals" = "source"): string {
     return `${this.baseUrl}/v1/projects/${id}/audio${variant === "vocals" ? "?variant=vocals" : ""}`;
+  }
+  async getF0Track(id: string): Promise<F0Frame[]> {
+    const response = await fetch(`${this.baseUrl}/v1/projects/${id}/evidence/f0`);
+    if (!response.ok) await this.fail(response);
+    return (await response.text())
+      .split("\n")
+      .filter(Boolean)
+      .map((line) => JSON.parse(line) as F0Frame);
   }
   refineMelody(
     id: string,

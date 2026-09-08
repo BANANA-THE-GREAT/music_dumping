@@ -94,6 +94,54 @@ def test_project_exports_standard_midi_and_musicxml() -> None:
     assert audio.headers["content-type"].startswith("audio/wav")
 
 
+def test_project_streams_separate_f0_evidence() -> None:
+    project = create_project()
+    project_id = project["project_id"]
+    object_key = f"work/{project_id}/evidence/f0.jsonl"
+    content = (
+        b'{"time_seconds":0.0,"f0_hz":440.0,"periodicity":0.9}\n'
+        b'{"time_seconds":0.01,"f0_hz":441.0,"periodicity":0.8}\n'
+    )
+    target = get_settings().data_dir / object_key
+    target.parent.mkdir(parents=True)
+    target.write_bytes(content)
+    project["transcription_evidence"] = {
+        "note_model": {
+            "name": "GAME medium",
+            "implementation": "test",
+            "code_revision": "test",
+        },
+        "f0_track": {
+            "object_key": object_key,
+            "format": "jsonl",
+            "frame_period_ms": 10,
+            "frame_count": 2,
+            "voiced_frame_count": 2,
+            "duration_ms": 20,
+            "provenance": {
+                "name": "torchcrepe full",
+                "implementation": "test",
+                "code_revision": "test",
+            },
+        },
+    }
+    with SessionLocal() as session:
+        record = session.get(ProjectRecord, project_id)
+        record.document = project
+        session.commit()
+
+    response = client.get(f"/v1/projects/{project_id}/evidence/f0")
+    assert response.status_code == 200
+    assert response.content == content
+    assert response.headers["content-type"].startswith("application/x-ndjson")
+
+
+def test_project_f0_evidence_is_optional() -> None:
+    project = create_project()
+    response = client.get(f"/v1/projects/{project['project_id']}/evidence/f0")
+    assert response.status_code == 404
+
+
 def test_projects_are_listed_for_reopening() -> None:
     project = create_project()
     response = client.get("/v1/projects")
@@ -256,6 +304,7 @@ def test_boundary_suggestion_review_accept_reject_and_reset() -> None:
     project = create_project()
     project_id = project["project_id"]
     original_end = project["notes"][0]["source_end_ms"]
+    original_duration = project["notes"][0]["quantized_duration"]
     proposed_end = original_end + 70
     project["notes"][0]["source_note_ids"] = ["game-0000"]
     project["raw_notes"] = [dict(note) for note in project["notes"]]
@@ -297,6 +346,8 @@ def test_boundary_suggestion_review_accept_reject_and_reset() -> None:
     reset = client.post(path, json={"expected_revision": 2, "action": "reset"})
     assert reset.status_code == 200
     assert reset.json()["notes"][0]["source_end_ms"] == original_end
+    assert reset.json()["notes"][0]["quantized_duration"] == original_duration
+    assert reset.json()["notes"][0]["origin"] == "model"
     assert reset.json()["transcription_evidence"]["boundary_suggestions"][0][
         "review_status"
     ] == "pending"
@@ -343,3 +394,41 @@ def test_boundary_suggestion_accept_refuses_changed_target() -> None:
     )
     assert response.status_code == 409
     assert response.json()["detail"]["code"] == "SUGGESTION_TARGET_CHANGED"
+
+
+def test_boundary_suggestion_reset_preserves_later_duration_edit() -> None:
+    project = create_project()
+    project["notes"][0]["source_note_ids"] = ["game-0000"]
+    original_end = project["notes"][0]["source_end_ms"]
+    project["transcription_evidence"] = {
+        "note_model": {
+            "name": "GAME medium",
+            "implementation": "test",
+            "code_revision": "test",
+        },
+        "boundary_suggestions": [
+            {
+                "id": "boundary-1",
+                "source_note_id": "game-0000",
+                "original_end_ms": original_end,
+                "proposed_end_ms": original_end + 70,
+                "confidence": 0.7,
+                "reason": "f0_voicing_extension",
+            }
+        ],
+    }
+    with SessionLocal() as session:
+        record = session.get(ProjectRecord, project["project_id"])
+        record.document = project
+        session.commit()
+    path = f"/v1/projects/{project['project_id']}/boundary-suggestions/boundary-1"
+    accepted = client.post(path, json={"expected_revision": 1, "action": "accept"}).json()
+    accepted["notes"][0]["quantized_duration"] += 0.25
+    patched = client.patch(
+        f"/v1/projects/{project['project_id']}",
+        json={"expected_revision": 2, "notes": accepted["notes"]},
+    )
+    assert patched.status_code == 200
+    reset = client.post(path, json={"expected_revision": 3, "action": "reset"})
+    assert reset.status_code == 409
+    assert reset.json()["detail"]["code"] == "SUGGESTION_TARGET_CHANGED"

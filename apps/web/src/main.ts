@@ -1,6 +1,7 @@
 import {
   JOB_STAGE_LABELS,
   type BoundarySuggestion,
+  type F0Frame,
   type ScoreProject as ApiScoreProject,
 } from "@vocal-score/contracts";
 import { ApiError, VocalScoreApi } from "@vocal-score/contracts/client";
@@ -66,7 +67,7 @@ document
   .querySelector("#piano")!
   .insertAdjacentHTML(
     "beforebegin",
-    `<div id="roll-zoom" class="hidden"><label>缩放 <input id="zoom" type="range" min="1" max="8" step="0.1" value="1"></label><output id="zoom-value">100%</output></div>`,
+    `<div id="roll-zoom" class="hidden"><label>缩放 <input id="zoom" type="range" min="1" max="8" step="0.1" value="1"></label><output id="zoom-value">100%</output><label id="f0-toggle" class="hidden"><input id="show-f0" type="checkbox" checked> F0</label></div>`,
   );
 
 const $ = <T extends HTMLElement>(s: string) => document.querySelector<T>(s)!;
@@ -115,6 +116,13 @@ let sourceBuffer: AudioBuffer | null = null,
   notes: ScoreNote[] = [];
 let selectedNoteIndex: number | null = null;
 let scoreHistory: ScoreHistory | null = null;
+let f0Frames: F0Frame[] = [];
+let f0ProjectId: string | null = null;
+function clearF0Evidence() {
+  f0Frames = [];
+  f0ProjectId = null;
+  $("#f0-toggle").classList.add("hidden");
+}
 let analysis: MusicalAnalysis = {
   bpm: 120,
   meter: 4,
@@ -217,6 +225,7 @@ async function load(file: File) {
   status("正在解码音频…");
   sourceFile = file;
   serverProject = null;
+  clearF0Evidence();
   vocalPreview.setSource(URL.createObjectURL(file));
   localOriginalNotes = [];
   sourceBuffer = await new AudioContext().decodeAudioData(
@@ -296,6 +305,7 @@ async function runLocal() {
   if (!sourceBuffer) return;
   stop();
   serverProject = null;
+  clearF0Evidence();
   scoreHistory = null;
   selectedNoteIndex = null;
   taskProgress.start("separate", "提取中心人声与增强语音频段");
@@ -418,6 +428,25 @@ async function loadServerAudio(project: ApiScoreProject) {
     transcribe.disabled = true;
   }
 }
+async function loadF0Evidence(project: ApiScoreProject) {
+  const artifact = project.transcription_evidence?.f0_track;
+  f0ProjectId = project.project_id;
+  f0Frames = [];
+  $("#f0-toggle").classList.toggle("hidden", !artifact);
+  if (!artifact) return;
+  try {
+    const frames = await api.getF0Track(project.project_id);
+    if (serverProject?.project_id !== project.project_id) return;
+    f0Frames = frames;
+  } catch (error) {
+    if (serverProject?.project_id !== project.project_id) return;
+    $("#f0-toggle").classList.add("hidden");
+    if (!(error instanceof ApiError) || error.status !== 404)
+      status(
+        `F0 轨迹加载失败：${error instanceof Error ? error.message : "未知错误"}`,
+      );
+  }
+}
 async function recoverRevisionConflict(error: unknown) {
   if (!(error instanceof ApiError) || error.status !== 409 || !serverProject)
     return false;
@@ -444,7 +473,10 @@ async function runServer(quality: "demo" | "high" | "experimental") {
   if (!job.project_id) throw new Error("后端未返回乐谱项目");
   serverProject = await api.getProject(job.project_id);
   applyApiProject(serverProject);
-  await loadServerAudio(serverProject);
+  await Promise.all([
+    loadServerAudio(serverProject),
+    loadF0Evidence(serverProject),
+  ]);
   void refreshProjects();
 }
 async function waitForServerJob(jobId: string) {
@@ -503,7 +535,10 @@ $("#retry-job").addEventListener("click", async () => {
     if (!job.project_id) throw new Error("重试任务没有乐谱项目");
     serverProject = await api.getProject(job.project_id);
     applyApiProject(serverProject);
-    await loadServerAudio(serverProject);
+    await Promise.all([
+      loadServerAudio(serverProject),
+      loadF0Evidence(serverProject),
+    ]);
     sync();
     await render();
     taskProgress.complete();
@@ -528,7 +563,10 @@ async function resumeActiveJob() {
     if (!job.project_id) throw new Error("恢复的任务没有乐谱项目");
     serverProject = await api.getProject(job.project_id);
     applyApiProject(serverProject);
-    await loadServerAudio(serverProject);
+    await Promise.all([
+      loadServerAudio(serverProject),
+      loadF0Evidence(serverProject),
+    ]);
     sync();
     await render();
     taskProgress.complete();
@@ -573,7 +611,10 @@ $<HTMLSelectElement>("#recent-project").addEventListener(
       status("正在打开已保存项目…");
       serverProject = await api.getProject(projectId);
       applyApiProject(serverProject);
-      await loadServerAudio(serverProject);
+      await Promise.all([
+        loadServerAudio(serverProject),
+        loadF0Evidence(serverProject),
+      ]);
       sync();
       render();
       status(
@@ -600,6 +641,7 @@ $("#delete-project").addEventListener("click", async () => {
     if (serverProject?.project_id === projectId) {
       stop();
       serverProject = null;
+      clearF0Evidence();
       scoreHistory = null;
       selectedNoteIndex = null;
       rawNotes = [];
@@ -800,6 +842,7 @@ $("#example").addEventListener("click", () => {
   selectedNoteIndex = null;
   taskProgress.reset();
   serverProject = null;
+  clearF0Evidence();
   rawNotes = demoNotes();
   localOriginalNotes = rawNotes.map((n) => ({ ...n }));
   $("#melody-result").textContent = "";
@@ -896,7 +939,40 @@ async function render() {
   $("#jianpu").innerHTML =
     `<div class="jianpu-meta">1 = ${KEYS[analysis.keyPitchClass]}　${analysis.meter}/${analysis.meterDenominator}　♩ = ${analysis.bpm}</div>` +
     renderJianpu(notes, (analysis.meter * 4) / analysis.meterDenominator);
-  $("#piano").innerHTML = renderPianoRoll(notes, selectedNoteIndex);
+  const evidenceProject =
+    serverProject?.project_id === f0ProjectId ? serverProject : null;
+  const boundaryMarkers = evidenceProject
+    ? reviewableBoundarySuggestions(
+        evidenceProject.transcription_evidence?.boundary_suggestions ?? [],
+        evidenceProject.notes,
+      )
+        .map((suggestion) => ({
+          suggestion,
+          noteIndex: evidenceProject.notes.findIndex((note) =>
+            note.source_note_ids?.includes(suggestion.source_note_id),
+          ),
+        }))
+        .filter((item) => item.noteIndex >= 0)
+        .map(({ suggestion, noteIndex }) => ({
+          noteIndex,
+          originalEndSeconds: suggestion.original_end_ms / 1000,
+          proposedEndSeconds: suggestion.proposed_end_ms / 1000,
+          status: suggestion.review_status,
+        }))
+    : [];
+  $("#piano").innerHTML = renderPianoRoll(
+    notes,
+    selectedNoteIndex,
+    900,
+    280,
+    evidenceProject
+      ? {
+          bpm: analysis.bpm,
+          frames: $<HTMLInputElement>("#show-f0").checked ? f0Frames : [],
+          boundaries: boundaryMarkers,
+        }
+      : undefined,
+  );
   applyRollZoom();
   refreshSelection();
   [play, $<HTMLButtonElement>("#midi"), $<HTMLButtonElement>("#xml")].forEach(
@@ -915,6 +991,7 @@ $("#boundary-review").addEventListener("click", async (event) => {
     if (index >= 0) {
       selectedNoteIndex = index;
       refreshSelection();
+      activateView("piano");
     }
     const suggestion =
       serverProject.transcription_evidence?.boundary_suggestions.find(
@@ -1266,18 +1343,22 @@ $("#redo").addEventListener("click", () => {
   if (scoreHistory && !editSaving)
     void saveEditedNotes(scoreHistory.redo(), "重做");
 });
-document.querySelectorAll<HTMLButtonElement>("[data-view]").forEach((btn) =>
-  btn.addEventListener("click", () => {
-    document
-      .querySelectorAll("[data-view]")
-      .forEach((b) => b.classList.remove("active"));
-    btn.classList.add("active");
-    $("#staff").classList.toggle("hidden", btn.dataset.view !== "staff");
-    $("#jianpu").classList.toggle("hidden", btn.dataset.view !== "jianpu");
-    $("#piano").classList.toggle("hidden", btn.dataset.view !== "piano");
-    $("#roll-zoom").classList.toggle("hidden", btn.dataset.view !== "piano");
-  }),
+function activateView(view: string) {
+  document
+    .querySelectorAll("[data-view]")
+    .forEach((button) => button.classList.remove("active"));
+  document.querySelector(`[data-view="${view}"]`)?.classList.add("active");
+  $("#staff").classList.toggle("hidden", view !== "staff");
+  $("#jianpu").classList.toggle("hidden", view !== "jianpu");
+  $("#piano").classList.toggle("hidden", view !== "piano");
+  $("#roll-zoom").classList.toggle("hidden", view !== "piano");
+}
+document.querySelectorAll<HTMLButtonElement>("[data-view]").forEach((button) =>
+  button.addEventListener("click", () =>
+    activateView(button.dataset.view ?? "staff"),
+  ),
 );
+$<HTMLInputElement>("#show-f0").addEventListener("change", () => void render());
 function stop() {
   scorePlayer.stop();
   playing = false;

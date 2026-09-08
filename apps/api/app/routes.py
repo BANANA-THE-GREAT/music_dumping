@@ -1,3 +1,4 @@
+import math
 import time
 from collections.abc import Iterator
 from typing import Annotated, Literal
@@ -225,6 +226,24 @@ def stream_project_audio(
     )
 
 
+@router.get("/projects/{project_id}/evidence/f0")
+def stream_project_f0(
+    project_id: str, session: SessionDep, settings: SettingsDep
+) -> FileResponse:
+    project = _project_document(project_id, session)
+    artifact = (
+        project.transcription_evidence.f0_track
+        if project.transcription_evidence is not None
+        else None
+    )
+    if artifact is None:
+        raise HTTPException(status_code=404, detail="F0 evidence is not available")
+    path = resolve_data_path(settings, artifact.object_key)
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="F0 evidence file not found")
+    return FileResponse(path, media_type="application/x-ndjson", filename="f0.jsonl")
+
+
 def _editable_project(
     project_id: str, expected_revision: int, session: Session
 ) -> tuple[ProjectRecord, ScoreProject]:
@@ -295,6 +314,7 @@ def review_boundary_suggestion(
     changes_note = request.action == "accept" or (
         request.action == "reset" and suggestion.review_status == "accepted"
     )
+    beat_ms = 60_000 / project.analysis.tempo_map[0].bpm
     if changes_note:
         if target is None:
             raise HTTPException(status_code=409, detail={"code": "SUGGESTION_TARGET_MISSING"})
@@ -305,15 +325,25 @@ def review_boundary_suggestion(
         )
         if target.source_end_ms != expected_end:
             raise HTTPException(status_code=409, detail={"code": "SUGGESTION_TARGET_CHANGED"})
+        if request.action == "reset":
+            expected_duration = max(
+                0.01,
+                (suggestion.proposed_end_ms - target.source_start_ms) / beat_ms,
+            )
+            if not math.isclose(target.quantized_duration, expected_duration):
+                raise HTTPException(
+                    status_code=409, detail={"code": "SUGGESTION_TARGET_CHANGED"}
+                )
 
     next_revision = record.revision + 1
     if request.action == "accept":
         assert target is not None
+        suggestion.accepted_from_origin = target.origin
+        suggestion.accepted_from_quantized_duration = target.quantized_duration
         target.source_end_ms = suggestion.proposed_end_ms
         target.quantized_duration = max(
             0.01,
-            (target.source_end_ms - target.source_start_ms)
-            / (60_000 / project.analysis.tempo_map[0].bpm),
+            (target.source_end_ms - target.source_start_ms) / beat_ms,
         )
         target.origin = "user"
         suggestion.review_status = "accepted"
@@ -325,13 +355,19 @@ def review_boundary_suggestion(
         if changes_note:
             assert target is not None
             target.source_end_ms = suggestion.original_end_ms
-            target.quantized_duration = max(
-                0.01,
-                (target.source_end_ms - target.source_start_ms)
-                / (60_000 / project.analysis.tempo_map[0].bpm),
+            target.quantized_duration = (
+                suggestion.accepted_from_quantized_duration
+                if suggestion.accepted_from_quantized_duration is not None
+                else max(
+                    0.01,
+                    (target.source_end_ms - target.source_start_ms) / beat_ms,
+                )
             )
+            target.origin = suggestion.accepted_from_origin or "model"
         suggestion.review_status = "pending"
         suggestion.reviewed_revision = None
+        suggestion.accepted_from_origin = None
+        suggestion.accepted_from_quantized_duration = None
     project.pipeline.append(
         PipelineStep(
             stage="boundary_suggestion_review",

@@ -56,6 +56,28 @@ describe("boundary suggestion review", () => {
   });
 });
 
+describe("F0 evidence", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("parses newline-delimited F0 frames", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(
+            '{"time_seconds":0,"f0_hz":440,"periodicity":0.9}\n' +
+              '{"time_seconds":0.01,"f0_hz":441,"periodicity":0.8}\n',
+            { status: 200, headers: { "content-type": "application/x-ndjson" } },
+          ),
+      ),
+    );
+    await expect(new VocalScoreApi("http://api").getF0Track("project")).resolves.toEqual([
+      { time_seconds: 0, f0_hz: 440, periodicity: 0.9 },
+      { time_seconds: 0.01, f0_hz: 441, periodicity: 0.8 },
+    ]);
+  });
+});
+
 describe("experimental job selection", () => {
   afterEach(() => vi.unstubAllGlobals());
 

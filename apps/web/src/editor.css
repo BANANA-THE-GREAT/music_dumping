@@ -105,6 +105,35 @@
   stroke-width: 2.5;
 }
 
+.piano-roll .f0-track {
+  fill: none;
+  stroke: #137b70;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.6;
+  opacity: 0.9;
+  pointer-events: none;
+  vector-effect: non-scaling-stroke;
+}
+
+.piano-roll .boundary-guide {
+  fill: none;
+  stroke: #b66a18;
+  stroke-width: 2;
+  pointer-events: none;
+  vector-effect: non-scaling-stroke;
+}
+
+.piano-roll .boundary-guide.accepted {
+  stroke: #12665b;
+}
+
+.piano-roll .boundary-guide.rejected {
+  stroke: #8a8174;
+  stroke-dasharray: 4 3;
+  opacity: 0.55;
+}
+
 .waveform-panel {
   padding: 10px 0 0;
 }
@@ -327,6 +356,9 @@
   display: flex;
   align-items: center;
   gap: 8px;
+}
+#f0-toggle {
+  margin-left: auto;
 }
 #zoom-value {
   min-width: 48px;
