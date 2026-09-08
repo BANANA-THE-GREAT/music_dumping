@@ -199,6 +199,19 @@
 .playback-controls > small {
   grid-column: 1 / -1;
 }
+.playback-controls > button {
+  align-self: end;
+  min-height: 34px;
+  padding: 6px 9px;
+  border: 1px solid #c6d7d2;
+  background: #eaf4f0;
+  color: #185f52;
+  cursor: pointer;
+}
+.playback-controls > output {
+  color: #50766e;
+  font-size: 10px;
+}
 .context-help {
   margin: 0;
   color: #8a8174;

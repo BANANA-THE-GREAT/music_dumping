@@ -23,6 +23,7 @@ import type { MusicalAnalysis, RawNote, ScoreNote } from "./types";
 import { drawWaveform } from "./waveform";
 import { VocalPreview, audioBlob } from "./vocal-preview";
 import { refineLocalMelody } from "./melody";
+import { detectEnergyOnsets, estimateGlobalOffset } from "./alignment";
 import {
   boundaryDeltaLabel,
   boundaryReasonLabel,
@@ -61,7 +62,7 @@ document
   .querySelector(".edit-actions")!
   .insertAdjacentHTML(
     "afterend",
-    `<section class="playback-controls"><p class="context-help"><strong>演唱版</strong>保留真实演唱时间；<strong>谱面版</strong>对齐节拍网格，适合阅读和演奏。</p><label>谱面音量 <output id="score-volume-value">80%</output><input id="score-volume" type="range" min="0" max="100" value="80"></label><label>原曲音量 <output id="source-volume-value">35%</output><input id="source-volume" type="range" min="0" max="100" value="35"></label><label>人声音量 <output id="vocal-volume-value">55%</output><input id="vocal-volume" type="range" min="0" max="100" value="55"></label><label>音频偏移 ms <input id="audio-offset" type="number" min="-2000" max="2000" step="10" value="0"></label><small>只做统一平移，不改变 tempo 或音符时值</small></section><section class="waveform-panel"><span>源音频波形</span><canvas id="waveform" width="900" height="100"></canvas></section>`,
+    `<section class="playback-controls"><p class="context-help"><strong>演唱版</strong>保留真实演唱时间；<strong>谱面版</strong>对齐节拍网格，适合阅读和演奏。</p><label>谱面音量 <output id="score-volume-value">80%</output><input id="score-volume" type="range" min="0" max="100" value="80"></label><label>原曲音量 <output id="source-volume-value">35%</output><input id="source-volume" type="range" min="0" max="100" value="35"></label><label>人声音量 <output id="vocal-volume-value">55%</output><input id="vocal-volume" type="range" min="0" max="100" value="55"></label><label>音频偏移 ms <input id="audio-offset" type="number" min="-2000" max="2000" step="10" value="0"></label><button id="auto-align" type="button">估算并应用对齐</button><small>只做统一平移，不改变 tempo 或音符时值</small><output id="alignment-result"></output></section><section class="waveform-panel"><span>源音频波形</span><canvas id="waveform" width="900" height="100"></canvas></section>`,
   );
 document
   .querySelector(".tabs")!
@@ -1690,6 +1691,21 @@ $<HTMLInputElement>("#audio-offset").addEventListener("change", () => {
       if (serverProject?.project_id === project.project_id) serverProject = project;
     }).catch((error: unknown) => status(`保存音频偏移失败：${error instanceof Error ? error.message : "未知错误"}`));
   }
+});
+$("#auto-align").addEventListener("click", async () => {
+  if (!sourceBuffer || !notes.length) {
+    status("需要先载入音频和谱面");
+    return;
+  }
+  const onsets = detectEnergyOnsets(sourceBuffer.getChannelData(0), sourceBuffer.sampleRate);
+  const result = estimateGlobalOffset(notes.map((note) => note.startTimeSeconds), onsets);
+  const offsetMs = Math.round(result.offsetSeconds * 1000);
+  $<HTMLInputElement>("#audio-offset").value = String(offsetMs);
+  $("#alignment-result").textContent = result.confidence >= 0.5
+    ? `候选 ${offsetMs} ms · ${result.matchedCount} 个起音匹配`
+    : "证据不足，建议手动调整";
+  $<HTMLInputElement>("#audio-offset").dispatchEvent(new Event("change"));
+  status(result.confidence >= 0.5 ? "已应用自动对齐候选，可继续手动微调" : "自动对齐置信度较低，已保留候选值");
 });
 const savedAudioOffset = localStorage.getItem("vocal-score.audio-offset");
 if (savedAudioOffset) $<HTMLInputElement>("#audio-offset").value = savedAudioOffset;
