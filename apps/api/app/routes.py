@@ -19,6 +19,7 @@ from app.repository import create_job, create_upload, job_response
 from app.schemas import (
     BoundarySuggestionReviewRequest,
     BoundaryBatchReviewRequest,
+    AudioAlignmentRequest,
     JobCreate,
     JobResponse,
     JobStage,
@@ -515,6 +516,24 @@ def review_boundary_batch(
         changed += 1
     evidence.last_boundary_batch_id = batch_id if changed else None
     project.pipeline.append(PipelineStep(stage="boundary_suggestion_batch_accept", version="1", parameters={"threshold": request.threshold, "accepted": changed, "batch_id": batch_id}))
+    return _save_project(record, project, session)
+
+
+@router.patch("/projects/{project_id}/alignment", response_model=ScoreProject)
+def update_audio_alignment(
+    project_id: str, request: AudioAlignmentRequest, session: SessionDep
+) -> ScoreProject:
+    record, project = _editable_project(project_id, request.expected_revision, session)
+    project.audio_alignment.offset_ms = request.offset_ms
+    project.audio_alignment.source = request.source
+    project.audio_alignment.status = request.status
+    project.pipeline.append(
+        PipelineStep(
+            stage="audio_alignment",
+            version="1",
+            parameters={"offset_ms": request.offset_ms, "source": request.source},
+        )
+    )
     return _save_project(record, project, session)
 
 

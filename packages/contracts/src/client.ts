@@ -1,6 +1,7 @@
 import type {
   BoundarySuggestionReviewRequest,
   BoundaryBatchReviewRequest,
+  AudioAlignmentRequest,
   F0Frame,
   JobResponse,
   MelodyOptions,
@@ -121,6 +122,13 @@ export class VocalScoreApi {
   reviewBoundaryBatch(id: string, request: BoundaryBatchReviewRequest): Promise<ScoreProject> {
     return this.request(`/v1/projects/${id}/boundary-suggestions/batch`, {
       method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(request),
+    });
+  }
+  updateAudioAlignment(id: string, request: AudioAlignmentRequest): Promise<ScoreProject> {
+    return this.request(`/v1/projects/${id}/alignment`, {
+      method: "PATCH",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(request),
     });

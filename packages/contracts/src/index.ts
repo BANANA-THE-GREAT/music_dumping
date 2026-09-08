@@ -64,6 +64,13 @@ export interface QuantizationSettings {
   offset_ms: number;
   conflicts: Array<{ beat: number; note_ids: string[] }>;
 }
+export interface AudioAlignment {
+  offset_ms: number;
+  source: "manual" | "automatic" | "default";
+  status: "unconfirmed" | "confirmed";
+  candidate_offset_ms?: number | null;
+  confidence?: number | null;
+}
 export interface ModelProvenance {
   name: string;
   implementation: string;
@@ -112,6 +119,12 @@ export interface BoundaryBatchReviewRequest {
   threshold: number;
   action: "preview" | "accept" | "reset";
 }
+export interface AudioAlignmentRequest {
+  expected_revision: number;
+  offset_ms: number;
+  source: "manual" | "automatic" | "default";
+  status: "unconfirmed" | "confirmed";
+}
 export interface ScoreProject {
   schema_version: "1.0";
   project_id: string;
@@ -134,6 +147,7 @@ export interface ScoreProject {
   notes: ScoreProjectNote[];
   performance_notes?: PerformanceNote[] | null;
   quantization?: QuantizationSettings;
+  audio_alignment?: AudioAlignment;
   raw_notes?: ScoreProjectNote[] | null;
   transcription_evidence?: TranscriptionEvidence | null;
   pipeline: Array<{

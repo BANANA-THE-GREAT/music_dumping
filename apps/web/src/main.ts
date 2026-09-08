@@ -123,7 +123,7 @@ document
   .querySelector("aside")!
   .insertAdjacentHTML(
     "afterbegin",
-    `<div class="recent-projects"><label for="recent-project">最近项目</label><div><select id="recent-project"><option value="">选择已保存项目…</option></select><button id="refresh-projects" title="刷新项目">↻</button><button id="delete-project" title="删除项目" disabled>删除</button></div></div>`,
+    `<div class="recent-projects"><label for="recent-project">项目 / 谱面</label><div><select id="recent-project"><option value="">选择已保存项目…</option></select><button id="refresh-projects" title="刷新项目">↻</button><button id="rename-project" title="重命名项目" disabled>项目名</button><button id="rename-score" title="重命名谱面" disabled>谱名</button><button id="delete-project" title="删除谱面" disabled>删除</button></div></div>`,
   );
 let sourceBuffer: AudioBuffer | null = null,
   sourceFile: File | null = null,
@@ -198,6 +198,8 @@ function setTranscriptionBusy(busy: boolean) {
   $<HTMLButtonElement>("#example").disabled = busy;
   $<HTMLButtonElement>("#delete-project").disabled =
     busy || !$<HTMLSelectElement>("#recent-project").value;
+  $<HTMLButtonElement>("#rename-project").disabled = busy || !$<HTMLSelectElement>("#recent-project").value;
+  $<HTMLButtonElement>("#rename-score").disabled = busy || !$<HTMLSelectElement>("#recent-project").value;
   $<HTMLButtonElement>("#retry-job").disabled =
     busy || !localStorage.getItem(FAILED_JOB_KEY);
   $("#cancel-job").classList.toggle("hidden", !busy);
@@ -384,6 +386,7 @@ function applyApiProject(project: ApiScoreProject) {
     },
   };
   syncQuantization(project);
+  $<HTMLInputElement>("#audio-offset").value = String(project.audio_alignment?.offset_ms ?? 0);
 }
 function boundaryTime(milliseconds: number) {
   const minutes = Math.floor(milliseconds / 60_000);
@@ -638,6 +641,8 @@ $<HTMLSelectElement>("#recent-project").addEventListener(
   async (event) => {
     const projectId = (event.currentTarget as HTMLSelectElement).value;
     $<HTMLButtonElement>("#delete-project").disabled = !projectId;
+    $<HTMLButtonElement>("#rename-project").disabled = !projectId;
+    $<HTMLButtonElement>("#rename-score").disabled = !projectId;
     if (!projectId) return;
     taskProgress.reset();
     try {
@@ -706,6 +711,32 @@ $("#reset-boundaries").addEventListener("click", async () => {
   }
 });
 $("#refresh-projects").addEventListener("click", () => void refreshProjects());
+$("#rename-score").addEventListener("click", async () => {
+  if (!serverProject) return;
+  const name = prompt("请输入谱面名称", serverProject.score_name ?? "未命名谱面")?.trim();
+  if (!name) return;
+  try {
+    serverProject = await api.renameProject(serverProject.project_id, serverProject.revision, name);
+    applyApiProject(serverProject);
+    await refreshProjects();
+    status("谱面已重命名");
+  } catch (error) {
+    status(`重命名失败：${error instanceof Error ? error.message : "未知错误"}`);
+  }
+});
+$("#rename-project").addEventListener("click", async () => {
+  if (!serverProject?.project_group_id) return;
+  const name = prompt("请输入项目名称", serverProject.project_name ?? "未命名项目")?.trim();
+  if (!name) return;
+  try {
+    await api.renameAudioProject(serverProject.project_group_id, name);
+    serverProject = await api.getProject(serverProject.project_id);
+    await refreshProjects();
+    status("项目已重命名");
+  } catch (error) {
+    status(`重命名失败：${error instanceof Error ? error.message : "未知错误"}`);
+  }
+});
 $("#delete-project").addEventListener("click", async () => {
   const projectId = $<HTMLSelectElement>("#recent-project").value;
   if (
@@ -1647,7 +1678,18 @@ for (const [id, output] of [["score-volume", "score-volume-value"], ["source-vol
   if (saved) $<HTMLInputElement>(`#${id}`).value = saved;
 }
 $<HTMLInputElement>("#audio-offset").addEventListener("change", () => {
-  localStorage.setItem("vocal-score.audio-offset", $<HTMLInputElement>("#audio-offset").value);
+  const value = $<HTMLInputElement>("#audio-offset").value;
+  localStorage.setItem("vocal-score.audio-offset", value);
+  if (serverProject) {
+    void api.updateAudioAlignment(serverProject.project_id, {
+      expected_revision: serverProject.revision,
+      offset_ms: Number(value),
+      source: "manual",
+      status: "confirmed",
+    }).then((project) => {
+      if (serverProject?.project_id === project.project_id) serverProject = project;
+    }).catch((error: unknown) => status(`保存音频偏移失败：${error instanceof Error ? error.message : "未知错误"}`));
+  }
 });
 const savedAudioOffset = localStorage.getItem("vocal-score.audio-offset");
 if (savedAudioOffset) $<HTMLInputElement>("#audio-offset").value = savedAudioOffset;

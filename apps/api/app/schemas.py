@@ -145,6 +145,14 @@ class QuantizationSettings(BaseModel):
     conflicts: list[QuantizationConflict] = Field(default_factory=list)
 
 
+class AudioAlignment(BaseModel):
+    offset_ms: int = Field(default=0, ge=-2_000, le=2_000)
+    source: Literal["manual", "automatic", "default"] = "default"
+    status: Literal["unconfirmed", "confirmed"] = "unconfirmed"
+    candidate_offset_ms: int | None = Field(default=None, ge=-2_000, le=2_000)
+    confidence: float | None = Field(default=None, ge=0, le=1)
+
+
 class PipelineStep(BaseModel):
     stage: str
     version: str
@@ -217,6 +225,7 @@ class ScoreProject(BaseModel):
     notes: list[ScoreNote]
     performance_notes: list[PerformanceNote] | None = None
     quantization: QuantizationSettings = Field(default_factory=QuantizationSettings)
+    audio_alignment: AudioAlignment = Field(default_factory=AudioAlignment)
     raw_notes: list[ScoreNote] | None = None
     transcription_evidence: TranscriptionEvidence | None = None
     pipeline: list[PipelineStep]
@@ -276,6 +285,13 @@ class BoundaryBatchReviewRequest(BaseModel):
     expected_revision: int = Field(ge=1)
     threshold: float = Field(default=0.85, ge=0, le=1)
     action: Literal["preview", "accept", "reset"] = "accept"
+
+
+class AudioAlignmentRequest(BaseModel):
+    expected_revision: int = Field(ge=1)
+    offset_ms: int = Field(ge=-2_000, le=2_000)
+    source: Literal["manual", "automatic", "default"] = "manual"
+    status: Literal["unconfirmed", "confirmed"] = "confirmed"
 
 
 class MelodyRequest(BaseModel):
