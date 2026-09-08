@@ -1,7 +1,7 @@
 .jianpu-meta small {
   float: right;
   color: #8a8174;
-  font: 400 11px "Noto Sans SC";
+  font: 400 11px system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif;
 }
 
 .jp-note {
