@@ -23,6 +23,8 @@ from app.schemas import (
     JobStatus,
     MelodyRequest,
     ProjectPatch,
+    ProjectCatalogSummary,
+    ProjectRenameRequest,
     ProjectSummary,
     RequantizeRequest,
     ScoreProject,
@@ -162,11 +164,46 @@ def list_projects(session: SessionDep) -> list[ProjectSummary]:
     return summaries
 
 
+@router.get("/project-catalog", response_model=list[ProjectCatalogSummary])
+def list_project_catalog(session: SessionDep) -> list[ProjectCatalogSummary]:
+    records = session.scalars(
+        select(ProjectRecord).order_by(ProjectRecord.updated_at.desc()).limit(200)
+    )
+    summaries: list[ProjectCatalogSummary] = []
+    for record in records:
+        project = ScoreProject.model_validate(record.document)
+        job = session.get(JobRecord, record.job_id)
+        upload = session.get(UploadRecord, job.upload_id) if job else None
+        summaries.append(
+            ProjectCatalogSummary(
+                project_id=project.project_id,
+                project_group_id=project.project_group_id or (upload.id if upload else ""),
+                upload_id=upload.id if upload else "",
+                project_name=project.project_name or (upload.project_name if upload else "未命名项目"),
+                score_name=project.score_name or "未命名谱面",
+                engine=project.engine or "unknown",
+                file_name=project.source.file_name,
+                duration_ms=project.source.duration_ms,
+                note_count=len(project.notes),
+                revision=record.revision,
+                updated_at=record.updated_at,
+            )
+        )
+    return summaries
+
+
 def _project_document(project_id: str, session: Session) -> ScoreProject:
     record = session.get(ProjectRecord, project_id)
     if record is None:
         raise HTTPException(status_code=404, detail="Project not found")
     return ScoreProject.model_validate(record.document)
+
+
+@router.patch("/projects/{project_id}/name", response_model=ScoreProject)
+def rename_project(project_id: str, request: ProjectRenameRequest, session: SessionDep) -> ScoreProject:
+    record, project = _editable_project(project_id, request.expected_revision, session)
+    project.score_name = request.name
+    return _save_project(record, project, session)
 
 
 @router.get("/projects/{project_id}/exports/midi")

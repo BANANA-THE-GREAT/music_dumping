@@ -17,6 +17,7 @@ export interface UploadResponse {
   size_bytes: number;
   sha256: string;
   created_at: string;
+  project_name?: string | null;
 }
 export interface JobResponse {
   id: string;
@@ -107,6 +108,10 @@ export interface TranscriptionEvidence {
 export interface ScoreProject {
   schema_version: "1.0";
   project_id: string;
+  project_group_id?: string | null;
+  project_name?: string | null;
+  score_name?: string | null;
+  engine?: string | null;
   source: {
     file_name: string;
     duration_ms: number;
@@ -138,6 +143,13 @@ export interface ProjectSummary {
   note_count: number;
   revision: number;
   updated_at: string;
+}
+export interface ProjectCatalogSummary extends ProjectSummary {
+  project_group_id: string;
+  upload_id: string;
+  project_name: string;
+  score_name: string;
+  engine: string;
 }
 export interface RequantizeRequest {
   expected_revision: number;

@@ -43,6 +43,7 @@ class UploadResponse(BaseModel):
     size_bytes: int
     sha256: str
     created_at: datetime
+    project_name: str | None = None
 
 
 class JobOptions(BaseModel):
@@ -205,6 +206,10 @@ class TranscriptionEvidence(BaseModel):
 class ScoreProject(BaseModel):
     schema_version: Literal["1.0"] = "1.0"
     project_id: str
+    project_group_id: str | None = None
+    project_name: str | None = None
+    score_name: str | None = None
+    engine: str | None = None
     source: SourceAudio
     analysis: Analysis
     notes: list[ScoreNote]
@@ -240,6 +245,19 @@ class ProjectSummary(BaseModel):
     note_count: int
     revision: int
     updated_at: datetime
+
+
+class ProjectCatalogSummary(ProjectSummary):
+    project_group_id: str
+    upload_id: str
+    project_name: str
+    score_name: str
+    engine: str
+
+
+class ProjectRenameRequest(BaseModel):
+    expected_revision: int = Field(ge=1)
+    name: str = Field(min_length=1, max_length=255)
 
 
 class ProjectPatch(BaseModel):

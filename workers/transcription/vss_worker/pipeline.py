@@ -195,6 +195,10 @@ def build_real_project(
     return {
         "schema_version": "1.0",
         "project_id": project_id,
+        "project_group_id": upload_id,
+        "project_name": file_name.rsplit(".", 1)[0] or file_name,
+        "score_name": f"{file_name.rsplit('.', 1)[0] or file_name} · {type(active_transcriber).__name__}",
+        "engine": type(active_transcriber).__name__,
         "source": {
             "file_name": file_name,
             "duration_ms": duration_ms,

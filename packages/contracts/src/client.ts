@@ -4,6 +4,7 @@ import type {
   JobResponse,
   MelodyOptions,
   ProjectSummary,
+  ProjectCatalogSummary,
   RequantizeRequest,
   ScoreProject,
   ScoreProjectNote,
@@ -70,6 +71,16 @@ export class VocalScoreApi {
   }
   listProjects(): Promise<ProjectSummary[]> {
     return this.request("/v1/projects");
+  }
+  listProjectCatalog(): Promise<ProjectCatalogSummary[]> {
+    return this.request("/v1/project-catalog");
+  }
+  renameProject(id: string, expectedRevision: number, name: string): Promise<ScoreProject> {
+    return this.request(`/v1/projects/${id}/name`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ expected_revision: expectedRevision, name }),
+    });
   }
   deleteProject(id: string): Promise<void> {
     return this.request(`/v1/projects/${id}`, { method: "DELETE" });

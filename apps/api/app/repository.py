@@ -22,6 +22,7 @@ def create_upload(
         size_bytes=size_bytes,
         sha256=sha256,
         object_key=object_key,
+        project_name=file_name.rsplit(".", 1)[0] or file_name,
     )
     session.add(record)
     session.commit()
