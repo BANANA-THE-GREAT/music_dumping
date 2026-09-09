@@ -63,13 +63,20 @@ const server = http.createServer((req, res) => {
     res.writeHead(code, { "content-type": "application/json" });
     res.end(JSON.stringify(value));
   };
-  if (path === "/api/v1/projects")
+  if (path === "/api/v1/project-catalog")
     return json([
       {
         project_id: project.project_id,
+        project_group_id: "preview-group",
+        upload_id: "preview-upload",
+        project_name: "试听验收项目",
+        score_name: "试听验收谱面",
+        engine: "Basic Pitch",
         file_name: "preview-test.wav",
+        duration_ms: 2000,
         note_count: project.notes.length,
         revision: project.revision,
+        updated_at: new Date().toISOString(),
       },
     ]);
   if (path === "/api/v1/projects/preview-test") return json(project);

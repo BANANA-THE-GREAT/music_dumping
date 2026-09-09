@@ -83,6 +83,7 @@ try {
     () => document.querySelectorAll("#piano rect").length === 14,
   );
   await page.click('[data-view="piano"]');
+  await page.locator("#piano svg").scrollIntoViewIfNeeded();
   const rect = await page.locator("#piano svg").boundingBox();
   await page.mouse.move(rect.x + 200, rect.y + 100);
   await page.keyboard.down("Control");
@@ -267,14 +268,21 @@ try {
     pipeline: [],
   };
   const saved = [];
-  await page.route("**/api/v1/projects", (route) =>
+  await page.route("**/api/v1/project-catalog", (route) =>
     route.fulfill({
       json: [
         {
           project_id: project.project_id,
+          project_group_id: "editor-group",
+          upload_id: "editor-upload",
+          project_name: "编辑验收项目",
+          score_name: "编辑验收谱面",
+          engine: "GAME + F0",
           file_name: "editor-check.wav",
+          duration_ms: 2000,
           note_count: 2,
           revision: project.revision,
+          updated_at: new Date().toISOString(),
         },
       ],
     }),
