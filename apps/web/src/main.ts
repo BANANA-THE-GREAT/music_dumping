@@ -63,6 +63,22 @@ document
     "beforeend",
     `<div class="edit-actions"><button id="undo" title="撤销" disabled>↶</button><button id="redo" title="重做" disabled>↷</button><button id="pitch-up" title="升高半音" disabled>↑</button><button id="pitch-down" title="降低半音" disabled>↓</button><button id="shorter" disabled>缩短</button><button id="longer" disabled>延长</button><button id="split" disabled>拆分</button><button id="merge" disabled>与后音合并</button><button id="delete-note" disabled>删除</button></div><output id="playback-state" class="playback-state" aria-live="polite"></output>`,
   );
+const playbackTools = document.createElement("div");
+playbackTools.className = "playback-tools";
+playbackTools.innerHTML = `<select id="playback-start" aria-label="播放起点"><option value="beginning">从头播放</option><option value="selected">从选中音符开始</option></select>`;
+for (const selector of [
+  "#playback-version",
+  "#playback-mode",
+  ".playback-loop",
+  "#play",
+]) {
+  const control = document.querySelector(selector);
+  if (control) playbackTools.append(control);
+}
+document.querySelector(".score-tools")!.insertBefore(
+  playbackTools,
+  document.querySelector(".edit-actions"),
+);
 document
   .querySelector(".toolbar")!
   .insertAdjacentHTML(
@@ -377,10 +393,20 @@ drop.addEventListener("drop", (e) => {
   if (f) load(f);
 });
 const isolate = $<HTMLInputElement>("#isolate");
+const isolateField = isolate.closest<HTMLElement>(".field")!;
+isolateField.id = "local-isolate-field";
 isolate.addEventListener(
   "input",
   () => ($("#isolateValue").textContent = `${isolate.value}%`),
 );
+function syncEngineControls() {
+  isolateField.classList.toggle(
+    "hidden",
+    $<HTMLSelectElement>("#engine").value !== "local",
+  );
+}
+$<HTMLSelectElement>("#engine").addEventListener("change", syncEngineControls);
+syncEngineControls();
 async function infer(buffer: AudioBuffer) {
   checkTaskCancelled();
   const signal = taskAbort!.signal;
@@ -1915,12 +1941,18 @@ play.addEventListener("click", async () => {
         )
       : notes;
     const selected = selectedNoteIndex === null ? undefined : notes[selectedNoteIndex];
-    const clipStartSeconds = selected?.startBeat
-      ? selected.startBeat * beatMs / 1000
+    const startFromSelected =
+      $<HTMLSelectElement>("#playback-start").value === "selected" &&
+      Boolean(selected);
+    const clipStartSeconds = startFromSelected
+      ? selected!.startBeat * beatMs / 1000
       : 0;
-    const clipEndSeconds = selected
-      ? (selected.startBeat + selected.durationBeats) * beatMs / 1000
-      : Math.max(...allPlaybackNotes.map((note) => note.startTimeSeconds + note.durationSeconds), 0);
+    const clipEndSeconds = Math.max(
+      ...allPlaybackNotes.map(
+        (note) => note.startTimeSeconds + note.durationSeconds,
+      ),
+      0,
+    );
     const loopEnabled = $<HTMLInputElement>("#playback-loop").checked;
     const playbackMode = $<HTMLSelectElement>("#playback-mode").value;
     const offsetSeconds = Number($<HTMLInputElement>("#audio-offset").value || 0) / 1000;
@@ -1935,15 +1967,22 @@ play.addEventListener("click", async () => {
       audio.src = vocalsAudioUrl || audio.src;
       audio.volume = Number($<HTMLInputElement>("#vocal-volume").value) / 100;
     }
-    const playbackNotes = selected
-      ? allPlaybackNotes
-          .filter((note) => note.startTimeSeconds < clipEndSeconds && note.startTimeSeconds + note.durationSeconds > clipStartSeconds)
-          .map((note) => ({
-            ...note,
-            startTimeSeconds: Math.max(0, note.startTimeSeconds - clipStartSeconds),
-            durationSeconds: Math.min(note.startTimeSeconds + note.durationSeconds, clipEndSeconds) - Math.max(note.startTimeSeconds, clipStartSeconds),
-          }))
-      : allPlaybackNotes;
+    const playbackEntries = allPlaybackNotes
+      .map((note, index) => ({ note, index }))
+      .filter(
+        ({ note }) =>
+          note.startTimeSeconds < clipEndSeconds &&
+          note.startTimeSeconds + note.durationSeconds > clipStartSeconds,
+      );
+    const playbackNotes = playbackEntries.map(({ note }) => ({
+      ...note,
+      startTimeSeconds: Math.max(0, note.startTimeSeconds - clipStartSeconds),
+      durationSeconds:
+        Math.min(
+          note.startTimeSeconds + note.durationSeconds,
+          clipEndSeconds,
+        ) - Math.max(note.startTimeSeconds, clipStartSeconds),
+    }));
     const performanceToScore = performancePlayback
       ? (serverProject?.performance_notes ?? []).map((performanceNote) =>
           serverProject?.notes.findIndex((note) => note.id === performanceNote.id),
@@ -1959,11 +1998,14 @@ play.addEventListener("click", async () => {
         playbackNotes,
         analysis.bpm,
         (indices) => {
+        const sourceIndices = indices.map(
+          (index) => playbackEntries[index]?.index ?? -1,
+        );
         const displayedIndices = performancePlayback
-          ? indices
+          ? sourceIndices
               .map((index) => performanceToScore[index] ?? -1)
               .filter((index) => index >= 0)
-          : indices;
+          : sourceIndices.filter((index) => index >= 0);
         const key = displayedIndices.join(",");
         if (key === previousActive) return;
         previousActive = key;
@@ -2037,6 +2079,7 @@ for (const [id, output] of [["score-volume", "score-volume-value"], ["source-vol
 const playbackPreferences = [
   ["playback-version", "vocal-score.playback-version"],
   ["playback-mode", "vocal-score.playback-mode"],
+  ["playback-start", "vocal-score.playback-start"],
 ] as const;
 for (const [id, storageKey] of playbackPreferences) {
   const control = $<HTMLSelectElement>(`#${id}`);

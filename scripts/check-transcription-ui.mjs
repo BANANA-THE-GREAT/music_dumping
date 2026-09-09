@@ -183,6 +183,7 @@ await page.addInitScript(() => {
 });
 try {
   await page.goto("http://127.0.0.1:4176", { waitUntil: "domcontentloaded" });
+  assert.equal(await page.locator("#local-isolate-field").isVisible(), false);
   await page.click("#project-picker");
   await page.locator(".project-card").first().locator("summary").click();
   await page.locator('#project-list .score-option[data-score-id="preview-test"]').click();
@@ -230,6 +231,7 @@ try {
     null,
   );
   await page.selectOption("#engine", "local");
+  assert.equal(await page.locator("#local-isolate-field").isVisible(), true);
   await page.setInputFiles("#file", {
     name: "local-preview.wav",
     mimeType: "audio/wav",

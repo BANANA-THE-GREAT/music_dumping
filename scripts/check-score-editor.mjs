@@ -126,6 +126,9 @@ try {
   await page.waitForFunction(
     () => document.querySelectorAll("#piano rect").length === 14,
   );
+  assert.equal(await page.locator(".score-tools #play").count(), 1);
+  assert.equal(await page.locator(".score-tools #playback-start").count(), 1);
+  await page.locator('#staff [data-note="5"]').first().click();
   await page.click("#play");
   await page.waitForFunction(
     () =>
@@ -180,6 +183,13 @@ try {
     false,
   );
   console.log("PASS: natural completion and silent cleanup");
+  await page.selectOption("#playback-start", "selected");
+  await page.locator('#staff [data-note="10"]').first().click();
+  await page.click("#play");
+  await page.waitForFunction(() => window.audioProbe.starts.length === 46);
+  await page.click("#play");
+  assert.equal(await page.locator(".playing").count(), 0);
+  console.log("PASS: explicit full-score and selected-note playback starts");
   await page.screenshot({
     path: `${process.env.SCREENSHOT_DIR || "/tmp"}/score-desktop.png`,
     fullPage: true,

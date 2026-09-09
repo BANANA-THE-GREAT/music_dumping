@@ -42,6 +42,36 @@ SessionDep = Annotated[Session, Depends(get_session)]
 SettingsDep = Annotated[Settings, Depends(get_settings)]
 
 
+def _hydrate_project_metadata(
+    record: ProjectRecord, session: Session
+) -> tuple[ScoreProject, UploadRecord | None, bool]:
+    project = ScoreProject.model_validate(record.document)
+    job = session.get(JobRecord, record.job_id)
+    upload = session.get(UploadRecord, job.upload_id) if job else None
+    if upload is None:
+        return project, None, False
+    changed = False
+    audio_name = upload.file_name.rsplit(".", 1)[0] or upload.file_name
+    if not project.project_group_id:
+        project.project_group_id = upload.id
+        changed = True
+    if not project.project_name or project.project_name == "未命名项目":
+        project.project_name = upload.project_name or audio_name
+        changed = True
+    if not project.score_name or project.score_name == "未命名谱面":
+        records = session.scalars(
+            select(ProjectRecord)
+            .join(JobRecord, ProjectRecord.job_id == JobRecord.id)
+            .where(JobRecord.upload_id == upload.id)
+            .order_by(ProjectRecord.created_at, ProjectRecord.id)
+        ).all()
+        project.score_name = f"{audio_name}-{records.index(record) + 1}"
+        changed = True
+    if changed:
+        record.document = project.model_dump(mode="json")
+    return project, upload, changed
+
+
 @router.post("/uploads", response_model=UploadResponse, status_code=status.HTTP_201_CREATED)
 async def upload_audio(
     session: SessionDep, settings: SettingsDep, file: Annotated[UploadFile, File()]
@@ -145,7 +175,10 @@ def get_project(project_id: str, session: SessionDep) -> ScoreProject:
     record = session.get(ProjectRecord, project_id)
     if record is None:
         raise HTTPException(status_code=404, detail="Project not found")
-    return ScoreProject.model_validate(record.document)
+    project, _, changed = _hydrate_project_metadata(record, session)
+    if changed:
+        session.commit()
+    return project
 
 
 @router.get("/projects", response_model=list[ProjectSummary])
@@ -176,10 +209,10 @@ def list_project_catalog(session: SessionDep) -> list[ProjectCatalogSummary]:
     )
     summaries: list[ProjectCatalogSummary] = []
     represented_uploads: set[str] = set()
+    metadata_changed = False
     for record in records:
-        project = ScoreProject.model_validate(record.document)
-        job = session.get(JobRecord, record.job_id)
-        upload = session.get(UploadRecord, job.upload_id) if job else None
+        project, upload, changed = _hydrate_project_metadata(record, session)
+        metadata_changed = metadata_changed or changed
         if upload:
             represented_uploads.add(upload.id)
         summaries.append(
@@ -199,6 +232,8 @@ def list_project_catalog(session: SessionDep) -> list[ProjectCatalogSummary]:
                 updated_at=record.updated_at,
             )
         )
+    if metadata_changed:
+        session.commit()
     uploads = session.scalars(
         select(UploadRecord).order_by(UploadRecord.created_at.desc()).limit(200)
     )
@@ -222,7 +257,10 @@ def _project_document(project_id: str, session: Session) -> ScoreProject:
     record = session.get(ProjectRecord, project_id)
     if record is None:
         raise HTTPException(status_code=404, detail="Project not found")
-    return ScoreProject.model_validate(record.document)
+    project, _, changed = _hydrate_project_metadata(record, session)
+    if changed:
+        session.commit()
+    return project
 
 
 @router.patch("/projects/{project_id}/name", response_model=ScoreProject)

@@ -76,6 +76,28 @@ def test_project_catalog_can_rename_score_and_audio_project() -> None:
     assert item["score_name"] == "GAME 试验"
 
 
+def test_generated_project_persists_upload_and_score_default_names() -> None:
+    upload = client.post(
+        "/v1/uploads",
+        files={"file": ("named-song.wav", BytesIO(b"RIFF-named"), "audio/wav")},
+    ).json()
+    client.patch(
+        f"/v1/uploads/{upload['id']}/name",
+        json={"expected_revision": 1, "name": "我的默认项目"},
+    )
+    job = client.post("/v1/jobs", json={"upload_id": upload["id"]}).json()
+    deadline = time.monotonic() + 3
+    while time.monotonic() < deadline:
+        job = client.get(f"/v1/jobs/{job['id']}").json()
+        if job["status"] == "completed":
+            break
+        time.sleep(0.03)
+    project = client.get(f"/v1/projects/{job['project_id']}").json()
+    assert project["project_group_id"] == upload["id"]
+    assert project["project_name"] == "我的默认项目"
+    assert project["score_name"] == "named-song-1"
+
+
 def test_uploaded_audio_appears_in_catalog_before_score_generation() -> None:
     upload = client.post(
         "/v1/uploads",

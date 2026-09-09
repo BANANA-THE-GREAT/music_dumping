@@ -209,13 +209,17 @@ def _complete(job_id: str, document: ScoreProject) -> None:
         job = session.get(JobRecord, job_id)
         if job is None:
             raise InterruptedError("Task no longer exists")
+        upload = session.get(UploadRecord, job.upload_id)
+        if upload is None:
+            raise InterruptedError("Source upload no longer exists")
         attempt_count = session.scalar(
             select(func.count(ProjectRecord.id))
             .join(JobRecord, ProjectRecord.job_id == JobRecord.id)
             .where(JobRecord.upload_id == job.upload_id)
         ) or 0
         audio_name = Path(document.source.file_name).stem or document.source.file_name
-        document.project_name = audio_name
+        document.project_group_id = upload.id
+        document.project_name = upload.project_name or audio_name
         document.score_name = f"{audio_name}-{attempt_count + 1}"
         result = cast(
             CursorResult[Any],
