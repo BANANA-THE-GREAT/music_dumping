@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { cleanAndQuantize, demoNotes, mappedAbc } from "./music";
-import { renderJianpu, rhythmParts, scoreMeasures } from "./notation";
+import { renderJianpu, rhythmParts, scoreMeasures, scoreRests } from "./notation";
 
 const note = cleanAndQuantize(demoNotes(), 120)[0];
 describe("notation measures and identity", () => {
@@ -37,7 +37,19 @@ describe("notation measures and identity", () => {
     const html = renderJianpu([{ ...note, startBeat: 4, durationBeats: 1 }], 4);
     expect(html.match(/class="jp-measure"/g)).toHaveLength(2);
     expect(html).toContain("<b>0</b>");
+    expect(html).toContain('data-rest-start="0"');
     expect(html.match(/data-note=/g)).toHaveLength(1);
+  });
+  it("reports leading and internal rest intervals", () => {
+    expect(
+      scoreRests([
+        { ...note, startBeat: 1, durationBeats: 1 },
+        { ...note, startBeat: 3, durationBeats: 1 },
+      ]),
+    ).toEqual([
+      { start: 0, duration: 1 },
+      { start: 2, duration: 1 },
+    ]);
   });
   it("maps both tied staff fragments to the original editable note", () => {
     const result = mappedAbc(

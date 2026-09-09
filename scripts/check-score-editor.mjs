@@ -13,7 +13,7 @@ const errors = [];
 await page.addInitScript(() => {
   HTMLMediaElement.prototype.play = async () => {};
   const NativeContext = window.AudioContext;
-  window.audioProbe = { contexts: 0, starts: [], stops: [], analyser: null };
+  window.audioProbe = { contexts: 0, starts: [], stops: [], durations: [], analyser: null };
   window.AudioContext = class extends NativeContext {
     constructor(options) {
       super(options);
@@ -23,12 +23,19 @@ await page.addInitScript(() => {
       const node = super.createOscillator();
       const start = node.start.bind(node),
         stop = node.stop.bind(node);
+      let scheduledStart,
+        durationRecorded = false;
       node.start = (time) => {
         window.audioProbe.starts.push(time);
+        scheduledStart = time;
         start(time);
       };
       node.stop = (time) => {
         window.audioProbe.stops.push(time);
+        if (!durationRecorded && scheduledStart !== undefined) {
+          window.audioProbe.durations.push(time - scheduledStart);
+          durationRecorded = true;
+        }
         stop(time);
       };
       return node;
@@ -66,12 +73,12 @@ try {
   await page.click("#pitch-up");
   await page.waitForFunction(
     () =>
-      document.querySelector("#piano rect title")?.textContent === "MIDI 61",
+      document.querySelector("#piano .roll-note title")?.textContent === "MIDI 61",
   );
   await page.click("#undo");
   await page.waitForFunction(
     () =>
-      document.querySelector("#piano rect title")?.textContent === "MIDI 60",
+      document.querySelector("#piano .roll-note title")?.textContent === "MIDI 60",
   );
   await page.click('[data-view="jianpu"]');
   assert.equal(await page.locator(".jp-measure").count(), 4);
@@ -79,17 +86,17 @@ try {
   await page.keyboard.press("ArrowUp");
   await page.waitForFunction(
     () =>
-      document.querySelector('#piano rect[data-note="1"] title')
+      document.querySelector('#piano .roll-note[data-note="1"] title')
         ?.textContent === "MIDI 61",
   );
   await page.click("#shorter");
   await page.click("#split");
   await page.waitForFunction(
-    () => document.querySelectorAll("#piano rect").length === 15,
+    () => document.querySelectorAll("#piano .roll-note").length === 15,
   );
   await page.click("#example");
   await page.waitForFunction(
-    () => document.querySelectorAll("#piano rect").length === 14,
+    () => document.querySelectorAll("#piano .roll-note").length === 14,
   );
   await page.click('[data-view="piano"]');
   await page.locator("#piano svg").scrollIntoViewIfNeeded();
@@ -106,8 +113,8 @@ try {
   );
   await page.locator("#zoom").fill("1");
   await page.locator("#zoom").dispatchEvent("input");
-  await page.locator('#piano rect[data-note="0"]').scrollIntoViewIfNeeded();
-  const target = await page.locator('#piano rect[data-note="0"]').boundingBox();
+  await page.locator('#piano .roll-note[data-note="0"]').scrollIntoViewIfNeeded();
+  const target = await page.locator('#piano .roll-note[data-note="0"]').boundingBox();
   await page.mouse.move(
     target.x + target.width / 2,
     target.y + target.height / 2,
@@ -124,7 +131,7 @@ try {
   await page.click('[data-view="staff"]');
   await page.click("#example");
   await page.waitForFunction(
-    () => document.querySelectorAll("#piano rect").length === 14,
+    () => document.querySelectorAll("#piano .roll-note").length === 14,
   );
   assert.equal(await page.locator(".score-tools #play").count(), 1);
   assert.equal(await page.locator(".score-tools #playback-start").count(), 1);
@@ -187,8 +194,26 @@ try {
   await page.locator('#staff [data-note="10"]').first().click();
   await page.click("#play");
   await page.waitForFunction(() => window.audioProbe.starts.length === 46);
+  await page.waitForFunction(
+    () => document.querySelector('#staff [data-note="10"].playing'),
+  );
   await page.click("#play");
   assert.equal(await page.locator(".playing").count(), 0);
+  await page.selectOption("#playback-speed", "0.5");
+  await page.locator('#staff [data-note="13"]').first().click();
+  const slowDurationIndex = await page.evaluate(() => window.audioProbe.durations.length);
+  await page.click("#play");
+  await page.waitForFunction(
+    (index) => window.audioProbe.durations.length > index,
+    slowDurationIndex,
+  );
+  assert.ok(
+    await page.evaluate(
+      (index) => window.audioProbe.durations[index] > 0.9,
+      slowDurationIndex,
+    ),
+  );
+  await page.click("#play");
   console.log("PASS: explicit full-score and selected-note playback starts");
   await page.screenshot({
     path: `${process.env.SCREENSHOT_DIR || "/tmp"}/score-desktop.png`,
@@ -238,7 +263,7 @@ try {
       pitch_midi: pitch,
       source_start_ms: index * 500,
       source_end_ms: index * 500 + 500,
-      quantized_start: index,
+      quantized_start: index + 1,
       quantized_duration: 1,
       confidence: 0.9,
       origin: "model",
@@ -377,6 +402,18 @@ try {
     () => document.querySelectorAll("#piano .roll-note").length === 2,
   );
   assert.equal(await page.locator("#piano .performance-note").count(), 2);
+  await page.selectOption("#playback-version", "score");
+  await page.selectOption("#playback-mode", "score");
+  await page.selectOption("#playback-start", "beginning");
+  await page.selectOption("#playback-speed", "1");
+  await page.click("#play");
+  await page.waitForFunction(
+    () => document.querySelectorAll(".playing-rest").length >= 3,
+  );
+  await page.waitForFunction(
+    () => document.querySelector('#staff [data-note="0"].playing'),
+  );
+  await page.click("#play");
   await page.selectOption("#playback-version", "performance");
   await page.selectOption("#playback-mode", "mix-source");
   await page.locator("#playback-loop").check();
@@ -441,7 +478,7 @@ try {
   assert.equal(saved.length, 2);
   await page.click("#example");
   await page.waitForFunction(
-    () => document.querySelectorAll("#piano rect").length === 14,
+    () => document.querySelectorAll("#piano .roll-note").length === 14,
   );
   assert.deepEqual(errors, []);
   console.log(

@@ -163,15 +163,26 @@ export function mappedAbc(
 ) {
   let abc = `X:1\nT:人声转录结果\nM:${meter}/${denominator}\nL:1/8\nQ:1/4=${bpm}\nK:${key}\n`;
   const mapping: Array<{ offset: number; index: number }> = [];
+  const restMapping: Array<{ offset: number; start: number; end: number }> = [];
   for (const measure of scoreMeasures(notes, (meter * 4) / denominator)) {
     for (const segment of measure) {
       if (segment.index !== null)
         mapping.push({ offset: abc.length, index: segment.index });
+      else
+        restMapping.push({
+          offset: abc.length,
+          start: segment.start,
+          end: segment.start + segment.duration,
+        });
       abc += `${segment.index === null ? "z" : abcPitch(notes[segment.index].pitchMidi)}${abcLength(segment.duration)}${segment.index !== null && segment.continues ? "-" : ""} `;
     }
     abc += "| ";
   }
-  return { abc: notes.length ? abc.trimEnd() + "]" : abc + "z8 |]", mapping };
+  return {
+    abc: notes.length ? abc.trimEnd() + "]" : abc + "z8 |]",
+    mapping,
+    restMapping,
+  };
 }
 
 export function demoNotes(): RawNote[] {

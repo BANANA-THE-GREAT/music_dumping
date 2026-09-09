@@ -7,6 +7,22 @@ export interface ScoreSegment {
   continues: boolean;
 }
 
+export interface RestSegment {
+  start: number;
+  duration: number;
+}
+
+export function scoreRests(notes: ScoreNote[]): RestSegment[] {
+  const rests: RestSegment[] = [];
+  let cursor = 0;
+  for (const note of [...notes].sort((a, b) => a.startBeat - b.startBeat)) {
+    if (note.startBeat > cursor)
+      rests.push({ start: cursor, duration: note.startBeat - cursor });
+    cursor = Math.max(cursor, note.startBeat + note.durationBeats);
+  }
+  return rests;
+}
+
 export function scoreMeasures(
   notes: ScoreNote[],
   beats: number,
@@ -59,7 +75,10 @@ export function renderJianpu(notes: ScoreNote[], beats: number): string {
             const label = n
               ? `${n.accidental === 1 ? "&#9839;" : n.accidental === -1 ? "&#9837;" : ""}${n.degree}`
               : "0";
-            return `<span class="jp-note" ${n ? `data-note="${segment.index}" tabindex="0" role="button" aria-label="Note ${segment.index! + 1}"` : ""}><b>${label}${"&middot;".repeat(segment.dots)}</b><em>${n && n.octave > 0 ? "&middot;".repeat(n.octave) : ""}</em><i>${n && n.octave < 0 ? "&middot;".repeat(-n.octave) : ""}</i><small>${"&#9473;".repeat(segment.underlines)}</small>${n && segment.continues ? '<sup class="jp-tie">&#8994;</sup>' : ""}</span>${'<span class="jp-extension">&#8212;</span>'.repeat(segment.extensions)}`;
+            const restTiming = n
+              ? ""
+              : `data-rest-start="${segment.start}" data-rest-end="${segment.start + segment.duration}"`;
+            return `<span class="jp-note${n ? "" : " rest"}" ${n ? `data-note="${segment.index}" tabindex="0" role="button" aria-label="Note ${segment.index! + 1}"` : restTiming}><b>${label}${"&middot;".repeat(segment.dots)}</b><em>${n && n.octave > 0 ? "&middot;".repeat(n.octave) : ""}</em><i>${n && n.octave < 0 ? "&middot;".repeat(-n.octave) : ""}</i><small>${"&#9473;".repeat(segment.underlines)}</small>${n && segment.continues ? '<sup class="jp-tie">&#8994;</sup>' : ""}</span>${'<span class="jp-extension">&#8212;</span>'.repeat(segment.extensions)}`;
           })
           .join("")}</div>`,
     )

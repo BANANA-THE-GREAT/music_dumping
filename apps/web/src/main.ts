@@ -65,7 +65,7 @@ document
   );
 const playbackTools = document.createElement("div");
 playbackTools.className = "playback-tools";
-playbackTools.innerHTML = `<select id="playback-start" aria-label="播放起点"><option value="beginning">从头播放</option><option value="selected">从选中音符开始</option></select>`;
+playbackTools.innerHTML = `<select id="playback-start" aria-label="播放起点"><option value="beginning">从头播放</option><option value="selected">从选中音符开始</option></select><select id="playback-speed" aria-label="播放速度"><option value="0.5">速度 50%</option><option value="0.6">速度 60%</option><option value="0.75">速度 75%</option><option value="0.85">速度 85%</option><option value="1" selected>速度 100%</option><option value="1.1">速度 110%</option><option value="1.25">速度 125%</option><option value="1.5">速度 150%</option></select>`;
 for (const selector of [
   "#playback-version",
   "#playback-mode",
@@ -1464,6 +1464,16 @@ async function render() {
       element.setAttribute("aria-label", `音符 ${index + 1}`);
     }
   }
+  for (const { offset, start, end } of score.restMapping) {
+    const item = tune?.getElementFromChar(offset) as {
+      abselem?: import("abcjs").AbsoluteElement;
+    } | null;
+    for (const element of item?.abselem?.elemset ?? []) {
+      element.dataset.restStart = String(start);
+      element.dataset.restEnd = String(end);
+      element.setAttribute("aria-label", "休止符");
+    }
+  }
   $("#jianpu").innerHTML =
     `<div class="jianpu-meta">1 = ${KEYS[analysis.keyPitchClass]}　${analysis.meter}/${analysis.meterDenominator}　♩ = ${analysis.bpm}</div>` +
     renderJianpu(notes, (analysis.meter * 4) / analysis.meterDenominator);
@@ -1913,8 +1923,8 @@ function stop() {
   play.textContent = "▶ 演奏";
   $("#playback-state").textContent = "";
   document
-    .querySelectorAll(".playing")
-    .forEach((e) => e.classList.remove("playing"));
+    .querySelectorAll(".playing, .playing-rest")
+    .forEach((e) => e.classList.remove("playing", "playing-rest"));
 }
 play.addEventListener("click", async () => {
   if (playing) return stop();
@@ -1954,6 +1964,9 @@ play.addEventListener("click", async () => {
       0,
     );
     const loopEnabled = $<HTMLInputElement>("#playback-loop").checked;
+    const playbackRate = Number(
+      $<HTMLSelectElement>("#playback-speed").value,
+    );
     const playbackMode = $<HTMLSelectElement>("#playback-mode").value;
     const offsetSeconds = Number($<HTMLInputElement>("#audio-offset").value || 0) / 1000;
     const audioEnabled = playbackMode !== "score";
@@ -1982,6 +1995,17 @@ play.addEventListener("click", async () => {
           note.startTimeSeconds + note.durationSeconds,
           clipEndSeconds,
         ) - Math.max(note.startTimeSeconds, clipStartSeconds),
+      startBeat:
+        (Math.max(note.startTimeSeconds, clipStartSeconds) -
+          clipStartSeconds) *
+        (analysis.bpm / 60),
+      durationBeats:
+        (Math.min(
+          note.startTimeSeconds + note.durationSeconds,
+          clipEndSeconds,
+        ) -
+          Math.max(note.startTimeSeconds, clipStartSeconds)) *
+        (analysis.bpm / 60),
     }));
     const performanceToScore = performancePlayback
       ? (serverProject?.performance_notes ?? []).map((performanceNote) =>
@@ -1991,35 +2015,59 @@ play.addEventListener("click", async () => {
     const elements = [
       ...document.querySelectorAll<HTMLElement | SVGElement>("[data-note]"),
     ];
+    const restElements = [
+      ...document.querySelectorAll<HTMLElement | SVGElement>(
+        "[data-rest-start]",
+      ),
+    ];
     let previousActive = "";
     const playClip = async () => {
       if (!playing) return;
       await scorePlayer.play(
         playbackNotes,
-        analysis.bpm,
-        (indices) => {
-        const sourceIndices = indices.map(
-          (index) => playbackEntries[index]?.index ?? -1,
-        );
-        const displayedIndices = performancePlayback
-          ? sourceIndices
-              .map((index) => performanceToScore[index] ?? -1)
-              .filter((index) => index >= 0)
-          : sourceIndices.filter((index) => index >= 0);
-        const key = displayedIndices.join(",");
-        if (key === previousActive) return;
-        previousActive = key;
-        const active = new Set(displayedIndices);
-        $("#playback-state").textContent = displayedIndices.length ? "正在演奏音符" : "休止";
-        elements.forEach((el) => {
-          const hit = active.has(Number(el.dataset.note));
-          if (hit && !el.classList.contains("playing")) {
-            el.classList.remove("note-hit");
-            void el.getBoundingClientRect();
-            el.classList.add("note-hit");
-          }
-          el.classList.toggle("playing", hit);
-        });
+        analysis.bpm * playbackRate,
+        (indices, elapsedSeconds) => {
+          const sourceIndices = indices.map(
+            (index) => playbackEntries[index]?.index ?? -1,
+          );
+          const displayedIndices = performancePlayback
+            ? sourceIndices
+                .map((index) => performanceToScore[index] ?? -1)
+                .filter((index) => index >= 0)
+            : sourceIndices.filter((index) => index >= 0);
+          const sourceBeat =
+            (clipStartSeconds + elapsedSeconds * playbackRate) *
+            (analysis.bpm / 60);
+          const activeRestElements = restElements.filter(
+            (element) =>
+              Number(element.dataset.restStart) <= sourceBeat &&
+              Number(element.dataset.restEnd) > sourceBeat,
+          );
+          const activeRest = activeRestElements[0];
+          const key = `${displayedIndices.join(",")}|${activeRest?.dataset.restStart ?? ""}`;
+          if (key === previousActive) return;
+          previousActive = key;
+          const active = new Set(displayedIndices);
+          $("#playback-state").textContent = displayedIndices.length
+            ? "正在演奏音符"
+            : activeRest
+              ? "正在演奏休止符"
+              : "休止";
+          elements.forEach((el) => {
+            const hit = active.has(Number(el.dataset.note));
+            if (hit && !el.classList.contains("playing")) {
+              el.classList.remove("note-hit");
+              void el.getBoundingClientRect();
+              el.classList.add("note-hit");
+            }
+            el.classList.toggle("playing", hit);
+          });
+          restElements.forEach((element) =>
+            element.classList.toggle(
+              "playing-rest",
+              activeRestElements.includes(element),
+            ),
+          );
         },
         () => {
           if (loopEnabled && playing) {
@@ -2039,6 +2087,8 @@ play.addEventListener("click", async () => {
         loop: loopEnabled,
       };
       audio.currentTime = Math.max(0, Math.min(clipStartSeconds + offsetSeconds, audio.duration || clipStartSeconds + offsetSeconds));
+      audio.playbackRate = playbackRate;
+      audio.preservesPitch = true;
       await audio.play();
     }
     if (scoreEnabled) await playClip();
@@ -2080,6 +2130,7 @@ const playbackPreferences = [
   ["playback-version", "vocal-score.playback-version"],
   ["playback-mode", "vocal-score.playback-mode"],
   ["playback-start", "vocal-score.playback-start"],
+  ["playback-speed", "vocal-score.playback-speed"],
 ] as const;
 for (const [id, storageKey] of playbackPreferences) {
   const control = $<HTMLSelectElement>(`#${id}`);

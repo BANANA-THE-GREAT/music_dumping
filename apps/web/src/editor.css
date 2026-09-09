@@ -834,10 +834,30 @@
   color: #168577;
   fill: #168577;
 }
+#staff [data-rest-start].playing-rest {
+  color: #b24c2d;
+  fill: #b24c2d;
+  filter: drop-shadow(0 0 5px #b24c2d);
+}
 .jp-note.playing {
   background: #d5eee7;
   color: #12665b;
   transform: none;
+}
+.jp-note.rest.playing-rest {
+  color: #942f13;
+  background: #f4c6a8;
+  box-shadow: 0 0 0 2px #b24c2d;
+  transform: translateY(-3px);
+}
+.piano-roll .roll-rest {
+  fill: #b24c2d08;
+  pointer-events: none;
+}
+.piano-roll .roll-rest.playing-rest {
+  fill: #f4c6a866;
+  stroke: #b24c2d;
+  stroke-width: 1.5;
 }
 [data-note]:focus-visible {
   outline: 2px solid #168577;

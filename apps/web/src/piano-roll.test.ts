@@ -44,6 +44,15 @@ describe("piano roll", () => {
     expect(svg).toContain("roll-note selected");
   });
 
+  it("renders explicit rest regions", () => {
+    const svg = renderPianoRoll(
+      [{ ...notes[0], startBeat: 1 }],
+      null,
+    );
+    expect(svg).toContain('class="roll-rest"');
+    expect(svg).toContain('data-rest-start="0"');
+  });
+
   it("exposes stable beat and pitch bounds for pointer editing", () => {
     expect(pianoRollMetrics(notes)).toEqual({ endBeat: 4, lowPitch: 58, highPitch: 66 });
   });

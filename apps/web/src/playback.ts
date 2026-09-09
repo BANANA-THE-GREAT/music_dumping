@@ -75,7 +75,7 @@ export class ScorePlayer {
   async play(
     notes: ScoreNote[],
     bpm: number,
-    highlight: (indices: number[]) => void,
+    highlight: (indices: number[], seconds: number) => void,
     ended: () => void,
     volume = 0.8,
   ) {
@@ -93,7 +93,7 @@ export class ScorePlayer {
     master.gain.value = Math.max(0, Math.min(1, volume));
     const compressor = context.createDynamicsCompressor();
     master.connect(compressor).connect(context.destination);
-    this.clearHighlight = () => highlight([]);
+    this.clearHighlight = () => highlight([], 0);
     // Schedule on the audio clock, independently of rendering and JS timer jitter.
     const origin = context.currentTime + 0.06;
     this.voices = timeline.map((n) =>
@@ -123,7 +123,8 @@ export class ScorePlayer {
         outputTime > 0
           ? outputTime
           : context.currentTime - (context.outputLatency || 0);
-      highlight(activeNoteIndices(timeline, audibleTime - origin));
+      const seconds = Math.max(0, audibleTime - origin);
+      highlight(activeNoteIndices(timeline, seconds), seconds);
       this.frame = requestAnimationFrame(tick);
     };
     tick();

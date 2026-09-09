@@ -1,5 +1,6 @@
 import type { F0Frame } from "@vocal-score/contracts";
 import type { ScoreNote } from "./types";
+import { scoreRests } from "./notation";
 
 export interface PianoRollRect {
   index: number;
@@ -101,6 +102,13 @@ export function renderPianoRoll(
     const x = (beat / endBeat) * width;
     return `<line x1="${x}" y1="0" x2="${x}" y2="${height}" class="${beat % 4 === 0 ? "bar" : "beat"}" />`;
   }).join("");
+  const restRects = scoreRests(notes)
+    .map((rest) => {
+      const x = (rest.start / endBeat) * width;
+      const restWidth = (rest.duration / endBeat) * width;
+      return `<rect class="roll-rest" data-rest-start="${rest.start}" data-rest-end="${rest.start + rest.duration}" x="${x.toFixed(2)}" y="0" width="${restWidth.toFixed(2)}" height="${height}" />`;
+    })
+    .join("");
   const noteRects = rectangles
     .map((rect) => {
       const conflict = evidence?.conflictNoteIndices?.includes(rect.index);
@@ -154,5 +162,5 @@ export function renderPianoRoll(
       return `<g class="boundary-guide ${boundary.status}"><line x1="${originalX.toFixed(2)}" y1="${y.toFixed(2)}" x2="${proposedX.toFixed(2)}" y2="${y.toFixed(2)}" /><line x1="${originalX.toFixed(2)}" y1="${(y - 7).toFixed(2)}" x2="${originalX.toFixed(2)}" y2="${(y + 7).toFixed(2)}" /><line x1="${proposedX.toFixed(2)}" y1="${(y - 9).toFixed(2)}" x2="${proposedX.toFixed(2)}" y2="${(y + 9).toFixed(2)}" /></g>`;
     })
     .join("");
-  return `<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="钢琴卷帘">${beatLines}${performanceRects}${f0Paths}${boundaryGuides}${noteRects}</svg>`;
+  return `<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="钢琴卷帘">${restRects}${beatLines}${performanceRects}${f0Paths}${boundaryGuides}${noteRects}</svg>`;
 }

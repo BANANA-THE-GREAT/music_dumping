@@ -3,6 +3,7 @@ import {
   cleanAndQuantize,
   demoNotes,
   displayQuantizedNotes,
+  mappedAbc,
   toAbc,
 } from "./music";
 
@@ -17,6 +18,15 @@ describe("score pipeline", () => {
     expect(abc).toContain("M:4/4");
     expect(abc).toContain("Q:1/4=120");
     expect(abc).toContain("C");
+  });
+  it("maps staff rests to their score intervals", () => {
+    const result = mappedAbc(
+      [{ ...cleanAndQuantize(demoNotes(), 120)[0], startBeat: 1 }],
+      120,
+    );
+    expect(result.restMapping).toEqual([
+      expect.objectContaining({ start: 0, end: 1 }),
+    ]);
   });
   it("writes compound meter with an eighth-note denominator", () => {
     const abc = toAbc(cleanAndQuantize(demoNotes(), 120), 120, 6, 8, "C");
