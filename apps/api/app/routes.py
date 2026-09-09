@@ -1,8 +1,8 @@
 import math
 import time
-from uuid import uuid4
 from collections.abc import Iterator
 from typing import Annotated, Literal
+from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile, status
 from fastapi.responses import FileResponse, StreamingResponse
@@ -17,16 +17,18 @@ from app.models import JobRecord, ProjectRecord, UploadRecord
 from app.project_service import requantize
 from app.repository import create_job, create_upload, job_response
 from app.schemas import (
-    BoundarySuggestionReviewRequest,
-    BoundaryBatchReviewRequest,
     AudioAlignmentRequest,
+    BoundaryBatchReviewRequest,
+    BoundarySuggestionReviewRequest,
     JobCreate,
     JobResponse,
     JobStage,
     JobStatus,
     MelodyRequest,
-    ProjectPatch,
+    PipelineStep,
+    ProjectBulkDeleteRequest,
     ProjectCatalogSummary,
+    ProjectPatch,
     ProjectRenameRequest,
     ProjectSummary,
     RequantizeRequest,
@@ -182,7 +184,9 @@ def list_project_catalog(session: SessionDep) -> list[ProjectCatalogSummary]:
                 project_id=project.project_id,
                 project_group_id=project.project_group_id or (upload.id if upload else ""),
                 upload_id=upload.id if upload else "",
-                project_name=project.project_name or (upload.project_name if upload else "未命名项目"),
+                project_name=upload.project_name
+                if upload and upload.project_name
+                else (project.project_name or "未命名项目"),
                 score_name=project.score_name or "未命名谱面",
                 engine=project.engine or "unknown",
                 file_name=project.source.file_name,
@@ -203,14 +207,18 @@ def _project_document(project_id: str, session: Session) -> ScoreProject:
 
 
 @router.patch("/projects/{project_id}/name", response_model=ScoreProject)
-def rename_project(project_id: str, request: ProjectRenameRequest, session: SessionDep) -> ScoreProject:
+def rename_project(
+    project_id: str, request: ProjectRenameRequest, session: SessionDep
+) -> ScoreProject:
     record, project = _editable_project(project_id, request.expected_revision, session)
     project.score_name = request.name
     return _save_project(record, project, session)
 
 
 @router.patch("/uploads/{upload_id}/name", response_model=UploadResponse)
-def rename_audio_project(upload_id: str, request: ProjectRenameRequest, session: SessionDep) -> UploadResponse:
+def rename_audio_project(
+    upload_id: str, request: ProjectRenameRequest, session: SessionDep
+) -> UploadResponse:
     upload = session.get(UploadRecord, upload_id)
     if upload is None:
         raise HTTPException(status_code=404, detail="Upload not found")
@@ -231,9 +239,7 @@ def export_project_midi(
     return Response(
         content=content,
         media_type="audio/midi",
-        headers={
-            "Content-Disposition": f'attachment; filename="{project_id}{suffix}.mid"'
-        },
+        headers={"Content-Disposition": f'attachment; filename="{project_id}{suffix}.mid"'},
     )
 
 
@@ -285,9 +291,7 @@ def stream_project_audio(
 
 
 @router.get("/projects/{project_id}/evidence/f0")
-def stream_project_f0(
-    project_id: str, session: SessionDep, settings: SettingsDep
-) -> FileResponse:
+def stream_project_f0(project_id: str, session: SessionDep, settings: SettingsDep) -> FileResponse:
     project = _project_document(project_id, session)
     artifact = (
         project.transcription_evidence.f0_track
@@ -362,11 +366,7 @@ def review_boundary_suggestion(
         raise HTTPException(status_code=409, detail={"code": "SUGGESTION_NOT_REVIEWED"})
 
     target = next(
-        (
-            note
-            for note in project.notes
-            if suggestion.source_note_id in note.source_note_ids
-        ),
+        (note for note in project.notes if suggestion.source_note_id in note.source_note_ids),
         None,
     )
     performance_target = next(
@@ -385,9 +385,7 @@ def review_boundary_suggestion(
         if target is None or performance_target is None:
             raise HTTPException(status_code=409, detail={"code": "SUGGESTION_TARGET_MISSING"})
         expected_end = (
-            suggestion.original_end_ms
-            if request.action == "accept"
-            else suggestion.proposed_end_ms
+            suggestion.original_end_ms if request.action == "accept" else suggestion.proposed_end_ms
         )
         if target.source_end_ms != expected_end:
             raise HTTPException(status_code=409, detail={"code": "SUGGESTION_TARGET_CHANGED"})
@@ -399,9 +397,7 @@ def review_boundary_suggestion(
                 (suggestion.proposed_end_ms - target.source_start_ms) / beat_ms,
             )
             if not math.isclose(target.quantized_duration, expected_duration):
-                raise HTTPException(
-                    status_code=409, detail={"code": "SUGGESTION_TARGET_CHANGED"}
-                )
+                raise HTTPException(status_code=409, detail={"code": "SUGGESTION_TARGET_CHANGED"})
 
     next_revision = record.revision + 1
     if request.action == "accept":
@@ -463,7 +459,8 @@ def review_boundary_batch(
     if evidence is None:
         raise HTTPException(status_code=404, detail={"code": "SUGGESTION_NOT_FOUND"})
     pending = [
-        item for item in evidence.boundary_suggestions
+        item
+        for item in evidence.boundary_suggestions
         if item.review_status == "pending" and item.confidence >= request.threshold
     ]
     if request.action == "preview":
@@ -476,12 +473,34 @@ def review_boundary_batch(
         for suggestion in evidence.boundary_suggestions:
             if suggestion.review_batch_id != batch_id or suggestion.review_status != "accepted":
                 continue
-            target = next((note for note in project.notes if suggestion.source_note_id in note.source_note_ids), None)
-            performance_target = next((note for note in project.performance_notes or [] if suggestion.source_note_id in note.source_note_ids), None)
-            if target is None or performance_target is None or target.source_end_ms != suggestion.proposed_end_ms:
+            target = next(
+                (
+                    note
+                    for note in project.notes
+                    if suggestion.source_note_id in note.source_note_ids
+                ),
+                None,
+            )
+            performance_target = next(
+                (
+                    note
+                    for note in project.performance_notes or []
+                    if suggestion.source_note_id in note.source_note_ids
+                ),
+                None,
+            )
+            if (
+                target is None
+                or performance_target is None
+                or target.source_end_ms != suggestion.proposed_end_ms
+            ):
                 continue
             target.source_end_ms = suggestion.original_end_ms
-            target.quantized_duration = suggestion.accepted_from_quantized_duration or max(0.01, (target.source_end_ms - target.source_start_ms) / (60_000 / project.analysis.tempo_map[0].bpm))
+            target.quantized_duration = suggestion.accepted_from_quantized_duration or max(
+                0.01,
+                (target.source_end_ms - target.source_start_ms)
+                / (60_000 / project.analysis.tempo_map[0].bpm),
+            )
             target.origin = suggestion.accepted_from_origin or "model"
             performance_target.source_end_ms = suggestion.original_end_ms
             performance_target.origin = suggestion.accepted_from_origin or "model"
@@ -492,21 +511,43 @@ def review_boundary_batch(
             suggestion.accepted_from_quantized_duration = None
             restored += 1
         evidence.last_boundary_batch_id = None
-        project.pipeline.append(PipelineStep(stage="boundary_suggestion_batch_reset", version="1", parameters={"restored": restored, "batch_id": batch_id}))
+        project.pipeline.append(
+            PipelineStep(
+                stage="boundary_suggestion_batch_reset",
+                version="1",
+                parameters={"restored": restored, "batch_id": batch_id},
+            )
+        )
         return _save_project(record, project, session)
 
     batch_id = str(uuid4())
     changed = 0
     beat_ms = 60_000 / project.analysis.tempo_map[0].bpm
     for suggestion in pending:
-        target = next((note for note in project.notes if suggestion.source_note_id in note.source_note_ids), None)
-        performance_target = next((note for note in project.performance_notes or [] if suggestion.source_note_id in note.source_note_ids), None)
-        if target is None or performance_target is None or target.source_end_ms != suggestion.original_end_ms:
+        target = next(
+            (note for note in project.notes if suggestion.source_note_id in note.source_note_ids),
+            None,
+        )
+        performance_target = next(
+            (
+                note
+                for note in project.performance_notes or []
+                if suggestion.source_note_id in note.source_note_ids
+            ),
+            None,
+        )
+        if (
+            target is None
+            or performance_target is None
+            or target.source_end_ms != suggestion.original_end_ms
+        ):
             continue
         suggestion.accepted_from_origin = target.origin
         suggestion.accepted_from_quantized_duration = target.quantized_duration
         target.source_end_ms = suggestion.proposed_end_ms
-        target.quantized_duration = max(0.01, (target.source_end_ms - target.source_start_ms) / beat_ms)
+        target.quantized_duration = max(
+            0.01, (target.source_end_ms - target.source_start_ms) / beat_ms
+        )
         target.origin = "user"
         performance_target.source_end_ms = suggestion.proposed_end_ms
         performance_target.origin = "user"
@@ -515,7 +556,13 @@ def review_boundary_batch(
         suggestion.reviewed_revision = record.revision + 1
         changed += 1
     evidence.last_boundary_batch_id = batch_id if changed else None
-    project.pipeline.append(PipelineStep(stage="boundary_suggestion_batch_accept", version="1", parameters={"threshold": request.threshold, "accepted": changed, "batch_id": batch_id}))
+    project.pipeline.append(
+        PipelineStep(
+            stage="boundary_suggestion_batch_accept",
+            version="1",
+            parameters={"threshold": request.threshold, "accepted": changed, "batch_id": batch_id},
+        )
+    )
     return _save_project(record, project, session)
 
 
@@ -555,6 +602,8 @@ def delete_project(project_id: str, session: SessionDep, settings: SettingsDep) 
         session.delete(project)
         session.commit()
         return Response(status_code=status.HTTP_204_NO_CONTENT)
+    if job.status in {JobStatus.QUEUED, JobStatus.RUNNING, JobStatus.CANCELLING}:
+        raise HTTPException(status_code=409, detail={"code": "PROJECT_JOB_RUNNING"})
     upload = session.get(UploadRecord, job.upload_id)
     object_key = upload.object_key if upload else None
     session.delete(project)
@@ -571,6 +620,67 @@ def delete_project(project_id: str, session: SessionDep, settings: SettingsDep) 
     if object_key is not None and other_job is None:
         remove_project_files(settings, object_key, job.id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/projects/bulk-delete", status_code=status.HTTP_200_OK)
+def bulk_delete_projects(
+    request: ProjectBulkDeleteRequest, session: SessionDep, settings: SettingsDep
+) -> dict[str, int]:
+    records = [session.get(ProjectRecord, project_id) for project_id in set(request.project_ids)]
+    missing = sum(record is None for record in records)
+    existing = [record for record in records if record is not None]
+    running = [
+        record.id
+        for record in existing
+        if (job := session.get(JobRecord, record.job_id)) is not None
+        and job.status in {JobStatus.QUEUED, JobStatus.RUNNING, JobStatus.CANCELLING}
+    ]
+    if running:
+        raise HTTPException(
+            status_code=409, detail={"code": "PROJECT_JOB_RUNNING", "project_ids": running}
+        )
+
+    upload_ids = {
+        job.upload_id
+        for record in existing
+        if (job := session.get(JobRecord, record.job_id)) is not None
+    }
+    object_keys: dict[str, str] = {}
+    cleanup_jobs: list[tuple[str, str]] = []
+    for record in existing:
+        job = session.get(JobRecord, record.job_id)
+        upload = session.get(UploadRecord, job.upload_id) if job else None
+        if job is not None:
+            if upload is not None:
+                object_keys[upload.id] = upload.object_key
+                cleanup_jobs.append((upload.object_key, job.id))
+            session.delete(record)
+            session.flush()
+            session.delete(job)
+        if upload is not None:
+            object_keys[upload.id] = upload.object_key
+    session.flush()
+    removed_uploads = 0
+    for upload_id in upload_ids:
+        if (
+            session.scalar(select(JobRecord.id).where(JobRecord.upload_id == upload_id).limit(1))
+            is not None
+        ):
+            continue
+        upload = session.get(UploadRecord, upload_id)
+        if upload is not None:
+            object_keys.setdefault(upload_id, upload.object_key)
+            session.delete(upload)
+            removed_uploads += 1
+    session.commit()
+    for object_key, job_id in cleanup_jobs:
+        if object_key:
+            remove_project_files(settings, object_key, job_id)
+    return {
+        "deleted_projects": len(existing),
+        "deleted_uploads": removed_uploads,
+        "missing": missing,
+    }
 
 
 @router.post("/projects/{project_id}/melody", response_model=ScoreProject)
@@ -605,8 +715,7 @@ def refine_project_melody(
         bpm = project.analysis.tempo_map[0].bpm
         project.notes = [ScoreNote.model_validate(n) for n in quantized_notes(refined, bpm)]
         performance_source = [
-            ScoreNote.model_validate(n)
-            for n in quantized_notes(refined, bpm, monophonic=False)
+            ScoreNote.model_validate(n) for n in quantized_notes(refined, bpm, monophonic=False)
         ]
     project.performance_notes = [
         PerformanceNote(

@@ -87,6 +87,8 @@ def test_real_pipeline_composes_adapters_and_quantizes(tmp_path: Path) -> None:
     assert len(document["raw_notes"]) == 3
     assert len(document["performance_notes"]) == 3
     assert "quantized_start" not in document["performance_notes"][0]
+    assert document["transcription_input"]["variant"] == "vocal_stem"
+    assert "notes_in_leading_silence" in document["transcription_diagnostics"]
     assert stages == [
         "preprocessing",
         "separating",
@@ -127,9 +129,7 @@ def test_real_pipeline_persists_experimental_evidence_without_applying_it(
     assert document["raw_notes"][0]["source_note_ids"] == ["game-0000"]
     assert document["raw_notes"][0]["source_end_ms"] == 500
     assert document["transcription_evidence"]["note_model"]["name"] == "GAME medium"
-    assert document["pipeline"][3]["parameters"]["implementation"] == (
-        "FakeEvidenceTranscriber"
-    )
+    assert document["pipeline"][3]["parameters"]["implementation"] == ("FakeEvidenceTranscriber")
     assert document["pipeline"][3]["parameters"]["device"] == "cuda"
 
 

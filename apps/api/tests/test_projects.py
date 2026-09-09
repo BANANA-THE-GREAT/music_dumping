@@ -49,6 +49,58 @@ def test_project_edit_uses_optimistic_revision() -> None:
     assert stale.json()["detail"]["code"] == "REVISION_CONFLICT"
 
 
+def test_project_catalog_can_rename_score_and_audio_project() -> None:
+    project = create_project()
+    catalog = client.get("/v1/project-catalog")
+    assert catalog.status_code == 200
+    item = next(row for row in catalog.json() if row["project_id"] == project["project_id"])
+    assert item["project_name"] == "edit"
+    assert item["score_name"] == "未命名谱面"
+
+    renamed_score = client.patch(
+        f"/v1/projects/{project['project_id']}/name",
+        json={"expected_revision": project["revision"], "name": "GAME 试验"},
+    )
+    assert renamed_score.status_code == 200
+    renamed_audio = client.patch(
+        f"/v1/uploads/{item['upload_id']}/name",
+        json={"expected_revision": 1, "name": "我的歌曲"},
+    )
+    assert renamed_audio.status_code == 200
+    item = next(
+        row
+        for row in client.get("/v1/project-catalog").json()
+        if row["project_id"] == project["project_id"]
+    )
+    assert item["project_name"] == "我的歌曲"
+    assert item["score_name"] == "GAME 试验"
+
+
+def test_bulk_delete_keeps_shared_upload_until_last_score() -> None:
+    first = create_project()
+    with SessionLocal() as session:
+        first_record = session.get(ProjectRecord, first["project_id"])
+        first_job = session.get(JobRecord, first_record.job_id)
+        upload_id = first_job.upload_id
+    second_job = client.post(
+        "/v1/jobs", json={"upload_id": upload_id, "options": {"auto_start": False}}
+    ).json()
+    # The fake worker is deterministic, so run the job through its normal path.
+    from app.job_runner import run_fake_job
+
+    run_fake_job(second_job["id"])
+    second_job = client.get(f"/v1/jobs/{second_job['id']}").json()
+    second = client.get(f"/v1/projects/{second_job['project_id']}").json()
+
+    response = client.post("/v1/projects/bulk-delete", json={"project_ids": [first["project_id"]]})
+    assert response.status_code == 200
+    assert response.json()["deleted_projects"] == 1
+    assert client.get(f"/v1/projects/{second['project_id']}").status_code == 200
+    response = client.post("/v1/projects/bulk-delete", json={"project_ids": [second["project_id"]]})
+    assert response.status_code == 200
+    assert client.get(f"/v1/projects/{second['project_id']}").status_code == 404
+
+
 def test_project_can_be_requantized() -> None:
     project = create_project()
     performance_notes = project["performance_notes"]
@@ -199,17 +251,13 @@ def test_project_exports_standard_midi_and_musicxml() -> None:
     assert b"MTrk" in midi.content
     assert midi.headers["content-disposition"].endswith(f'"{project_id}.mid"')
 
-    performance_midi = client.get(
-        f"/v1/projects/{project_id}/exports/midi?version=performance"
-    )
+    performance_midi = client.get(f"/v1/projects/{project_id}/exports/midi?version=performance")
     assert performance_midi.status_code == 200
     assert performance_midi.content.startswith(b"MThd")
     assert performance_midi.headers["content-disposition"].endswith(
         f'"{project_id}.performance.mid"'
     )
-    assert client.get(
-        f"/v1/projects/{project_id}/exports/midi?version=unknown"
-    ).status_code == 422
+    assert client.get(f"/v1/projects/{project_id}/exports/midi?version=unknown").status_code == 422
 
     musicxml = client.get(f"/v1/projects/{project_id}/exports/musicxml")
     assert musicxml.status_code == 200
@@ -424,9 +472,7 @@ def test_transcription_evidence_is_optional_and_round_trips() -> None:
             }
         ],
     }
-    evidence = ScoreProject.model_validate(legacy).model_dump(mode="json")[
-        "transcription_evidence"
-    ]
+    evidence = ScoreProject.model_validate(legacy).model_dump(mode="json")["transcription_evidence"]
     assert evidence is not None
     assert evidence["f0_track"]["frame_count"] == 101
     assert evidence["boundary_suggestions"][0]["review_status"] == "pending"
@@ -471,9 +517,10 @@ def test_boundary_suggestion_review_accept_reject_and_reset() -> None:
     assert accepted_project["revision"] == 2
     assert accepted_project["notes"][0]["source_end_ms"] == proposed_end
     assert accepted_project["raw_notes"][0]["source_end_ms"] == original_end
-    assert accepted_project["transcription_evidence"]["boundary_suggestions"][0][
-        "review_status"
-    ] == "accepted"
+    assert (
+        accepted_project["transcription_evidence"]["boundary_suggestions"][0]["review_status"]
+        == "accepted"
+    )
     assert client.post(path, json={"expected_revision": 1, "action": "reset"}).status_code == 409
 
     reset = client.post(path, json={"expected_revision": 2, "action": "reset"})
@@ -482,9 +529,10 @@ def test_boundary_suggestion_review_accept_reject_and_reset() -> None:
     assert reset.json()["notes"][0]["quantized_duration"] == original_duration
     assert reset.json()["notes"][0]["origin"] == "model"
     assert reset.json()["performance_notes"][0]["source_end_ms"] == original_end
-    assert reset.json()["transcription_evidence"]["boundary_suggestions"][0][
-        "review_status"
-    ] == "pending"
+    assert (
+        reset.json()["transcription_evidence"]["boundary_suggestions"][0]["review_status"]
+        == "pending"
+    )
 
     rejected = client.post(path, json={"expected_revision": 3, "action": "reject"})
     assert rejected.status_code == 200
@@ -492,9 +540,10 @@ def test_boundary_suggestion_review_accept_reject_and_reset() -> None:
     assert rejected.json()["notes"][0]["source_end_ms"] == original_end
     reset_rejection = client.post(path, json={"expected_revision": 4, "action": "reset"})
     assert reset_rejection.status_code == 200
-    assert reset_rejection.json()["transcription_evidence"]["boundary_suggestions"][0][
-        "review_status"
-    ] == "pending"
+    assert (
+        reset_rejection.json()["transcription_evidence"]["boundary_suggestions"][0]["review_status"]
+        == "pending"
+    )
 
 
 def test_boundary_suggestion_accept_refuses_changed_target() -> None:

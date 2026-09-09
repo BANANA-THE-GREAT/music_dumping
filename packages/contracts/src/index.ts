@@ -143,6 +143,13 @@ export interface ScoreProject {
     object_key: string;
     separator?: string | null;
   } | null;
+  transcription_diagnostics?: {
+    input_duration_ms: number;
+    leading_silence_ms: number;
+    low_energy_threshold: number;
+    notes_in_leading_silence: number;
+    low_energy_note_count: number;
+  } | null;
   analysis: {
     tempo_map: Array<{ time_ms: number; bpm: number }>;
     meter_map: Array<{ beat: number; numerator: number; denominator: number }>;
@@ -176,6 +183,14 @@ export interface ProjectCatalogSummary extends ProjectSummary {
   project_name: string;
   score_name: string;
   engine: string;
+}
+export interface ProjectBulkDeleteRequest {
+  project_ids: string[];
+}
+export interface ProjectBulkDeleteResponse {
+  deleted_projects: number;
+  deleted_uploads: number;
+  missing: number;
 }
 export interface RequantizeRequest {
   expected_revision: number;

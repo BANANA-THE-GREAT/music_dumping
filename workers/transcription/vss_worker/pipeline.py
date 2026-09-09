@@ -14,6 +14,56 @@ from vss_worker.adapters import (
 from vss_worker.melody import quantized_notes, refine_melody
 
 
+def _transcription_diagnostics(vocal_path: Path, notes: list[DetectedNote]) -> dict[str, object]:
+    try:
+        import soundfile as sf  # type: ignore[import-not-found]
+
+        samples, sample_rate = sf.read(vocal_path, always_2d=False, dtype="float32")
+        if getattr(samples, "ndim", 1) > 1:
+            samples = samples.mean(axis=1)
+        frame_size = max(1, int(sample_rate * 0.02))
+        energies = [
+            float((frame * frame).mean() ** 0.5)
+            for frame in (
+                samples[start : start + frame_size] for start in range(0, len(samples), frame_size)
+            )
+            if len(frame)
+        ]
+        peak = max(energies, default=0.0)
+        threshold = max(0.003, peak * 0.08)
+        first_loud = next(
+            (index for index, energy in enumerate(energies) if energy >= threshold), len(energies)
+        )
+        leading_silence_ms = round(first_loud * 20)
+        low_energy_notes = (
+            [
+                note
+                for note in notes
+                if note.start_seconds < len(samples) / sample_rate
+                and energies[min(len(energies) - 1, max(0, int(note.start_seconds * 50)))]
+                < threshold
+            ]
+            if energies
+            else []
+        )
+        leading_notes = [note for note in notes if note.start_seconds * 1000 < leading_silence_ms]
+        return {
+            "input_duration_ms": round(len(samples) / sample_rate * 1000),
+            "leading_silence_ms": leading_silence_ms,
+            "low_energy_threshold": round(threshold, 6),
+            "notes_in_leading_silence": len(leading_notes),
+            "low_energy_note_count": len(low_energy_notes),
+        }
+    except Exception:
+        return {
+            "input_duration_ms": round(max((note.end_seconds for note in notes), default=0) * 1000),
+            "leading_silence_ms": 0,
+            "low_energy_threshold": 0,
+            "notes_in_leading_silence": 0,
+            "low_energy_note_count": 0,
+        }
+
+
 def _runtime_device(adapter: object) -> str:
     device = getattr(adapter, "device", None)
     return device if isinstance(device, str) else "worker-default"
@@ -210,6 +260,7 @@ def build_real_project(
             "object_key": f"work/{work_dir.name}/{vocal.relative_to(work_dir).as_posix()}",
             "separator": type(separator).__name__,
         },
+        "transcription_diagnostics": _transcription_diagnostics(vocal, detected),
         "analysis": {
             "tempo_map": [{"time_ms": 0, "bpm": bpm}],
             "meter_map": [{"beat": 0, "numerator": numerator, "denominator": denominator}],

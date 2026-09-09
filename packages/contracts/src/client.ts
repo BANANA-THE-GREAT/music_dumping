@@ -7,6 +7,8 @@ import type {
   MelodyOptions,
   ProjectSummary,
   ProjectCatalogSummary,
+  ProjectBulkDeleteRequest,
+  ProjectBulkDeleteResponse,
   RequantizeRequest,
   ScoreProject,
   ScoreProjectNote,
@@ -93,6 +95,13 @@ export class VocalScoreApi {
   }
   deleteProject(id: string): Promise<void> {
     return this.request(`/v1/projects/${id}`, { method: "DELETE" });
+  }
+  bulkDeleteProjects(request: ProjectBulkDeleteRequest): Promise<ProjectBulkDeleteResponse> {
+    return this.request("/v1/projects/bulk-delete", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(request),
+    });
   }
   updateProject(
     id: string,

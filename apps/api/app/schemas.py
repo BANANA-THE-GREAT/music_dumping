@@ -110,6 +110,14 @@ class TranscriptionInput(BaseModel):
     separator: str | None = None
 
 
+class TranscriptionDiagnostics(BaseModel):
+    input_duration_ms: int = Field(ge=0)
+    leading_silence_ms: int = Field(ge=0)
+    low_energy_threshold: float = Field(ge=0)
+    notes_in_leading_silence: int = Field(ge=0)
+    low_energy_note_count: int = Field(ge=0)
+
+
 class ScoreNote(BaseModel):
     id: str
     source_start_ms: int = Field(ge=0)
@@ -228,6 +236,7 @@ class ScoreProject(BaseModel):
     engine: str | None = None
     source: SourceAudio
     transcription_input: TranscriptionInput | None = None
+    transcription_diagnostics: TranscriptionDiagnostics | None = None
     analysis: Analysis
     notes: list[ScoreNote]
     performance_notes: list[PerformanceNote] | None = None
@@ -276,6 +285,10 @@ class ProjectCatalogSummary(ProjectSummary):
 class ProjectRenameRequest(BaseModel):
     expected_revision: int = Field(ge=1)
     name: str = Field(min_length=1, max_length=255)
+
+
+class ProjectBulkDeleteRequest(BaseModel):
+    project_ids: list[str] = Field(min_length=1, max_length=200)
 
 
 class ProjectPatch(BaseModel):

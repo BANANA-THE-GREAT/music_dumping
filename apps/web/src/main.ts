@@ -56,7 +56,7 @@ document
   .querySelector(".toolbar")!
   .insertAdjacentHTML(
     "afterend",
-    `<div class="edit-actions"><button id="undo" title="撤销" disabled>↶</button><button id="redo" title="重做" disabled>↷</button><button id="pitch-up" title="升高半音" disabled>↑</button><button id="pitch-down" title="降低半音" disabled>↓</button><button id="shorter" disabled>缩短</button><button id="longer" disabled>延长</button><button id="split" disabled>拆分</button><button id="merge" disabled>与后音合并</button><button id="delete-note" disabled>删除</button></div>`,
+    `<div class="edit-actions"><button id="undo" title="撤销" disabled>↶</button><button id="redo" title="重做" disabled>↷</button><button id="pitch-up" title="升高半音" disabled>↑</button><button id="pitch-down" title="降低半音" disabled>↓</button><button id="shorter" disabled>缩短</button><button id="longer" disabled>延长</button><button id="split" disabled>拆分</button><button id="merge" disabled>与后音合并</button><button id="delete-note" disabled>删除</button></div><output id="playback-state" class="playback-state" aria-live="polite"></output>`,
   );
 document
   .querySelector(".edit-actions")!
@@ -116,6 +116,10 @@ $(".quantization-controls").insertAdjacentHTML(
     `<section id="boundary-review" class="boundary-review hidden" aria-label="F0 止音建议"><header><strong>止音建议</strong><output id="boundary-summary"></output></header><p class="context-help">根据 F0 发声证据提示音符可能应提前或延后结束，只在接受后修改音符。</p><div class="boundary-batch"><label>自动接受阈值 <output id="boundary-threshold-value">85%</output><input id="boundary-threshold" type="range" min="0" max="100" value="85"></label><button id="preview-boundaries" type="button">预览高置信建议</button><button id="accept-boundaries" type="button">批量接受</button><button id="reset-boundaries" type="button">撤销最近批次</button><output id="boundary-batch-result"></output></div><div id="boundary-list"></div></section>`,
 );
 const vocalPreview = new VocalPreview(audio, $("#vocal-preview"));
+$("#vocal-preview").insertAdjacentHTML(
+  "afterend",
+  `<section id="transcription-diagnostics" class="diagnostics hidden" aria-label="转谱输入诊断"></section>`,
+);
 audio.insertAdjacentHTML(
   "afterend",
   `<div class="field"><label>处理引擎</label><select id="engine"><option value="server-high">Basic Pitch · Demucs</option><option value="server-experimental" selected>GAME + F0 · 推荐</option><option value="server-demo">后端演示 · 快速</option><option value="local">浏览器本地模式</option></select><small>GAME + F0 需要 quality Worker，未配置时不会静默回退</small></div>`,
@@ -124,7 +128,7 @@ document
   .querySelector("aside")!
   .insertAdjacentHTML(
     "afterbegin",
-    `<div class="recent-projects"><label for="recent-project">项目 / 谱面</label><div><select id="recent-project"><option value="">选择已保存项目…</option></select><button id="refresh-projects" title="刷新项目">↻</button><button id="rename-project" title="重命名项目" disabled>项目名</button><button id="rename-score" title="重命名谱面" disabled>谱名</button><button id="delete-project" title="删除谱面" disabled>删除</button></div></div>`,
+    `<div class="recent-projects"><label for="recent-project">项目 / 谱面</label><div><select id="recent-project" size="4"><option value="">选择已保存项目…</option></select><button id="refresh-projects" title="刷新项目">↻</button><button id="rename-project" title="重命名项目" disabled>项目名</button><button id="rename-score" title="重命名谱面" disabled>谱名</button><button id="delete-project" title="删除谱面" disabled>删除</button><button id="bulk-delete-projects" title="批量删除谱面" disabled>批量删除</button></div></div>`,
   );
 let sourceBuffer: AudioBuffer | null = null,
   sourceFile: File | null = null,
@@ -149,10 +153,6 @@ let analysis: MusicalAnalysis = {
   confidence: { bpm: 0, meter: 0, key: 0 },
 };
 const scorePlayer = new ScorePlayer();
-const vocalMixAudio = document.createElement("audio");
-vocalMixAudio.preload = "auto";
-vocalMixAudio.className = "hidden-audio";
-document.body.append(vocalMixAudio);
 let playing = false;
 let syncingAudio = false;
 let syncedAudioRange: { start: number; end: number; loop: boolean } | null = null;
@@ -199,8 +199,11 @@ function setTranscriptionBusy(busy: boolean) {
   $<HTMLButtonElement>("#example").disabled = busy;
   $<HTMLButtonElement>("#delete-project").disabled =
     busy || !$<HTMLSelectElement>("#recent-project").value;
-  $<HTMLButtonElement>("#rename-project").disabled = busy || !$<HTMLSelectElement>("#recent-project").value;
-  $<HTMLButtonElement>("#rename-score").disabled = busy || !$<HTMLSelectElement>("#recent-project").value;
+  $<HTMLButtonElement>("#rename-project").disabled =
+    busy || !$<HTMLSelectElement>("#recent-project").value;
+  $<HTMLButtonElement>("#rename-score").disabled =
+    busy || !$<HTMLSelectElement>("#recent-project").value;
+  $<HTMLButtonElement>("#bulk-delete-projects").disabled = busy || !$<HTMLSelectElement>("#recent-project").value;
   $<HTMLButtonElement>("#retry-job").disabled =
     busy || !localStorage.getItem(FAILED_JOB_KEY);
   $("#cancel-job").classList.toggle("hidden", !busy);
@@ -388,6 +391,12 @@ function applyApiProject(project: ApiScoreProject) {
   };
   syncQuantization(project);
   $<HTMLInputElement>("#audio-offset").value = String(project.audio_alignment?.offset_ms ?? 0);
+  const diagnostic = project.transcription_diagnostics;
+  const panel = $("#transcription-diagnostics");
+  panel.classList.toggle("hidden", !diagnostic);
+  if (diagnostic) {
+    panel.innerHTML = `<strong>转谱输入诊断</strong><span>输入：${project.transcription_input?.variant === "vocal_stem" ? "Demucs 分离人声" : "原始音频"}</span><span>时长：${(diagnostic.input_duration_ms / 1000).toFixed(1)} 秒</span><span>开头低能量：${(diagnostic.leading_silence_ms / 1000).toFixed(2)} 秒</span><span>低能量区音符：${diagnostic.low_energy_note_count} 个</span><span>开头低能量区音符：${diagnostic.notes_in_leading_silence} 个</span>`;
+  }
 }
 function boundaryTime(milliseconds: number) {
   const minutes = Math.floor(milliseconds / 60_000);
@@ -442,7 +451,6 @@ async function loadServerAudio(project: ApiScoreProject) {
   const url = api.audioUrl(project.project_id);
   sourceAudioUrl = url;
   vocalsAudioUrl = project.source.vocal_object_key ? api.audioUrl(project.project_id, "vocals") : "";
-  vocalMixAudio.src = vocalsAudioUrl;
   vocalPreview.setSource(url);
   vocalPreview.setVocals(
     vocalsAudioUrl,
@@ -649,6 +657,7 @@ $<HTMLSelectElement>("#recent-project").addEventListener(
     $<HTMLButtonElement>("#delete-project").disabled = !projectId;
     $<HTMLButtonElement>("#rename-project").disabled = !projectId;
     $<HTMLButtonElement>("#rename-score").disabled = !projectId;
+    $<HTMLButtonElement>("#bulk-delete-projects").disabled = !projectId;
     if (!projectId) return;
     taskProgress.reset();
     try {
@@ -717,6 +726,30 @@ $("#reset-boundaries").addEventListener("click", async () => {
   }
 });
 $("#refresh-projects").addEventListener("click", () => void refreshProjects());
+$("#bulk-delete-projects").addEventListener("click", async () => {
+  const ids = [...$<HTMLSelectElement>("#recent-project").selectedOptions]
+    .map((option) => option.value)
+    .filter(Boolean);
+  if (!ids.length || !confirm(`确定删除选中的 ${ids.length} 份谱面吗？`)) return;
+  try {
+    const result = await api.bulkDeleteProjects({ project_ids: ids });
+    if (serverProject && ids.includes(serverProject.project_id)) {
+      stop();
+      serverProject = null;
+      scoreHistory = null;
+      selectedNoteIndex = null;
+      notes = [];
+      rawNotes = [];
+      clearF0Evidence();
+      $("#transcription-diagnostics").classList.add("hidden");
+      void render();
+    }
+    await refreshProjects();
+    status(`已删除 ${result.deleted_projects} 份谱面`);
+  } catch (error) {
+    status(`批量删除失败：${error instanceof Error ? error.message : "未知错误"}`);
+  }
+});
 $("#rename-score").addEventListener("click", async () => {
   if (!serverProject) return;
   const name = prompt("请输入谱面名称", serverProject.score_name ?? "未命名谱面")?.trim();
@@ -1522,9 +1555,9 @@ function stop() {
   syncingAudio = false;
   syncedAudioRange = null;
   audio.pause();
-  vocalMixAudio.pause();
   playing = false;
   play.textContent = "▶ 演奏";
+  $("#playback-state").textContent = "";
   document
     .querySelectorAll(".playing")
     .forEach((e) => e.classList.remove("playing"));
@@ -1535,7 +1568,6 @@ play.addEventListener("click", async () => {
   playing = true;
   play.textContent = "■ 停止";
   audio.pause();
-  vocalMixAudio.pause();
   try {
     const performancePlayback =
       $<HTMLSelectElement>("#playback-version").value === "performance" &&
@@ -1575,7 +1607,6 @@ play.addEventListener("click", async () => {
       audio.src = vocalsAudioUrl || audio.src;
       audio.volume = Number($<HTMLInputElement>("#vocal-volume").value) / 100;
     }
-    vocalMixAudio.volume = Number($<HTMLInputElement>(sourceEnabled ? "#vocal-volume" : "#source-volume").value) / 100;
     const playbackNotes = selected
       ? allPlaybackNotes
           .filter((note) => note.startTimeSeconds < clipEndSeconds && note.startTimeSeconds + note.durationSeconds > clipStartSeconds)
@@ -1609,6 +1640,7 @@ play.addEventListener("click", async () => {
         if (key === previousActive) return;
         previousActive = key;
         const active = new Set(displayedIndices);
+        $("#playback-state").textContent = displayedIndices.length ? "正在演奏音符" : "休止";
         elements.forEach((el) => {
           const hit = active.has(Number(el.dataset.note));
           if (hit && !el.classList.contains("playing")) {
@@ -1637,10 +1669,7 @@ play.addEventListener("click", async () => {
         loop: loopEnabled,
       };
       audio.currentTime = Math.max(0, Math.min(clipStartSeconds + offsetSeconds, audio.duration || clipStartSeconds + offsetSeconds));
-      if (sourceEnabled && vocalsAudioUrl) {
-        vocalMixAudio.currentTime = Math.max(0, Math.min(clipStartSeconds + offsetSeconds, vocalMixAudio.duration || clipStartSeconds + offsetSeconds));
-        await Promise.all([audio.play(), vocalMixAudio.play()]);
-      } else await audio.play();
+      await audio.play();
     }
     if (scoreEnabled) await playClip();
     else if (audioEnabled) {
@@ -1659,18 +1688,12 @@ audio.addEventListener("timeupdate", () => {
   if (audio.currentTime < syncedAudioRange.end) return;
   if (syncedAudioRange.loop) {
     audio.currentTime = syncedAudioRange.start;
-    vocalMixAudio.currentTime = syncedAudioRange.start;
   } else {
     stop();
   }
 });
 audio.addEventListener("ended", () => {
   if (syncingAudio && playing) stop();
-});
-vocalMixAudio.addEventListener("timeupdate", () => {
-  if (syncingAudio && playing && syncedAudioRange && vocalMixAudio.currentTime >= syncedAudioRange.end && syncedAudioRange.loop) {
-    vocalMixAudio.currentTime = syncedAudioRange.start;
-  }
 });
 for (const [id, output] of [["score-volume", "score-volume-value"], ["source-volume", "source-volume-value"], ["vocal-volume", "vocal-volume-value"]] as const) {
   $<HTMLInputElement>(`#${id}`).addEventListener("input", () => {
