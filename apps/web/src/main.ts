@@ -1796,6 +1796,24 @@ for (const [id, output] of [["score-volume", "score-volume-value"], ["source-vol
   const saved = localStorage.getItem(`vocal-score.${id}`);
   if (saved) $<HTMLInputElement>(`#${id}`).value = saved;
 }
+const playbackPreferences = [
+  ["playback-version", "vocal-score.playback-version"],
+  ["playback-mode", "vocal-score.playback-mode"],
+] as const;
+for (const [id, storageKey] of playbackPreferences) {
+  const control = $<HTMLSelectElement>(`#${id}`);
+  const saved = localStorage.getItem(storageKey);
+  if (saved && [...control.options].some((option) => option.value === saved))
+    control.value = saved;
+  control.addEventListener("change", () =>
+    localStorage.setItem(storageKey, control.value),
+  );
+}
+const loopControl = $<HTMLInputElement>("#playback-loop");
+loopControl.checked = localStorage.getItem("vocal-score.playback-loop") === "true";
+loopControl.addEventListener("change", () =>
+  localStorage.setItem("vocal-score.playback-loop", String(loopControl.checked)),
+);
 $<HTMLInputElement>("#audio-offset").addEventListener("change", () => {
   const value = $<HTMLInputElement>("#audio-offset").value;
   localStorage.setItem("vocal-score.audio-offset", value);
