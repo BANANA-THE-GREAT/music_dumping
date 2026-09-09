@@ -2,9 +2,10 @@ import time
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from functools import lru_cache
+from pathlib import Path
 from typing import Any, cast
 
-from sqlalchemy import update
+from sqlalchemy import func, select, update
 from sqlalchemy.engine import CursorResult
 from vss_worker.adapters import AudioNormalizer, MelodyTranscriber, VocalSeparator
 from vss_worker.fake import build_fake_project
@@ -205,6 +206,17 @@ def _progress(job_id: str, stage: str, value: float) -> None:
 
 def _complete(job_id: str, document: ScoreProject) -> None:
     with SessionLocal() as session:
+        job = session.get(JobRecord, job_id)
+        if job is None:
+            raise InterruptedError("Task no longer exists")
+        attempt_count = session.scalar(
+            select(func.count(ProjectRecord.id))
+            .join(JobRecord, ProjectRecord.job_id == JobRecord.id)
+            .where(JobRecord.upload_id == job.upload_id)
+        ) or 0
+        audio_name = Path(document.source.file_name).stem or document.source.file_name
+        document.project_name = audio_name
+        document.score_name = f"{audio_name}-{attempt_count + 1}"
         result = cast(
             CursorResult[Any],
             session.execute(

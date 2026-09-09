@@ -347,7 +347,7 @@ try {
   await page.click("#project-picker");
   await page.click("#refresh-projects");
   await page
-    .locator('#project-list [data-score-id="editor-check"]')
+    .locator('#project-list .score-option[data-score-id="editor-check"]')
     .waitFor({ state: "attached" });
   await page.locator(".project-card").first().locator("summary").click();
   await page.click('[data-score-id="editor-check"]');

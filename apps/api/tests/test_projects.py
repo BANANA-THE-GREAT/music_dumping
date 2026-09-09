@@ -55,7 +55,7 @@ def test_project_catalog_can_rename_score_and_audio_project() -> None:
     assert catalog.status_code == 200
     item = next(row for row in catalog.json() if row["project_id"] == project["project_id"])
     assert item["project_name"] == "edit"
-    assert item["score_name"] == "未命名谱面"
+    assert item["score_name"] == "edit-1"
 
     renamed_score = client.patch(
         f"/v1/projects/{project['project_id']}/name",
@@ -91,6 +91,7 @@ def test_bulk_delete_keeps_shared_upload_until_last_score() -> None:
     run_fake_job(second_job["id"])
     second_job = client.get(f"/v1/jobs/{second_job['id']}").json()
     second = client.get(f"/v1/projects/{second_job['project_id']}").json()
+    assert second["score_name"] == "edit-2"
 
     response = client.post("/v1/projects/bulk-delete", json={"project_ids": [first["project_id"]]})
     assert response.status_code == 200

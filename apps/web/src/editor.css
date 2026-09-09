@@ -175,10 +175,43 @@
   font-size: 10px;
   font-weight: 400;
 }
+.row-actions {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 4px;
+}
+.row-actions button {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid #d7cfc0;
+  background: #fffdf8;
+  color: #71695e;
+  cursor: pointer;
+  line-height: 1;
+}
+.row-actions button:hover {
+  border-color: #b24c2d;
+  color: #b24c2d;
+}
 .score-list {
   display: grid;
   gap: 6px;
   padding: 0 10px 10px 28px;
+}
+.score-row {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+}
+.score-select {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.score-select input {
+  accent-color: #b24c2d;
 }
 .score-option {
   display: grid;
@@ -190,6 +223,34 @@
   color: #71695e;
   cursor: pointer;
   text-align: left;
+}
+.inline-name-input {
+  width: min(100%, 300px);
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid #b24c2d;
+  background: #fff;
+  color: #22201c;
+}
+.dialog-title-actions {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+.dialog-title-actions button {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid #d7cfc0;
+  background: #fffdf8;
+  color: #71695e;
+  cursor: pointer;
+  line-height: 1;
+  font-size: 16px;
+}
+.dialog-title-actions button:hover {
+  border-color: #b24c2d;
+  color: #b24c2d;
 }
 .score-option:hover,
 .score-option.selected {

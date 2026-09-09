@@ -163,7 +163,7 @@ try {
   await page.goto("http://127.0.0.1:4176", { waitUntil: "domcontentloaded" });
   await page.click("#project-picker");
   await page.locator(".project-card").first().locator("summary").click();
-  await page.locator('#project-list [data-score-id="preview-test"]').click();
+  await page.locator('#project-list .score-option[data-score-id="preview-test"]').click();
   await page.waitForFunction(
     () => document.querySelectorAll("#piano rect").length === 3,
   );

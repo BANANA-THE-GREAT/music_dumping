@@ -133,7 +133,7 @@ document
   .querySelector("aside")!
   .insertAdjacentHTML(
     "afterbegin",
-    `<div class="recent-projects"><button id="project-picker" type="button" aria-haspopup="dialog">项目 / 谱面</button></div><dialog id="project-dialog" aria-labelledby="project-dialog-title"><div class="project-dialog-content"><header><strong id="project-dialog-title">项目 / 谱面</strong><button id="close-project-dialog" type="button" title="关闭" aria-label="关闭">×</button></header><div id="project-list" class="project-list"></div><select id="recent-project" class="project-selection-proxy" aria-hidden="true" tabindex="-1"><option value="">选择已保存项目…</option></select><div class="project-actions"><button id="refresh-projects" type="button" title="刷新项目" aria-label="刷新项目">↻</button><button id="rename-project" type="button" title="重命名项目" disabled>项目名</button><button id="rename-score" type="button" title="重命名谱面" disabled>谱名</button><button id="delete-project" type="button" title="删除谱面" disabled>删除</button><button id="bulk-delete-projects" type="button" title="批量删除谱面" disabled>批量删除</button></div><div class="project-upload" aria-label="创建新项目"></div></div></dialog>`,
+    `<div class="recent-projects"><button id="project-picker" type="button" aria-haspopup="dialog">项目 / 谱面</button></div><dialog id="project-dialog" aria-labelledby="project-dialog-title"><div class="project-dialog-content"><header><strong id="project-dialog-title">项目 / 谱面</strong><div class="dialog-title-actions"><button id="refresh-projects" type="button" title="刷新项目" aria-label="刷新项目">↻</button><button id="bulk-delete-projects" type="button" title="批量删除谱面" aria-label="批量删除谱面" disabled>⌫</button><button id="close-project-dialog" type="button" title="关闭" aria-label="关闭">×</button></div></header><div id="project-list" class="project-list"></div><select id="recent-project" class="project-selection-proxy" multiple aria-hidden="true" tabindex="-1"><option value="">选择已保存项目…</option></select><button id="rename-project" class="hidden" type="button" title="重命名项目" disabled>项目名</button><button id="rename-score" class="hidden" type="button" title="重命名谱面" disabled>谱名</button><button id="delete-project" class="hidden" type="button" title="删除谱面" disabled>删除</button><div class="project-upload" aria-label="创建新项目"></div></div></dialog>`,
   );
 document.querySelector(".project-upload")!.append(document.querySelector("#drop")!);
 $("#project-picker").addEventListener("click", () =>
@@ -146,7 +146,48 @@ $("#project-dialog").addEventListener("click", (event) => {
   if (event.target === $("#project-dialog"))
     $<HTMLDialogElement>("#project-dialog").close();
 });
+$("#project-list").addEventListener("change", (event) => {
+  const checkbox = (event.target as HTMLElement).closest<HTMLInputElement>(
+    "[data-score-select]",
+  );
+  if (!checkbox) return;
+  const option = $<HTMLSelectElement>("#recent-project").querySelector<HTMLOptionElement>(
+    `option[value="${CSS.escape(checkbox.dataset.scoreSelect ?? "")}"]`,
+  );
+  if (option) option.selected = checkbox.checked;
+  $<HTMLButtonElement>("#bulk-delete-projects").disabled =
+    ![...$<HTMLSelectElement>("#recent-project").selectedOptions].some((item) => item.value);
+});
 $("#project-list").addEventListener("click", (event) => {
+  const projectAction = (event.target as HTMLElement).closest<HTMLButtonElement>(
+    "[data-project-action]",
+  );
+  if (projectAction) {
+    event.preventDefault();
+    event.stopPropagation();
+    const card = projectAction.closest<HTMLElement>(".project-card");
+    const groupId = card?.dataset.projectGroup;
+    const score = card?.querySelector<HTMLElement>("[data-score-id]");
+    if (!card || !groupId || !score) return;
+    if (projectAction.dataset.projectAction === "edit")
+      startInlineNameEdit("project", groupId, card.querySelector(".project-name"), card.querySelector(".row-actions"));
+    else void deleteProjectGroup([...card.querySelectorAll<HTMLElement>("[data-score-id]")].map((item) => item.dataset.scoreId!).filter(Boolean));
+    return;
+  }
+  const scoreAction = (event.target as HTMLElement).closest<HTMLButtonElement>(
+    "[data-score-action]",
+  );
+  if (scoreAction) {
+    event.preventDefault();
+    event.stopPropagation();
+    const scoreId = scoreAction.dataset.scoreId;
+    const row = scoreAction.closest<HTMLElement>(".score-row");
+    if (!scoreId || !row) return;
+    if (scoreAction.dataset.scoreAction === "edit")
+      startInlineNameEdit("score", scoreId, row.querySelector(".score-name"), row.querySelector(".row-actions"));
+    else void deleteScore(scoreId);
+    return;
+  }
   const button = (event.target as HTMLElement).closest<HTMLButtonElement>(
     "[data-score-id]",
   );
@@ -706,10 +747,10 @@ function renderProjectCatalog(projects: ProjectCatalogSummary[]) {
       const open = scores.some((score) => score.project_id === serverProject?.project_id)
         ? " open"
         : "";
-      return `<details class="project-card" data-project-group="${escapeHtml(groupId)}"${open}><summary><span>${escapeHtml(projectName)}</span><small>${scores.length} 份谱面</small></summary><div class="score-list">${scores
+      return `<details class="project-card" data-project-group="${escapeHtml(groupId)}"${open}><summary><span class="project-name">${escapeHtml(projectName)}</span><small>${scores.length} 份谱面</small><span class="row-actions"><button data-project-action="edit" type="button" title="修改项目名称" aria-label="修改项目名称">✎</button><button data-project-action="delete" type="button" title="删除项目" aria-label="删除项目">⌫</button></span></summary><div class="score-list">${scores
         .map(
           (score) =>
-            `<button class="score-option${score.project_id === serverProject?.project_id ? " selected" : ""}" data-score-id="${escapeHtml(score.project_id)}" type="button"><span>${escapeHtml(score.score_name || "未命名谱面")}</span><small>${escapeHtml(score.engine || "未知引擎")} · ${score.note_count} 音符</small></button>`,
+            `<div class="score-row"><label class="score-select"><input data-score-select="${escapeHtml(score.project_id)}" type="checkbox" aria-label="选择 ${escapeHtml(score.score_name || "未命名谱面")}"></label><button class="score-option${score.project_id === serverProject?.project_id ? " selected" : ""}" data-score-id="${escapeHtml(score.project_id)}" type="button"><span class="score-name">${escapeHtml(score.score_name || "未命名谱面")}</span><small>${escapeHtml(score.engine || "未知引擎")} · ${score.note_count} 音符</small></button><span class="row-actions"><button data-score-action="edit" data-score-id="${escapeHtml(score.project_id)}" type="button" title="修改谱面名称" aria-label="修改谱面名称">✎</button><button data-score-action="delete" data-score-id="${escapeHtml(score.project_id)}" type="button" title="删除谱面" aria-label="删除谱面">⌫</button></span></div>`,
         )
         .join("")}</div></details>`;
     })
@@ -723,6 +764,90 @@ function escapeHtml(value: string) {
         character
       ] ?? character,
   );
+}
+function startInlineNameEdit(
+  kind: "project" | "score",
+  id: string,
+  nameElement: Element | null,
+  actionsElement: Element | null,
+) {
+  if (!nameElement || !actionsElement || nameElement.querySelector("input")) return;
+  const input = document.createElement("input");
+  input.className = "inline-name-input";
+  input.value = nameElement.textContent?.trim() ?? "";
+  input.maxLength = 255;
+  nameElement.replaceChildren(input);
+  actionsElement.innerHTML = `<button data-name-action="save" type="button" title="保存名称" aria-label="保存名称">✓</button><button data-name-action="cancel" type="button" title="取消修改" aria-label="取消修改">×</button>`;
+  input.focus();
+  input.select();
+  const finish = async (save: boolean) => {
+    if (!save) {
+      await refreshProjects();
+      return;
+    }
+    const name = input.value.trim();
+    if (!name) return input.focus();
+    try {
+      if (kind === "project") {
+        await api.renameAudioProject(id, name);
+        if (serverProject?.project_group_id === id)
+          serverProject = await api.getProject(serverProject.project_id);
+      } else {
+        const project = serverProject?.project_id === id
+          ? serverProject
+          : await api.getProject(id);
+        const renamed = await api.renameProject(id, project.revision, name);
+        if (serverProject?.project_id === id) serverProject = renamed;
+      }
+      await refreshProjects();
+      if (serverProject)
+        $("#project-picker").textContent = `${serverProject.project_name ?? "未命名项目"} / ${serverProject.score_name ?? "未命名谱面"}`;
+      status(kind === "project" ? "项目名称已更新" : "谱面名称已更新");
+    } catch (error) {
+      status(`名称更新失败：${error instanceof Error ? error.message : "未知错误"}`);
+    }
+  };
+  actionsElement.querySelector('[data-name-action="save"]')?.addEventListener("click", () => void finish(true));
+  actionsElement.querySelector('[data-name-action="cancel"]')?.addEventListener("click", () => void finish(false));
+  input.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") void finish(true);
+    if (event.key === "Escape") void finish(false);
+  });
+}
+async function deleteScore(projectId: string) {
+  if (!confirm("确定删除这份谱面吗？")) return;
+  try {
+    await api.deleteProject(projectId);
+    if (serverProject?.project_id === projectId) clearLoadedProject();
+    await refreshProjects();
+    status("谱面已删除");
+  } catch (error) {
+    status(`删除失败：${error instanceof Error ? error.message : "未知错误"}`);
+  }
+}
+async function deleteProjectGroup(projectIds: string[]) {
+  if (!projectIds.length || !confirm("确定删除这个项目及其全部谱面吗？")) return;
+  try {
+    const result = await api.bulkDeleteProjects({ project_ids: projectIds });
+    if (serverProject && projectIds.includes(serverProject.project_id)) clearLoadedProject();
+    await refreshProjects();
+    status(`项目已删除 · ${result.deleted_projects} 份谱面`);
+  } catch (error) {
+    status(`删除项目失败：${error instanceof Error ? error.message : "未知错误"}`);
+  }
+}
+function clearLoadedProject() {
+  stop();
+  serverProject = null;
+  scoreHistory = null;
+  selectedNoteIndex = null;
+  notes = [];
+  rawNotes = [];
+  tempoMap = [{ time_ms: 0, bpm: 120 }];
+  clearF0Evidence();
+  $("#project-picker").textContent = "项目 / 谱面";
+  $("#transcription-diagnostics").classList.add("hidden");
+  void render();
 }
 $<HTMLSelectElement>("#recent-project").addEventListener(
   "change",
