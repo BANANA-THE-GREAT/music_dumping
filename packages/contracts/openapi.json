@@ -857,18 +857,27 @@
       "ProjectCatalogSummary": {
         "properties": {
           "duration_ms": {
+            "default": 0,
             "title": "Duration Ms",
             "type": "integer"
           },
           "engine": {
-            "title": "Engine",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Engine"
           },
           "file_name": {
             "title": "File Name",
             "type": "string"
           },
           "note_count": {
+            "default": 0,
             "title": "Note Count",
             "type": "integer"
           },
@@ -877,20 +886,35 @@
             "type": "string"
           },
           "project_id": {
-            "title": "Project Id",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Id"
           },
           "project_name": {
             "title": "Project Name",
             "type": "string"
           },
           "revision": {
+            "default": 1,
             "title": "Revision",
             "type": "integer"
           },
           "score_name": {
-            "title": "Score Name",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score Name"
           },
           "updated_at": {
             "format": "date-time",
@@ -903,17 +927,11 @@
           }
         },
         "required": [
-          "project_id",
-          "file_name",
-          "duration_ms",
-          "note_count",
-          "revision",
-          "updated_at",
           "project_group_id",
           "upload_id",
           "project_name",
-          "score_name",
-          "engine"
+          "file_name",
+          "updated_at"
         ],
         "title": "ProjectCatalogSummary",
         "type": "object"

@@ -177,12 +177,18 @@ export interface ProjectSummary {
   revision: number;
   updated_at: string;
 }
-export interface ProjectCatalogSummary extends ProjectSummary {
+export interface ProjectCatalogSummary {
+  project_id: string | null;
   project_group_id: string;
   upload_id: string;
   project_name: string;
-  score_name: string;
-  engine: string;
+  score_name: string | null;
+  engine: string | null;
+  file_name: string;
+  duration_ms: number;
+  note_count: number;
+  revision: number;
+  updated_at: string;
 }
 export interface ProjectBulkDeleteRequest {
   project_ids: string[];

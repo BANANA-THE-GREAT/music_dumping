@@ -93,6 +93,9 @@ export class VocalScoreApi {
       body: JSON.stringify({ expected_revision: 1, name }),
     });
   }
+  deleteUpload(id: string): Promise<void> {
+    return this.request(`/v1/uploads/${id}`, { method: "DELETE" });
+  }
   deleteProject(id: string): Promise<void> {
     return this.request(`/v1/projects/${id}`, { method: "DELETE" });
   }

@@ -274,12 +274,18 @@ class ProjectSummary(BaseModel):
     updated_at: datetime
 
 
-class ProjectCatalogSummary(ProjectSummary):
+class ProjectCatalogSummary(BaseModel):
+    project_id: str | None = None
     project_group_id: str
     upload_id: str
     project_name: str
-    score_name: str
-    engine: str
+    score_name: str | None = None
+    engine: str | None = None
+    file_name: str
+    duration_ms: int = 0
+    note_count: int = 0
+    revision: int = 1
+    updated_at: datetime
 
 
 class ProjectRenameRequest(BaseModel):

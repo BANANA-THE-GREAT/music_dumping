@@ -76,6 +76,23 @@ def test_project_catalog_can_rename_score_and_audio_project() -> None:
     assert item["score_name"] == "GAME 试验"
 
 
+def test_uploaded_audio_appears_in_catalog_before_score_generation() -> None:
+    upload = client.post(
+        "/v1/uploads",
+        files={"file": ("new-song.wav", BytesIO(b"RIFF-new-audio"), "audio/wav")},
+    ).json()
+
+    item = next(
+        row
+        for row in client.get("/v1/project-catalog").json()
+        if row["upload_id"] == upload["id"]
+    )
+    assert item["project_id"] is None
+    assert item["project_name"] == "new-song"
+    assert item["score_name"] is None
+    assert item["note_count"] == 0
+
+
 def test_bulk_delete_keeps_shared_upload_until_last_score() -> None:
     first = create_project()
     with SessionLocal() as session:

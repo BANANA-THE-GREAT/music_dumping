@@ -40,7 +40,7 @@ const api = new VocalScoreApi();
 const ACTIVE_JOB_KEY = "vocal-score.active-job";
 const FAILED_JOB_KEY = "vocal-score.failed-job";
 document.querySelector<HTMLDivElement>("#app")!.innerHTML =
-  `<main><header><div><span class="eyebrow">VOCAL SCORE STUDIO</span><h1>拾音</h1></div><p>从一首歌里分离人声，自动识别速度、拍号与调性，生成可演奏的简谱和五线谱。</p></header><section class="workbench"><aside><label class="drop" id="drop"><input id="file" type="file" accept="audio/*"><span class="drop-icon">↥</span><strong>放入歌曲或人声</strong><small>MP3 · WAV · OGG · FLAC</small></label><audio id="audio" controls></audio><div class="field"><label>人声分离 <output id="isolateValue">82%</output></label><input id="isolate" type="range" min="0" max="100" value="82"><small>适合主唱居中的立体声歌曲</small></div><div class="field"><label>识别灵敏度</label><select id="sensitivity"><option value="0.35">均衡</option><option value="0.48">保守</option><option value="0.25">灵敏</option></select></div><button class="primary" id="transcribe" disabled>自动分析并扒谱</button><button class="ghost" id="example">载入完整示例</button><section id="task-progress" aria-label="转录任务进度"></section><p class="status" id="status" role="status">等待音频</p></aside><article><section class="analysis-panel"><div><span>速度 BPM</span><input id="bpm" type="number" min="40" max="240" value="120"><small id="bpmConfidence">待分析</small></div><div><span>拍号</span><select id="meter"><option value="4">4 / 4</option><option value="3">3 / 4</option></select><small id="meterConfidence">待分析</small></div><div><span>调性</span><section><select id="key">${KEYS.map((k, i) => `<option value="${i}">${k}</option>`).join("")}</select><select id="mode"><option value="major">大调</option><option value="minor">小调</option></select></section><small id="keyConfidence">待分析</small></div></section><div class="toolbar"><div class="tabs"><button class="active" data-view="staff">五线谱</button><button data-view="jianpu">简谱</button></div><div class="actions"><button id="play" disabled>▶ 演奏</button><button id="midi" disabled>导出 MIDI</button><button id="xml" disabled>导出 MusicXML</button></div></div><div id="staff" class="score"></div><div id="jianpu" class="score hidden"></div><div class="empty" id="empty"><div>♪</div><strong>完整乐谱会出现在这里</strong><span>导入歌曲后，一次完成分离、分析与转谱</span></div></article></section><footer>本地处理 · 不上传音频 · 自动识别结果可手动修正</footer></main>`;
+  `<main><header><div><span class="eyebrow">VOCAL SCORE STUDIO</span><h1>拾音</h1></div><p>从一首歌里分离人声，自动识别速度、拍号与调性，生成可演奏的简谱和五线谱。</p></header><section class="workbench"><aside><label class="drop" id="drop"><input id="file" type="file" accept="audio/*"><span class="drop-icon">↥</span><strong>放入歌曲或人声以创建新项目</strong><small>MP3 · WAV · OGG · FLAC</small></label><audio id="audio" controls></audio><div class="field"><label>人声分离 <output id="isolateValue">82%</output></label><input id="isolate" type="range" min="0" max="100" value="82"><small>适合主唱居中的立体声歌曲</small></div><div class="field"><label>识别灵敏度</label><select id="sensitivity"><option value="0.35">均衡</option><option value="0.48">保守</option><option value="0.25">灵敏</option></select></div><button class="primary" id="transcribe" disabled>自动分析并扒谱</button><button class="ghost" id="example">载入完整示例</button><section id="task-progress" aria-label="转录任务进度"></section><p class="status" id="status" role="status">等待音频</p></aside><article><section class="analysis-panel"><div><span>速度 BPM</span><input id="bpm" type="number" min="40" max="240" value="120"><small id="bpmConfidence">待分析</small></div><div><span>拍号</span><select id="meter"><option value="4">4 / 4</option><option value="3">3 / 4</option></select><small id="meterConfidence">待分析</small></div><div><span>调性</span><section><select id="key">${KEYS.map((k, i) => `<option value="${i}">${k}</option>`).join("")}</select><select id="mode"><option value="major">大调</option><option value="minor">小调</option></select></section><small id="keyConfidence">待分析</small></div></section><div class="toolbar"><div class="actions"><button id="play" disabled>▶ 演奏</button><button id="midi" disabled>导出 MIDI</button><button id="xml" disabled>导出 MusicXML</button></div></div><div class="score-shell"><div class="score-content"><div id="staff" class="score"></div><div id="jianpu" class="score hidden"></div><div class="empty" id="empty"><div>♪</div><strong>完整乐谱会出现在这里</strong><span>导入歌曲后，一次完成分离、分析与转谱</span></div></div><nav class="score-tools" aria-label="谱面工具"><div class="tabs"><button class="active" data-view="staff">五线谱</button><button data-view="jianpu">简谱</button></div></nav></div></article></section><footer>本地处理 · 不上传音频 · 自动识别结果可手动修正</footer></main>`;
 document
   .querySelector("#midi")!
   .insertAdjacentHTML(
@@ -58,13 +58,13 @@ document.querySelector(".analysis-panel")!.insertAdjacentHTML(
   `<section class="tempo-map-controls" aria-label="变速设置"><div><strong>变速段</strong><small>仅影响谱面量化和导出节拍，不修改演唱版时间。</small></div><div id="tempo-map-list"></div><button id="add-tempo-point" type="button">添加变速点</button><button id="apply-tempo-map" type="button">应用变速</button><output id="tempo-map-result"></output></section>`,
 );
 document
-  .querySelector(".toolbar")!
+  .querySelector(".score-tools")!
   .insertAdjacentHTML(
-    "afterend",
+    "beforeend",
     `<div class="edit-actions"><button id="undo" title="撤销" disabled>↶</button><button id="redo" title="重做" disabled>↷</button><button id="pitch-up" title="升高半音" disabled>↑</button><button id="pitch-down" title="降低半音" disabled>↓</button><button id="shorter" disabled>缩短</button><button id="longer" disabled>延长</button><button id="split" disabled>拆分</button><button id="merge" disabled>与后音合并</button><button id="delete-note" disabled>删除</button></div><output id="playback-state" class="playback-state" aria-live="polite"></output>`,
   );
 document
-  .querySelector(".edit-actions")!
+  .querySelector(".toolbar")!
   .insertAdjacentHTML(
     "afterend",
     `<section class="playback-controls"><p class="context-help"><strong>演唱版</strong>保留真实演唱时间；<strong>谱面版</strong>对齐节拍网格，适合阅读和演奏。</p><label>谱面音量 <output id="score-volume-value">80%</output><input id="score-volume" type="range" min="0" max="100" value="80"></label><label>原曲音量 <output id="source-volume-value">35%</output><input id="source-volume" type="range" min="0" max="100" value="35"></label><label>人声音量 <output id="vocal-volume-value">55%</output><input id="vocal-volume" type="range" min="0" max="100" value="55"></label><label>音频偏移 ms <input id="audio-offset" type="number" min="-2000" max="2000" step="10" value="0"></label><button id="auto-align" type="button">估算并应用对齐</button><small>只做统一平移，不改变 tempo 或音符时值</small><output id="alignment-result"></output></section><section class="waveform-panel"><span>源音频波形</span><canvas id="waveform" width="900" height="100"></canvas></section>`,
@@ -167,11 +167,15 @@ $("#project-list").addEventListener("click", (event) => {
     event.stopPropagation();
     const card = projectAction.closest<HTMLElement>(".project-card");
     const groupId = card?.dataset.projectGroup;
-    const score = card?.querySelector<HTMLElement>("[data-score-id]");
-    if (!card || !groupId || !score) return;
+    if (!card || !groupId) return;
     if (projectAction.dataset.projectAction === "edit")
       startInlineNameEdit("project", groupId, card.querySelector(".project-name"), card.querySelector(".row-actions"));
-    else void deleteProjectGroup([...card.querySelectorAll<HTMLElement>("[data-score-id]")].map((item) => item.dataset.scoreId!).filter(Boolean));
+    else void deleteProjectGroup(
+      groupId,
+      [...card.querySelectorAll<HTMLElement>("[data-score-id]")]
+        .map((item) => item.dataset.scoreId!)
+        .filter(Boolean),
+    );
     return;
   }
   const scoreAction = (event.target as HTMLElement).closest<HTMLButtonElement>(
@@ -198,6 +202,8 @@ $("#project-list").addEventListener("click", (event) => {
 });
 let sourceBuffer: AudioBuffer | null = null,
   sourceFile: File | null = null,
+  activeUploadId: string | null = null,
+  activeUploadName: string | null = null,
   serverProject: ApiScoreProject | null = null,
   rawNotes: RawNote[] = [],
   notes: ScoreNote[] = [];
@@ -232,6 +238,7 @@ let taskAbort: AbortController | null = null;
 let activeJobId: string | null = null;
 let cancelRequested = false;
 let localOriginalNotes: RawNote[] = [];
+let loadVersion = 0;
 function checkTaskCancelled() {
   if (cancelRequested || taskAbort?.signal.aborted)
     throw new DOMException("任务已取消", "AbortError");
@@ -314,6 +321,7 @@ const conf = (v: number) =>
   v < 0.4 ? "低置信度 · 建议校正" : v < 0.7 ? "中等置信度" : "高置信度";
 async function load(file: File) {
   if (transcriptionBusy) return;
+  const version = ++loadVersion;
   stop();
   scoreHistory = null;
   selectedNoteIndex = null;
@@ -323,6 +331,8 @@ async function load(file: File) {
   taskProgress.reset();
   status("正在解码音频…");
   sourceFile = file;
+  activeUploadId = null;
+  activeUploadName = null;
   serverProject = null;
   syncQuantization(null);
   clearF0Evidence();
@@ -331,9 +341,24 @@ async function load(file: File) {
   sourceBuffer = await new AudioContext().decodeAudioData(
     await file.arrayBuffer(),
   );
+  if (version !== loadVersion) return;
   drawWaveform($<HTMLCanvasElement>("#waveform"), sourceBuffer);
-  transcribe.disabled = false;
-  status(`已载入 ${file.name} · ${sourceBuffer.duration.toFixed(1)} 秒`);
+  transcribe.disabled = true;
+  status(`已载入 ${file.name}，正在创建项目…`);
+  try {
+    const upload = await api.upload(file);
+    if (version !== loadVersion) return;
+    activeUploadId = upload.id;
+    activeUploadName = upload.project_name || file.name;
+    $("#project-picker").textContent = activeUploadName;
+    await refreshProjects();
+    transcribe.disabled = false;
+    status(`已创建项目 ${upload.project_name || file.name} · ${sourceBuffer.duration.toFixed(1)} 秒`);
+  } catch (error) {
+    if (version !== loadVersion) return;
+    transcribe.disabled = false;
+    status(`项目创建失败，扒谱时将重试：${error instanceof Error ? error.message : "未知错误"}`);
+  }
 }
 input.addEventListener(
   "change",
@@ -434,6 +459,8 @@ async function runLocal() {
 }
 function applyApiProject(project: ApiScoreProject) {
   stop();
+  activeUploadId = project.project_group_id ?? activeUploadId;
+  activeUploadName = project.project_name ?? project.source.file_name;
   selectedNoteIndex = null;
   scoreHistory = new ScoreHistory(project.notes);
   const tempo = project.analysis.tempo_map[0];
@@ -585,10 +612,11 @@ async function recoverRevisionConflict(error: unknown) {
 async function runServer(quality: "demo" | "high" | "experimental") {
   if (!sourceFile) return;
   taskProgress.start("prepare", "正在上传音频");
-  let uploadId = serverProject?.project_group_id;
+  let uploadId = activeUploadId ?? serverProject?.project_group_id;
   if (!uploadId) {
     status("正在上传音频…");
     uploadId = (await api.upload(sourceFile, taskAbort?.signal)).id;
+    activeUploadId = uploadId;
     checkTaskCancelled();
   } else {
     status("复用当前项目的原始音频…");
@@ -720,6 +748,10 @@ async function refreshProjects() {
     select.innerHTML =
       `<option value="">选择已保存项目…</option>` +
       projects
+        .filter(
+          (project): project is ProjectCatalogSummary & { project_id: string } =>
+            Boolean(project.project_id),
+        )
         .map(
           (project) =>
             `<option value="${project.project_id}">${project.project_name} / ${project.score_name} · ${project.engine} · ${project.note_count} 音符</option>`,
@@ -727,9 +759,12 @@ async function refreshProjects() {
         .join("");
     if (serverProject) select.value = serverProject.project_id;
     renderProjectCatalog(projects);
+    const activeUpload = projects.find(
+      (project) => project.upload_id === activeUploadId,
+    );
     $("#project-picker").textContent = serverProject
       ? `${serverProject.project_name ?? "未命名项目"} / ${serverProject.score_name ?? "未命名谱面"}`
-      : "项目 / 谱面";
+      : activeUpload?.project_name ?? activeUploadName ?? "项目 / 谱面";
   } catch {
     select.innerHTML = `<option value="">后端项目不可用</option>`;
   }
@@ -744,15 +779,22 @@ function renderProjectCatalog(projects: ProjectCatalogSummary[]) {
   $("#project-list").innerHTML = [...groups.entries()]
     .map(([groupId, scores]) => {
       const projectName = scores[0].project_name || "未命名项目";
-      const open = scores.some((score) => score.project_id === serverProject?.project_id)
+      const open = groupId === activeUploadId || scores.some((score) => score.project_id === serverProject?.project_id)
         ? " open"
         : "";
-      return `<details class="project-card" data-project-group="${escapeHtml(groupId)}"${open}><summary><span class="project-name">${escapeHtml(projectName)}</span><small>${scores.length} 份谱面</small><span class="row-actions"><button data-project-action="edit" type="button" title="修改项目名称" aria-label="修改项目名称">✎</button><button data-project-action="delete" type="button" title="删除项目" aria-label="删除项目">⌫</button></span></summary><div class="score-list">${scores
-        .map(
-          (score) =>
-            `<div class="score-row"><label class="score-select"><input data-score-select="${escapeHtml(score.project_id)}" type="checkbox" aria-label="选择 ${escapeHtml(score.score_name || "未命名谱面")}"></label><button class="score-option${score.project_id === serverProject?.project_id ? " selected" : ""}" data-score-id="${escapeHtml(score.project_id)}" type="button"><span class="score-name">${escapeHtml(score.score_name || "未命名谱面")}</span><small>${escapeHtml(score.engine || "未知引擎")} · ${score.note_count} 音符</small></button><span class="row-actions"><button data-score-action="edit" data-score-id="${escapeHtml(score.project_id)}" type="button" title="修改谱面名称" aria-label="修改谱面名称">✎</button><button data-score-action="delete" data-score-id="${escapeHtml(score.project_id)}" type="button" title="删除谱面" aria-label="删除谱面">⌫</button></span></div>`,
-        )
-        .join("")}</div></details>`;
+      const generatedScores = scores.filter(
+        (score): score is ProjectCatalogSummary & { project_id: string } =>
+          Boolean(score.project_id),
+      );
+      const scoreRows = generatedScores.length
+        ? generatedScores
+          .map(
+            (score) =>
+              `<div class="score-row"><label class="score-select"><input data-score-select="${escapeHtml(score.project_id)}" type="checkbox" aria-label="选择 ${escapeHtml(score.score_name || "未命名谱面")}"></label><button class="score-option${score.project_id === serverProject?.project_id ? " selected" : ""}" data-score-id="${escapeHtml(score.project_id)}" type="button"><span class="score-name">${escapeHtml(score.score_name || "未命名谱面")}</span><small>${escapeHtml(score.engine || "未知引擎")} · ${score.note_count} 音符</small></button><span class="row-actions"><button data-score-action="edit" data-score-id="${escapeHtml(score.project_id)}" type="button" title="修改谱面名称" aria-label="修改谱面名称">✎</button><button data-score-action="delete" data-score-id="${escapeHtml(score.project_id)}" type="button" title="删除谱面" aria-label="删除谱面">⌫</button></span></div>`,
+          )
+          .join("")
+        : `<p class="empty-score-list">尚未生成谱面</p>`;
+      return `<details class="project-card" data-project-group="${escapeHtml(groupId)}"${open}><summary><span class="project-name">${escapeHtml(projectName)}</span><small>${generatedScores.length} 份谱面</small><span class="row-actions"><button data-project-action="edit" type="button" title="修改项目名称" aria-label="修改项目名称">✎</button><button data-project-action="delete" type="button" title="删除项目" aria-label="删除项目">⌫</button></span></summary><div class="score-list">${scoreRows}</div></details>`;
     })
     .join("");
 }
@@ -825,11 +867,17 @@ async function deleteScore(projectId: string) {
     status(`删除失败：${error instanceof Error ? error.message : "未知错误"}`);
   }
 }
-async function deleteProjectGroup(projectIds: string[]) {
-  if (!projectIds.length || !confirm("确定删除这个项目及其全部谱面吗？")) return;
+async function deleteProjectGroup(uploadId: string, projectIds: string[]) {
+  if (!confirm("确定删除这个项目及其全部谱面吗？")) return;
   try {
-    const result = await api.bulkDeleteProjects({ project_ids: projectIds });
+    const result = projectIds.length
+      ? await api.bulkDeleteProjects({ project_ids: projectIds })
+      : (await api.deleteUpload(uploadId), { deleted_projects: 0 });
     if (serverProject && projectIds.includes(serverProject.project_id)) clearLoadedProject();
+    if (activeUploadId === uploadId) {
+      activeUploadId = null;
+      activeUploadName = null;
+    }
     await refreshProjects();
     status(`项目已删除 · ${result.deleted_projects} 份谱面`);
   } catch (error) {
@@ -839,6 +887,8 @@ async function deleteProjectGroup(projectIds: string[]) {
 function clearLoadedProject() {
   stop();
   serverProject = null;
+  activeUploadId = null;
+  activeUploadName = null;
   scoreHistory = null;
   selectedNoteIndex = null;
   notes = [];
@@ -862,6 +912,8 @@ $<HTMLSelectElement>("#recent-project").addEventListener(
     try {
       status("正在打开已保存项目…");
       serverProject = await api.getProject(projectId);
+      activeUploadId = serverProject.project_group_id ?? null;
+      activeUploadName = serverProject.project_name ?? serverProject.source.file_name;
       applyApiProject(serverProject);
       await Promise.all([
         loadServerAudio(serverProject),

@@ -175,10 +175,13 @@ def list_project_catalog(session: SessionDep) -> list[ProjectCatalogSummary]:
         select(ProjectRecord).order_by(ProjectRecord.updated_at.desc()).limit(200)
     )
     summaries: list[ProjectCatalogSummary] = []
+    represented_uploads: set[str] = set()
     for record in records:
         project = ScoreProject.model_validate(record.document)
         job = session.get(JobRecord, record.job_id)
         upload = session.get(UploadRecord, job.upload_id) if job else None
+        if upload:
+            represented_uploads.add(upload.id)
         summaries.append(
             ProjectCatalogSummary(
                 project_id=project.project_id,
@@ -196,6 +199,22 @@ def list_project_catalog(session: SessionDep) -> list[ProjectCatalogSummary]:
                 updated_at=record.updated_at,
             )
         )
+    uploads = session.scalars(
+        select(UploadRecord).order_by(UploadRecord.created_at.desc()).limit(200)
+    )
+    for upload in uploads:
+        if upload.id in represented_uploads:
+            continue
+        summaries.append(
+            ProjectCatalogSummary(
+                project_group_id=upload.id,
+                upload_id=upload.id,
+                project_name=upload.project_name or upload.file_name.rsplit(".", 1)[0],
+                file_name=upload.file_name,
+                updated_at=upload.created_at,
+            )
+        )
+    summaries.sort(key=lambda item: item.updated_at, reverse=True)
     return summaries
 
 

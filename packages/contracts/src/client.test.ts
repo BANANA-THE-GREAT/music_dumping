@@ -93,6 +93,20 @@ describe("project exports", () => {
   });
 });
 
+describe("audio projects", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("can delete an upload before it has generated a score", async () => {
+    const fetchMock = vi.fn(async () => new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", fetchMock);
+    await new VocalScoreApi("http://api").deleteUpload("upload");
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://api/v1/uploads/upload",
+      expect.objectContaining({ method: "DELETE" }),
+    );
+  });
+});
+
 describe("experimental job selection", () => {
   afterEach(() => vi.unstubAllGlobals());
 

@@ -17,16 +17,65 @@
 
 .edit-actions {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 5px;
-  padding: 10px 0;
-  border-bottom: 1px solid #e5ded2;
+  padding-top: 8px;
+  border-top: 1px solid #e5ded2;
+}
+
+.score-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 112px;
+  grid-template-areas: "content tools";
+  align-items: start;
+  gap: 16px;
+  min-height: 420px;
+}
+
+.score-content {
+  position: relative;
+  grid-area: content;
+  min-width: 0;
+  min-height: 420px;
+}
+
+.score-content .empty {
+  inset: 24px 0;
+}
+
+.score-tools {
   position: sticky;
   top: 12px;
-  z-index: 5;
+  z-index: 6;
+  grid-area: tools;
+  display: grid;
+  gap: 8px;
+  padding: 9px;
+  border: 1px solid #d7cfc0;
   background: #fffdf8;
-  width: max-content;
-  max-width: 100%;
+  box-shadow: 0 8px 24px #594b331a;
+}
+
+.score-tools .tabs {
+  display: grid;
+  gap: 5px;
+}
+
+.score-tools button {
+  width: 100%;
+  min-height: 34px;
+  padding: 6px 7px;
+  border: 1px solid #d6cbbc;
+  background: #fffdf8;
+  color: #71695e;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.score-tools .tabs .active {
+  color: #b24c2d;
+  background: #f7e9df;
+  border-color: #e6c5b3;
 }
 
 .actions {
@@ -51,11 +100,18 @@
 }
 
 .edit-actions button {
-  padding: 6px 9px;
+  padding: 6px 7px;
   color: #71695e;
   background: #fffdf8;
   border: 1px solid #d6cbbc;
   cursor: pointer;
+}
+
+.playback-state {
+  min-height: 14px;
+  color: #8a8174;
+  font-size: 10px;
+  text-align: center;
 }
 
 .edit-actions button:disabled {
@@ -198,6 +254,14 @@
   display: grid;
   gap: 6px;
   padding: 0 10px 10px 28px;
+}
+.empty-score-list {
+  margin: 0;
+  padding: 12px;
+  border: 1px dashed #d7cfc0;
+  color: #8a8174;
+  font-size: 12px;
+  text-align: center;
 }
 .score-row {
   display: grid;
@@ -819,12 +883,34 @@
     min-width: 65px;
   }
   .edit-actions {
-    position: sticky;
-    top: 0;
-    width: 100%;
+    flex-direction: row;
     overflow-x: auto;
     flex-wrap: nowrap;
-    padding: 8px 0;
+    padding: 0 0 0 8px;
+    border-top: 0;
+    border-left: 1px solid #e5ded2;
+  }
+  .score-shell {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "tools"
+      "content";
+    gap: 8px;
+  }
+  .score-tools {
+    top: 0;
+    display: flex;
+    align-items: center;
+    overflow-x: auto;
+    padding: 8px;
+  }
+  .score-tools .tabs {
+    display: flex;
+    flex: 0 0 auto;
+  }
+  .score-tools button {
+    width: auto;
+    white-space: nowrap;
   }
   .playback-controls {
     grid-template-columns: repeat(2, minmax(120px, 1fr));

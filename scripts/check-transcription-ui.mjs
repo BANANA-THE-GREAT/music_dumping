@@ -36,6 +36,9 @@ const raw = [60, 62, 64, 79].map((pitch, i) => ({
 const project = {
   schema_version: "1.0",
   project_id: "preview-test",
+  project_group_id: "preview-group",
+  project_name: "试听验收项目",
+  score_name: "试听验收谱面",
   revision: 1,
   source: {
     file_name: "preview-test.wav",
@@ -55,7 +58,8 @@ const project = {
 };
 let job,
   events,
-  cancels = 0;
+  cancels = 0,
+  uploads = 0;
 const server = http.createServer((req, res) => {
   const path = new URL(req.url, "http://local").pathname;
   const json = (value, code = 200) => {
@@ -78,6 +82,21 @@ const server = http.createServer((req, res) => {
         revision: project.revision,
         updated_at: new Date().toISOString(),
       },
+      ...(uploads
+        ? [{
+            project_id: null,
+            project_group_id: "test-upload",
+            upload_id: "test-upload",
+            project_name: "local-preview",
+            score_name: null,
+            engine: null,
+            file_name: "local-preview.wav",
+            duration_ms: 0,
+            note_count: 0,
+            revision: 1,
+            updated_at: new Date().toISOString(),
+          }]
+        : []),
     ]);
   if (path === "/api/v1/projects/preview-test") return json(project);
   if (path === "/api/v1/projects/preview-test/audio") {
@@ -97,7 +116,10 @@ const server = http.createServer((req, res) => {
     });
     return;
   }
-  if (path === "/api/v1/uploads") return json({ id: "test-upload" }, 201);
+  if (path === "/api/v1/uploads") {
+    uploads++;
+    return json({ id: "test-upload", project_name: "local-preview" }, 201);
+  }
   if (path === "/api/v1/jobs") {
     job = {
       id: "test-job",
@@ -214,8 +236,14 @@ try {
     buffer: wav,
   });
   await page.waitForFunction(
-    () => !document.querySelector("#transcribe").disabled,
+    () => document.querySelector("#project-picker").textContent === "local-preview",
   );
+  await page.waitForFunction(() => !document.querySelector("#transcribe").disabled);
+  assert.equal(uploads, 1);
+  assert.equal(await page.locator("#project-picker").innerText(), "local-preview");
+  await page.click("#project-picker");
+  assert.equal(await page.locator(".empty-score-list").innerText(), "尚未生成谱面");
+  await page.click("#close-project-dialog");
   await page.click("#transcribe");
   await page.waitForFunction(
     () =>

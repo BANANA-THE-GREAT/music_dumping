@@ -52,6 +52,15 @@ try {
   await page.goto(process.env.SCORE_URL || "http://127.0.0.1:4180");
   await page.click("#example");
   await page.waitForSelector('#staff [data-note="0"]');
+  const desktopTools = await page.locator(".score-tools").boundingBox();
+  const desktopScore = await page.locator(".score-content").boundingBox();
+  assert.ok(desktopTools.x > desktopScore.x + desktopScore.width);
+  assert.equal(
+    await page.locator(".score-tools").evaluate((element) =>
+      getComputedStyle(element).position,
+    ),
+    "sticky",
+  );
   await page.locator('#staff [data-note="0"]').first().click();
   assert.equal(await page.locator("#pitch-up").isEnabled(), true);
   await page.click("#pitch-up");
@@ -177,6 +186,9 @@ try {
   });
   await page.setViewportSize({ width: 390, height: 1000 });
   await page.click('[data-view="jianpu"]');
+  const mobileTools = await page.locator(".score-tools").boundingBox();
+  const mobileScore = await page.locator(".score-content").boundingBox();
+  assert.ok(mobileTools.y < mobileScore.y);
   await page.screenshot({
     path: `${process.env.SCREENSHOT_DIR || "/tmp"}/score-mobile.png`,
     fullPage: true,
