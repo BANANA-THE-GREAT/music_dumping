@@ -586,6 +586,63 @@ def test_boundary_suggestion_review_accept_reject_and_reset() -> None:
     )
 
 
+def test_boundary_suggestion_batch_route_accepts_and_resets() -> None:
+    project = create_project()
+    project_id = project["project_id"]
+    original_end = project["notes"][0]["source_end_ms"]
+    proposed_end = original_end + 70
+    project["notes"][0]["source_note_ids"] = ["game-0000"]
+    project["performance_notes"][0]["source_note_ids"] = ["game-0000"]
+    project["transcription_evidence"] = {
+        "note_model": {
+            "name": "GAME medium",
+            "implementation": "test",
+            "code_revision": "test",
+            "parameters": {},
+        },
+        "boundary_suggestions": [
+            {
+                "id": "boundary-batch-1",
+                "source_note_id": "game-0000",
+                "original_end_ms": original_end,
+                "proposed_end_ms": proposed_end,
+                "confidence": 0.9,
+                "reason": "f0_voicing_extension",
+            }
+        ],
+    }
+    with SessionLocal() as session:
+        record = session.get(ProjectRecord, project_id)
+        record.document = project
+        session.commit()
+
+    path = f"/v1/projects/{project_id}/boundary-suggestions/batch"
+    accepted = client.post(
+        path,
+        json={"expected_revision": 1, "threshold": 0.85, "action": "accept"},
+    )
+    assert accepted.status_code == 200
+    accepted_project = accepted.json()
+    assert accepted_project["notes"][0]["source_end_ms"] == proposed_end
+    assert (
+        accepted_project["transcription_evidence"]["boundary_suggestions"][0]["review_status"]
+        == "accepted"
+    )
+    assert accepted_project["transcription_evidence"]["last_boundary_batch_id"]
+
+    reset = client.post(
+        path,
+        json={"expected_revision": 2, "threshold": 0, "action": "reset"},
+    )
+    assert reset.status_code == 200
+    reset_project = reset.json()
+    assert reset_project["notes"][0]["source_end_ms"] == original_end
+    assert (
+        reset_project["transcription_evidence"]["boundary_suggestions"][0]["review_status"]
+        == "pending"
+    )
+
+
 def test_boundary_suggestion_accept_refuses_changed_target() -> None:
     project = create_project()
     project["notes"][0]["source_note_ids"] = ["game-0000"]

@@ -396,6 +396,16 @@ def update_project(project_id: str, request: ProjectPatch, session: SessionDep) 
     return _save_project(record, project, session)
 
 
+@router.post("/projects/{project_id}/boundary-suggestions/batch", response_model=ScoreProject)
+def review_boundary_batch(
+    project_id: str,
+    request: BoundaryBatchReviewRequest,
+    session: SessionDep,
+) -> ScoreProject:
+    # Register the static /batch path before /{suggestion_id}; FastAPI matches in order.
+    return _review_boundary_batch(project_id, request, session)
+
+
 @router.post(
     "/projects/{project_id}/boundary-suggestions/{suggestion_id}",
     response_model=ScoreProject,
@@ -505,8 +515,7 @@ def review_boundary_suggestion(
     return _save_project(record, project, session)
 
 
-@router.post("/projects/{project_id}/boundary-suggestions/batch", response_model=ScoreProject)
-def review_boundary_batch(
+def _review_boundary_batch(
     project_id: str,
     request: BoundaryBatchReviewRequest,
     session: SessionDep,
