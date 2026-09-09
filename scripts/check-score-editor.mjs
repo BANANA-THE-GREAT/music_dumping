@@ -347,9 +347,10 @@ try {
   await page.click("#project-picker");
   await page.click("#refresh-projects");
   await page
-    .locator('#recent-project option[value="editor-check"]')
+    .locator('#project-list [data-score-id="editor-check"]')
     .waitFor({ state: "attached" });
-  await page.selectOption("#recent-project", "editor-check");
+  await page.locator(".project-card").first().locator("summary").click();
+  await page.click('[data-score-id="editor-check"]');
   await page.waitForFunction(
     () => document.querySelectorAll("#piano .roll-note").length === 2,
   );

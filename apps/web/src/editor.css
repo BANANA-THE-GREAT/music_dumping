@@ -117,11 +117,92 @@
   font-size: 20px;
 }
 #recent-project {
-  width: 100%;
-  min-height: 180px;
-  padding: 6px;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+  padding: 0;
+}
+.project-list {
+  display: grid;
+  gap: 10px;
+  max-height: min(52vh, 430px);
+  overflow-y: auto;
+  padding: 2px 8px 2px 2px;
+  scrollbar-color: #b8aa98 #f1ece4;
+  scrollbar-width: thin;
+}
+.project-list::-webkit-scrollbar {
+  width: 8px;
+}
+.project-list::-webkit-scrollbar-track {
+  background: #f1ece4;
+  border-radius: 4px;
+}
+.project-list::-webkit-scrollbar-thumb {
+  background: #b8aa98;
+  border: 2px solid #f1ece4;
+  border-radius: 4px;
+}
+.project-card {
   border: 1px solid #d7cfc0;
+  background: #fffdf8;
+}
+.project-card[open] {
+  border-color: #c98a70;
+}
+.project-card > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  cursor: pointer;
+  color: #5f584e;
+  font-weight: 700;
+  list-style-position: inside;
+}
+.project-card > summary::marker {
+  color: #b24c2d;
+}
+.project-card > summary small,
+.score-option small {
+  color: #8a8174;
+  font-size: 10px;
+  font-weight: 400;
+}
+.score-list {
+  display: grid;
+  gap: 6px;
+  padding: 0 10px 10px 28px;
+}
+.score-option {
+  display: grid;
+  gap: 3px;
+  width: 100%;
+  padding: 9px 11px;
+  border: 1px solid #e2d9cc;
   background: #fff;
+  color: #71695e;
+  cursor: pointer;
+  text-align: left;
+}
+.score-option:hover,
+.score-option.selected {
+  border-color: #b24c2d;
+  background: #fff4ed;
+  color: #942f13;
+}
+.project-upload {
+  border-top: 1px solid #e5ded2;
+  padding-top: 12px;
+}
+.project-upload .drop {
+  height: 96px;
 }
 .project-actions {
   display: flex;

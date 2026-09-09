@@ -2,6 +2,7 @@ import {
   JOB_STAGE_LABELS,
   type BoundarySuggestion,
   type F0Frame,
+  type ProjectCatalogSummary,
   type ScoreProject as ApiScoreProject,
 } from "@vocal-score/contracts";
 import { ApiError, VocalScoreApi } from "@vocal-score/contracts/client";
@@ -132,8 +133,9 @@ document
   .querySelector("aside")!
   .insertAdjacentHTML(
     "afterbegin",
-    `<div class="recent-projects"><button id="project-picker" type="button" aria-haspopup="dialog">项目 / 谱面</button></div><dialog id="project-dialog" aria-labelledby="project-dialog-title"><div class="project-dialog-content"><header><strong id="project-dialog-title">项目 / 谱面</strong><button id="close-project-dialog" type="button" title="关闭" aria-label="关闭">×</button></header><select id="recent-project" size="6"><option value="">选择已保存项目…</option></select><div class="project-actions"><button id="refresh-projects" type="button" title="刷新项目" aria-label="刷新项目">↻</button><button id="rename-project" type="button" title="重命名项目" disabled>项目名</button><button id="rename-score" type="button" title="重命名谱面" disabled>谱名</button><button id="delete-project" type="button" title="删除谱面" disabled>删除</button><button id="bulk-delete-projects" type="button" title="批量删除谱面" disabled>批量删除</button></div><button id="create-project" class="create-project" type="button" title="创建新项目" aria-label="创建新项目">＋</button></div></dialog>`,
+    `<div class="recent-projects"><button id="project-picker" type="button" aria-haspopup="dialog">项目 / 谱面</button></div><dialog id="project-dialog" aria-labelledby="project-dialog-title"><div class="project-dialog-content"><header><strong id="project-dialog-title">项目 / 谱面</strong><button id="close-project-dialog" type="button" title="关闭" aria-label="关闭">×</button></header><div id="project-list" class="project-list"></div><select id="recent-project" class="project-selection-proxy" aria-hidden="true" tabindex="-1"><option value="">选择已保存项目…</option></select><div class="project-actions"><button id="refresh-projects" type="button" title="刷新项目" aria-label="刷新项目">↻</button><button id="rename-project" type="button" title="重命名项目" disabled>项目名</button><button id="rename-score" type="button" title="重命名谱面" disabled>谱名</button><button id="delete-project" type="button" title="删除谱面" disabled>删除</button><button id="bulk-delete-projects" type="button" title="批量删除谱面" disabled>批量删除</button></div><div class="project-upload" aria-label="创建新项目"></div></div></dialog>`,
   );
+document.querySelector(".project-upload")!.append(document.querySelector("#drop")!);
 $("#project-picker").addEventListener("click", () =>
   $<HTMLDialogElement>("#project-dialog").showModal(),
 );
@@ -144,7 +146,15 @@ $("#project-dialog").addEventListener("click", (event) => {
   if (event.target === $("#project-dialog"))
     $<HTMLDialogElement>("#project-dialog").close();
 });
-$("#create-project").addEventListener("click", () => input.click());
+$("#project-list").addEventListener("click", (event) => {
+  const button = (event.target as HTMLElement).closest<HTMLButtonElement>(
+    "[data-score-id]",
+  );
+  if (!button) return;
+  const select = $<HTMLSelectElement>("#recent-project");
+  select.value = button.dataset.scoreId ?? "";
+  select.dispatchEvent(new Event("change", { bubbles: true }));
+});
 let sourceBuffer: AudioBuffer | null = null,
   sourceFile: File | null = null,
   serverProject: ApiScoreProject | null = null,
@@ -675,12 +685,44 @@ async function refreshProjects() {
         )
         .join("");
     if (serverProject) select.value = serverProject.project_id;
+    renderProjectCatalog(projects);
     $("#project-picker").textContent = serverProject
       ? `${serverProject.project_name ?? "未命名项目"} / ${serverProject.score_name ?? "未命名谱面"}`
       : "项目 / 谱面";
   } catch {
     select.innerHTML = `<option value="">后端项目不可用</option>`;
   }
+}
+function renderProjectCatalog(projects: ProjectCatalogSummary[]) {
+  const groups = new Map<string, ProjectCatalogSummary[]>();
+  for (const project of projects) {
+    const group = groups.get(project.project_group_id) ?? [];
+    group.push(project);
+    groups.set(project.project_group_id, group);
+  }
+  $("#project-list").innerHTML = [...groups.entries()]
+    .map(([groupId, scores]) => {
+      const projectName = scores[0].project_name || "未命名项目";
+      const open = scores.some((score) => score.project_id === serverProject?.project_id)
+        ? " open"
+        : "";
+      return `<details class="project-card" data-project-group="${escapeHtml(groupId)}"${open}><summary><span>${escapeHtml(projectName)}</span><small>${scores.length} 份谱面</small></summary><div class="score-list">${scores
+        .map(
+          (score) =>
+            `<button class="score-option${score.project_id === serverProject?.project_id ? " selected" : ""}" data-score-id="${escapeHtml(score.project_id)}" type="button"><span>${escapeHtml(score.score_name || "未命名谱面")}</span><small>${escapeHtml(score.engine || "未知引擎")} · ${score.note_count} 音符</small></button>`,
+        )
+        .join("")}</div></details>`;
+    })
+    .join("");
+}
+function escapeHtml(value: string) {
+  return value.replace(
+    /[&<>"']/g,
+    (character) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[
+        character
+      ] ?? character,
+  );
 }
 $<HTMLSelectElement>("#recent-project").addEventListener(
   "change",
@@ -705,6 +747,8 @@ $<HTMLSelectElement>("#recent-project").addEventListener(
       status(
         `已恢复 ${serverProject.source.file_name} · 修订 ${serverProject.revision}`,
       );
+      $("#project-picker").textContent =
+        `${serverProject.project_name ?? "未命名项目"} / ${serverProject.score_name ?? "未命名谱面"}`;
       $<HTMLDialogElement>("#project-dialog").close();
     } catch (error) {
       if (await recoverRevisionConflict(error)) return;
