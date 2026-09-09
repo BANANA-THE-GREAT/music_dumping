@@ -354,6 +354,29 @@ try {
   );
   assert.equal(await page.locator("#piano .performance-note").count(), 2);
   await page.selectOption("#playback-version", "performance");
+  await page.selectOption("#playback-mode", "mix-source");
+  await page.locator("#playback-loop").check();
+  assert.equal(
+    await page.evaluate(() => localStorage.getItem("vocal-score.playback-version")),
+    "performance",
+  );
+  assert.equal(
+    await page.evaluate(() => localStorage.getItem("vocal-score.playback-mode")),
+    "mix-source",
+  );
+  assert.equal(
+    await page.evaluate(() => localStorage.getItem("vocal-score.playback-loop")),
+    "true",
+  );
+  await page.click("#add-tempo-point");
+  await page.fill('[data-tempo-time="1"]', "1000");
+  await page.fill('[data-tempo-bpm="1"]', "90");
+  await page.click("#apply-tempo-map");
+  await page.waitForTimeout(200);
+  assert.deepEqual(requantizeRequest.tempo_map, [
+    { time_ms: 0, bpm: 120 },
+    { time_ms: 1000, bpm: 90 },
+  ]);
   await page.selectOption("#quantize-grid", "0.3333333333333333");
   await page.fill("#quantize-strength", "50");
   await page.fill("#quantize-offset", "40");
@@ -383,12 +406,12 @@ try {
   await page.locator('#jianpu [data-note="0"]').first().click();
   await page.click("#pitch-up");
   await page.waitForFunction(() =>
-    document.querySelector("#status").textContent.includes("修订 5"),
+    document.querySelector("#status").textContent.includes("修订 6"),
   );
   assert.equal(project.notes[0].pitch_midi, 61);
   await page.click("#undo");
   await page.waitForFunction(() =>
-    document.querySelector("#status").textContent.includes("修订 6"),
+    document.querySelector("#status").textContent.includes("修订 7"),
   );
   assert.equal(project.notes[0].pitch_midi, 60);
   assert.equal(saved.length, 2);
