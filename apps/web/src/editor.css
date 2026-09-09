@@ -67,26 +67,84 @@
   padding-bottom: 14px;
 }
 
-.recent-projects > label {
-  display: block;
-  margin-bottom: 6px;
-  color: #71695e;
-  font-size: 11px;
+.recent-projects > button {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #d7cfc0;
+  background: #fffdf8;
+  color: #5f584e;
+  cursor: pointer;
+  text-align: left;
   font-weight: 700;
 }
 
-.recent-projects > div {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) repeat(4, auto);
-  gap: 5px;
+.recent-projects > button::after {
+  content: "↗";
+  float: right;
+  color: #8a8174;
 }
 
-.recent-projects select,
-.recent-projects button {
-  min-width: 0;
-  padding: 7px;
-  background: #fff;
+#project-dialog {
+  width: min(560px, calc(100vw - 32px));
+  padding: 0;
+  border: 1px solid #d9d1c1;
+  background: #fffdf8;
+  color: #22201c;
+  box-shadow: 0 24px 70px #594b3340;
+}
+#project-dialog::backdrop {
+  background: #29272366;
+}
+.project-dialog-content {
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+}
+.project-dialog-content > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0;
+}
+.project-dialog-content > header button {
+  width: 32px;
+  height: 32px;
+  padding: 0;
   border: 1px solid #d7cfc0;
+  background: #fffdf8;
+  color: #71695e;
+  cursor: pointer;
+  font-size: 20px;
+}
+#recent-project {
+  width: 100%;
+  min-height: 180px;
+  padding: 6px;
+  border: 1px solid #d7cfc0;
+  background: #fff;
+}
+.project-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.project-actions button {
+  min-width: 72px;
+  padding: 8px 10px;
+  border: 1px solid #d7cfc0;
+  background: #fffdf8;
+  color: #71695e;
+  cursor: pointer;
+}
+.create-project {
+  width: 42px;
+  height: 42px;
+  justify-self: center;
+  border: 1px solid #b24c2d;
+  background: #fff4ed;
+  color: #b24c2d;
+  cursor: pointer;
+  font-size: 24px;
 }
 
 .piano-roll svg {
@@ -513,6 +571,16 @@
 }
 .empty {
   pointer-events: none;
+  position: static;
+  min-height: 280px;
+  margin: 12px 0 24px;
+}
+
+@media (max-width: 800px) {
+  .empty {
+    min-height: 240px;
+    margin: 10px 0 18px;
+  }
 }
 
 #staff .abcjs-staff {

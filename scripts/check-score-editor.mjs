@@ -47,7 +47,7 @@ await page.addInitScript(() => {
   };
 });
 page.on("pageerror", (error) => errors.push(error.message));
-await page.route("https://fonts.googleapis.com/**", (route) => route.abort());
+  await page.route("https://fonts.googleapis.com/**", (route) => route.abort());
 try {
   await page.goto(process.env.SCORE_URL || "http://127.0.0.1:4180");
   await page.click("#example");
@@ -344,6 +344,7 @@ try {
     }
     await route.fulfill({ json: project });
   });
+  await page.click("#project-picker");
   await page.click("#refresh-projects");
   await page
     .locator('#recent-project option[value="editor-check"]')

@@ -132,8 +132,19 @@ document
   .querySelector("aside")!
   .insertAdjacentHTML(
     "afterbegin",
-    `<div class="recent-projects"><label for="recent-project">项目 / 谱面</label><div><select id="recent-project" size="4"><option value="">选择已保存项目…</option></select><button id="refresh-projects" title="刷新项目">↻</button><button id="rename-project" title="重命名项目" disabled>项目名</button><button id="rename-score" title="重命名谱面" disabled>谱名</button><button id="delete-project" title="删除谱面" disabled>删除</button><button id="bulk-delete-projects" title="批量删除谱面" disabled>批量删除</button></div></div>`,
+    `<div class="recent-projects"><button id="project-picker" type="button" aria-haspopup="dialog">项目 / 谱面</button></div><dialog id="project-dialog" aria-labelledby="project-dialog-title"><div class="project-dialog-content"><header><strong id="project-dialog-title">项目 / 谱面</strong><button id="close-project-dialog" type="button" title="关闭" aria-label="关闭">×</button></header><select id="recent-project" size="6"><option value="">选择已保存项目…</option></select><div class="project-actions"><button id="refresh-projects" type="button" title="刷新项目" aria-label="刷新项目">↻</button><button id="rename-project" type="button" title="重命名项目" disabled>项目名</button><button id="rename-score" type="button" title="重命名谱面" disabled>谱名</button><button id="delete-project" type="button" title="删除谱面" disabled>删除</button><button id="bulk-delete-projects" type="button" title="批量删除谱面" disabled>批量删除</button></div><button id="create-project" class="create-project" type="button" title="创建新项目" aria-label="创建新项目">＋</button></div></dialog>`,
   );
+$("#project-picker").addEventListener("click", () =>
+  $<HTMLDialogElement>("#project-dialog").showModal(),
+);
+$("#close-project-dialog").addEventListener("click", () =>
+  $<HTMLDialogElement>("#project-dialog").close(),
+);
+$("#project-dialog").addEventListener("click", (event) => {
+  if (event.target === $("#project-dialog"))
+    $<HTMLDialogElement>("#project-dialog").close();
+});
+$("#create-project").addEventListener("click", () => input.click());
 let sourceBuffer: AudioBuffer | null = null,
   sourceFile: File | null = null,
   serverProject: ApiScoreProject | null = null,
@@ -664,6 +675,9 @@ async function refreshProjects() {
         )
         .join("");
     if (serverProject) select.value = serverProject.project_id;
+    $("#project-picker").textContent = serverProject
+      ? `${serverProject.project_name ?? "未命名项目"} / ${serverProject.score_name ?? "未命名谱面"}`
+      : "项目 / 谱面";
   } catch {
     select.innerHTML = `<option value="">后端项目不可用</option>`;
   }
@@ -691,6 +705,7 @@ $<HTMLSelectElement>("#recent-project").addEventListener(
       status(
         `已恢复 ${serverProject.source.file_name} · 修订 ${serverProject.revision}`,
       );
+      $<HTMLDialogElement>("#project-dialog").close();
     } catch (error) {
       if (await recoverRevisionConflict(error)) return;
       status(
@@ -813,6 +828,7 @@ $("#delete-project").addEventListener("click", async () => {
       rawNotes = [];
       notes = [];
       tempoMap = [{ time_ms: 0, bpm: 120 }];
+      $("#project-picker").textContent = "项目 / 谱面";
       void render();
       $("#staff").innerHTML = "";
       $("#jianpu").innerHTML = "";
@@ -1110,6 +1126,7 @@ $("#example").addEventListener("click", () => {
   localOriginalNotes = rawNotes.map((n) => ({ ...n }));
   $("#melody-result").textContent = "";
   $<HTMLSelectElement>("#recent-project").value = "";
+  $("#project-picker").textContent = "项目 / 谱面";
   $<HTMLButtonElement>("#delete-project").disabled = true;
   analysis = {
     bpm: 120,

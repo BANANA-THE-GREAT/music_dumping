@@ -161,6 +161,7 @@ await page.addInitScript(() => {
 });
 try {
   await page.goto("http://127.0.0.1:4176", { waitUntil: "domcontentloaded" });
+  await page.click("#project-picker");
   await page.selectOption("#recent-project", "preview-test");
   await page.waitForFunction(
     () => document.querySelectorAll("#piano rect").length === 3,
