@@ -240,6 +240,71 @@
   color: #5f584e;
 }
 
+.tempo-map-controls {
+  display: grid;
+  grid-template-columns: minmax(180px, auto) 1fr auto auto;
+  gap: 10px;
+  align-items: end;
+  padding: 12px 0;
+  border-bottom: 1px solid #ded6ca;
+}
+.tempo-map-controls > div:first-child {
+  display: grid;
+  gap: 4px;
+}
+.tempo-map-controls small,
+.tempo-map-result,
+.tempo-origin {
+  color: #8a8174;
+  font-size: 10px;
+}
+#tempo-map-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.tempo-point {
+  display: flex;
+  align-items: end;
+  gap: 5px;
+  padding: 5px;
+  border: 1px solid #e5ded2;
+  background: #fffdf8;
+}
+.tempo-point label {
+  display: grid;
+  gap: 3px;
+  color: #71695e;
+  font-size: 10px;
+}
+.tempo-point input {
+  width: 82px;
+  padding: 5px;
+}
+.tempo-point button,
+.tempo-map-controls > button {
+  min-height: 31px;
+  padding: 5px 8px;
+  border: 1px solid #d6cbbc;
+  background: #fffdf8;
+  color: #71695e;
+  cursor: pointer;
+}
+.tempo-map-controls > output {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 800px) {
+  .tempo-map-controls {
+    grid-template-columns: 1fr 1fr;
+  }
+  .tempo-map-controls > div:first-child,
+  #tempo-map-list,
+  .tempo-map-controls > output {
+    grid-column: 1 / -1;
+  }
+}
+
 .waveform-panel > span {
   display: block;
   margin-bottom: 5px;

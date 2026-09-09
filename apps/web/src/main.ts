@@ -52,6 +52,10 @@ document
     "beforebegin",
     `<select id="playback-version" aria-label="试听版本"><option value="score">谱面版</option><option value="performance">演唱版</option></select><select id="playback-mode" aria-label="试听音轨"><option value="mix-vocals" selected>谱面 + 人声</option><option value="score">只听谱面</option><option value="source">只听原曲</option><option value="vocals">只听人声</option><option value="mix-source">谱面 + 原曲</option></select><label class="playback-loop"><input id="playback-loop" type="checkbox">片段循环</label>`,
   );
+document.querySelector(".analysis-panel")!.insertAdjacentHTML(
+  "afterend",
+  `<section class="tempo-map-controls" aria-label="变速设置"><div><strong>变速段</strong><small>仅影响谱面量化和导出节拍，不修改演唱版时间。</small></div><div id="tempo-map-list"></div><button id="add-tempo-point" type="button">添加变速点</button><button id="apply-tempo-map" type="button">应用变速</button><output id="tempo-map-result"></output></section>`,
+);
 document
   .querySelector(".toolbar")!
   .insertAdjacentHTML(
@@ -152,6 +156,9 @@ let analysis: MusicalAnalysis = {
   mode: "major",
   confidence: { bpm: 0, meter: 0, key: 0 },
 };
+let tempoMap: Array<{ time_ms: number; bpm: number }> = [
+  { time_ms: 0, bpm: 120 },
+];
 const scorePlayer = new ScorePlayer();
 let playing = false;
 let syncingAudio = false;
@@ -360,6 +367,7 @@ async function runLocal() {
   taskProgress.start("transcribe", "正在分析 BPM、拍号与调性");
   status("正在分析 BPM、拍号与调性…");
   analysis = analyzeMusic(sourceBuffer, rawNotes);
+  tempoMap = [{ time_ms: 0, bpm: analysis.bpm }];
   applyLocalRefinement();
 }
 function applyApiProject(project: ApiScoreProject) {
@@ -367,6 +375,9 @@ function applyApiProject(project: ApiScoreProject) {
   selectedNoteIndex = null;
   scoreHistory = new ScoreHistory(project.notes);
   const tempo = project.analysis.tempo_map[0];
+  tempoMap = project.analysis.tempo_map.length
+    ? project.analysis.tempo_map.map((point) => ({ ...point }))
+    : [{ time_ms: 0, bpm: tempo?.bpm ?? 120 }];
   const meterPoint = project.analysis.meter_map[0];
   const keyPoint = project.analysis.key_map[0];
   rawNotes = (project.performance_notes ?? project.notes).map((note) => ({
@@ -390,6 +401,7 @@ function applyApiProject(project: ApiScoreProject) {
     },
   };
   syncQuantization(project);
+  renderTempoMap();
   $<HTMLInputElement>("#audio-offset").value = String(project.audio_alignment?.offset_ms ?? 0);
   const diagnostic = project.transcription_diagnostics;
   const panel = $("#transcription-diagnostics");
@@ -800,6 +812,7 @@ $("#delete-project").addEventListener("click", async () => {
       selectedNoteIndex = null;
       rawNotes = [];
       notes = [];
+      tempoMap = [{ time_ms: 0, bpm: 120 }];
       void render();
       $("#staff").innerHTML = "";
       $("#jianpu").innerHTML = "";
@@ -847,6 +860,49 @@ function sync() {
   $("#bpmConfidence").textContent = conf(analysis.confidence.bpm);
   $("#meterConfidence").textContent = conf(analysis.confidence.meter);
   $("#keyConfidence").textContent = conf(analysis.confidence.key);
+  if (!serverProject && tempoMap.length === 1) tempoMap[0].bpm = analysis.bpm;
+  renderTempoMap();
+}
+function renderTempoMap() {
+  $("#tempo-map-list").innerHTML = tempoMap
+    .map(
+      (point, index) =>
+        `<div class="tempo-point"><label>时间 ms<input data-tempo-time="${index}" type="number" min="0" step="100" value="${point.time_ms}" ${index === 0 ? "disabled" : ""}></label><label>BPM<input data-tempo-bpm="${index}" type="number" min="20" max="300" step="0.1" value="${point.bpm}"></label>${index === 0 ? "<span class=tempo-origin>起点</span>" : `<button data-remove-tempo="${index}" type="button" title="删除变速点" aria-label="删除变速点">×</button>`}</div>`,
+    )
+    .join("");
+}
+function readTempoMap(): Array<{ time_ms: number; bpm: number }> | null {
+  const points = tempoMap.map((point, index) => ({
+    time_ms:
+      index === 0
+        ? 0
+        : Number($<HTMLInputElement>(`[data-tempo-time="${index}"]`).value),
+    bpm: Number($<HTMLInputElement>(`[data-tempo-bpm="${index}"]`).value),
+  }));
+  if (
+    points.some(
+      (point, index) =>
+        !Number.isFinite(point.time_ms) ||
+        !Number.isFinite(point.bpm) ||
+        point.time_ms < 0 ||
+        point.bpm < 20 ||
+        point.bpm > 300 ||
+        (index > 0 && point.time_ms <= points[index - 1].time_ms),
+    )
+  )
+    return null;
+  return points;
+}
+function applyTempoMapFromControls() {
+  const next = readTempoMap();
+  if (!next) {
+    $("#tempo-map-result").textContent = "变速点必须按时间递增，BPM 范围为 20–300";
+    return false;
+  }
+  tempoMap = next;
+  analysis.bpm = tempoMap[0].bpm;
+  bpm.value = String(analysis.bpm);
+  return true;
 }
 function syncQuantization(project: ApiScoreProject | null) {
   const settings = project?.quantization;
@@ -970,6 +1026,9 @@ $("#refine-melody").addEventListener("click", async () => {
 });
 async function update() {
   stop();
+  if (document.activeElement === bpm)
+    tempoMap[0].bpm = Number(bpm.value);
+  else if (!applyTempoMapFromControls()) return;
   if (!bpm.checkValidity() || !Number.isFinite(Number(bpm.value))) {
     bpm.value = String(analysis.bpm);
     return;
@@ -998,6 +1057,7 @@ async function update() {
         grid: Number($<HTMLSelectElement>("#quantize-grid").value),
         strength: Number($<HTMLInputElement>("#quantize-strength").value) / 100,
         offset_ms: Number($<HTMLInputElement>("#quantize-offset").value),
+        tempo_map: tempoMap,
       });
       applyApiProject(serverProject);
       render();
@@ -1010,6 +1070,29 @@ async function update() {
   }
 }
 [bpm, meter, key, mode].forEach((el) => el.addEventListener("change", update));
+$("#add-tempo-point").addEventListener("click", () => {
+  if (!applyTempoMapFromControls()) return;
+  const last = tempoMap.at(-1) ?? { time_ms: 0, bpm: analysis.bpm };
+  tempoMap.push({ time_ms: last.time_ms + 10_000, bpm: last.bpm });
+  renderTempoMap();
+  $("#tempo-map-result").textContent = "已添加变速点，点击应用变速保存";
+});
+$("#tempo-map-list").addEventListener("click", (event) => {
+  const button = (event.target as HTMLElement).closest<HTMLButtonElement>(
+    "[data-remove-tempo]",
+  );
+  if (!button) return;
+  const index = Number(button.dataset.removeTempo);
+  if (index > 0) {
+    tempoMap.splice(index, 1);
+    renderTempoMap();
+    $("#tempo-map-result").textContent = "已删除变速点，点击应用变速保存";
+  }
+});
+$("#apply-tempo-map").addEventListener("click", () => {
+  if (!applyTempoMapFromControls()) return;
+  void update();
+});
 $<HTMLInputElement>("#quantize-strength").addEventListener("input", () => {
   $("#quantize-strength-value").textContent =
     `${$<HTMLInputElement>("#quantize-strength").value}%`;
@@ -1036,6 +1119,7 @@ $("#example").addEventListener("click", () => {
     mode: "major",
     confidence: { bpm: 0.92, meter: 0.81, key: 0.95 },
   };
+  tempoMap = [{ time_ms: 0, bpm: analysis.bpm }];
   sync();
   render();
   status("已载入完整示例 · 所有参数均可修改");
