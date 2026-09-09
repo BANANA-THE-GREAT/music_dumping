@@ -423,9 +423,10 @@ function renderBoundaryReview() {
     $("#boundary-list").innerHTML = "";
     return;
   }
-  const pending = suggestions.filter(
+  const pendingSuggestions = suggestions.filter(
     (suggestion) => suggestion.review_status === "pending",
-  ).length;
+  );
+  const pending = pendingSuggestions.length;
   const accepted = suggestions.filter(
     (suggestion) => suggestion.review_status === "accepted",
   ).length;
@@ -439,10 +440,15 @@ function renderBoundaryReview() {
     )
     .join("");
   const threshold = Number($<HTMLInputElement>("#boundary-threshold").value) / 100;
-  const eligible = pending.filter((suggestion) => suggestion.confidence >= threshold).length;
+  const eligible = pendingSuggestions.filter(
+    (suggestion) => suggestion.confidence >= threshold,
+  ).length;
   $("#boundary-batch-result").textContent = `${eligible} 条建议达到阈值`;
   $<HTMLButtonElement>("#accept-boundaries").disabled = editSaving || transcriptionBusy || eligible === 0;
-  $<HTMLButtonElement>("#reset-boundaries").disabled = editSaving || transcriptionBusy || !serverProject.transcription_evidence?.last_boundary_batch_id;
+  const hasBatch = Boolean(
+    serverProject?.transcription_evidence?.last_boundary_batch_id,
+  );
+  $<HTMLButtonElement>("#reset-boundaries").disabled = editSaving || transcriptionBusy || !hasBatch;
   panel
     .querySelectorAll<HTMLButtonElement>("button")
     .forEach((button) => (button.disabled = editSaving || transcriptionBusy));
