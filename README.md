@@ -17,6 +17,11 @@
 | [Demucs](https://github.com/facebookresearch/demucs) | 已接入：人声分离，继续保留 | 固定所用版本、权重及其许可，见许可清单 |
 | [Basic Pitch](https://github.com/spotify/basic-pitch) / [Basic Pitch TS](https://github.com/spotify/basic-pitch-ts) | 已接入：后端及浏览器转录；保留为评测和回退基线 | Python 项目代码为 Apache-2.0；TS 版本及具体权重另行核对 |
 | [abcjs](https://github.com/paulrosen/abcjs) | 已接入：五线谱渲染 | 具体版本许可及第三方声明见许可清单 |
+| [Verovio](https://github.com/rism-digital/verovio) | 已接入独立渲染容器：将 MusicXML 刻制为五线谱 SVG，并用于 PNG/PDF 导出 | 固定 Python 包 `6.2.1`；LGPL，容器分发时保留许可证与上游说明 |
+| [Inkscape](https://inkscape.org/) | 已接入独立渲染容器：将服务端 SVG 转换为 144 DPI PNG 或 PDF | GPL；只作为独立命令行程序运行，生成文件的权利不因运行 Inkscape 自动改变 |
+| [Noto CJK](https://github.com/notofonts/noto-cjk) | 已接入渲染容器：中文谱名的本地字体回退，不依赖 Google Fonts | SIL Open Font License 1.1；分发字体时保留版权和许可文本 |
+| [OpenSheetMusicDisplay](https://github.com/opensheetmusicdisplay/opensheetmusicdisplay) | 候选：浏览器五线谱和简谱对照，尚未接入 | 本体 BSD-3-Clause；Jianpu Display 仍标为 early access/sponsor 功能，需单独确认可用性和授权 |
+| [MuseScore Studio](https://musescore.org/) / [LilyPond](https://lilypond.org/) | 候选：出版级离线五线谱对照或回退，尚未接入 | 镜像体积、无头运行和 GPL 边界需在真正接入前单独验证 |
 | [GAME](https://github.com/openvpi/GAME) | 已接入显式可选的 quality Worker，medium 生成实验音符候选；默认仍为 Basic Pitch | 代码 MIT；[官方 1.0 权重](https://github.com/openvpi/GAME/releases/tag/v1.0.0)为 CC BY-NC-SA 4.0，须遵守非商用、署名及适用的相同方式共享条件；权重只读挂载，不进入镜像 |
 | [SOME](https://github.com/openvpi/SOME) | 已完成 P1 独立 CPU 对照；未达到预登记门槛，未接入默认 Worker | 代码 MIT；[官方基线权重](https://github.com/openvpi/SOME/releases/tag/v1.0.0-baseline)为 CC BY-NC-SA 4.0 |
 | [ROSVOT](https://github.com/RickyL-2000/ROSVOT) | 备选：中文、分离残留较重的歌声转录，按评测需要引入 | 代码 MIT；具体权重授权和数据限制仍需核实，不能由代码许可证推断 |
@@ -37,6 +42,7 @@
 - 五线谱 / 简谱切换、合成器演奏和音符跟随
 - 简谱点击选音，方向键升降半音并自动保存 revision
 - 服务端标准 MIDI / MusicXML 导出
+- 服务端谱面版五线谱与简谱 SVG/PNG/PDF 导出；五线谱使用 Verovio，简谱使用稳定音符 ID 的项目内 SVG 布局器
 - PostgreSQL / Redis / Celery 容器栈与 Alembic 数据库迁移
 
 ## 本地开发
@@ -70,10 +76,15 @@ API 与 Worker 使用固定的 Python `3.11.16` / Debian trixie 依赖基础镜�
 ```bash
 make build-api
 make build-worker
+make build-renderer
 ```
 
 构建脚本根据锁文件、依赖 Dockerfile 和 PyTorch 配置计算基础镜像标签。本地已有对应标签时直接复用；
 只有首次构建、锁文件变化或 Python/PyTorch/系统依赖变化时才构建依赖层，此时可能需要联网。
+
+谱面图片由内部 `renderer` 服务生成。该容器固定安装 Verovio `6.2.1`、Inkscape 和
+Noto CJK 字体；API 不在请求期间下载渲染器或字体。首次执行 `make build-renderer` 需要联网，
+后续普通启动和业务代码更新复用本地镜像。
 
 ```bash
 docker compose -f infra/compose.yaml up -d --wait web worker

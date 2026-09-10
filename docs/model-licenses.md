@@ -6,13 +6,18 @@
 
 ## 项目登记
 
-以下为 2026-09-07 的调研与接入状态。未填精确版本和权重哈希的候选，不视为已完成集成审查。
+以下为 2026-09-10 的调研与接入状态。未填精确版本和权重哈希的候选，不视为已完成集成审查。
 
 | 组件 | 状态及用途 | 官方来源 | 已知许可和待办 |
 |---|---|---|---|
 | Demucs | 已接入，人声分离 | [代码](https://github.com/facebookresearch/demucs) | 补齐当前固定版本、实际权重来源与哈希，并分别归档授权 |
 | Spotify Basic Pitch | 已接入，复音转录与回退基线 | [Python](https://github.com/spotify/basic-pitch)、[TypeScript](https://github.com/spotify/basic-pitch-ts) | Python 代码 Apache-2.0；TS 和所用权重分别核对并归档 |
 | abcjs | 已接入，五线谱刻谱 | [代码](https://github.com/paulrosen/abcjs) | 按实际安装版本补齐许可证及必要声明 |
+| Verovio | 已接入独立谱面渲染容器，将 MusicXML 刻制为五线谱 SVG | [代码与发布](https://github.com/rism-digital/verovio) | 固定 Python 包 `6.2.1`；上游声明 LGPL，并包含需随分发保留的 LGPL/GPL 文件。当前通过独立 HTTP 服务调用，不复制源码或二进制进应用包 |
+| Inkscape | 已接入独立谱面渲染容器，将 SVG 转换为 PNG/PDF | [许可说明](https://inkscape.org/about/license/) | Debian 软件包版本随 `python:3.11.16-slim-trixie` 仓库解析，镜像构建后记录实际版本；程序为 GPL。项目仅通过命令行子进程调用；官方说明其导出文件不因运行 Inkscape 自动受 GPL 约束 |
+| Noto CJK | 已接入渲染容器，提供中文标题和符号的本地字体回退 | [字体仓库](https://github.com/notofonts/noto-cjk) | `fonts-noto-cjk` Debian 包，构建后记录实际包版本；字体为 SIL OFL 1.1。重新分发镜像时保留版权和许可文本，不单独出售字体 |
+| OpenSheetMusicDisplay | 尚未接入；仅作为浏览器刻谱候选 | [代码](https://github.com/opensheetmusicdisplay/opensheetmusicdisplay) | 本体 BSD-3-Clause；上游仍把 Jianpu Display 列为 early access/sponsor 功能，不能把本体许可证直接推断为该功能的可用授权 |
+| MuseScore Studio / LilyPond | 尚未接入；出版级五线谱回退候选 | [MuseScore](https://github.com/musescore/MuseScore)、[LilyPond](https://gitlab.com/lilypond/lilypond) | 真正接入前固定版本并核对 GPL、字体、插件和容器再分发要求；当前不得写成已提供功能 |
 | GAME | 已接入显式可选的本地 quality Worker；默认仍为 Basic Pitch | [代码](https://github.com/openvpi/GAME)、[权重](https://github.com/openvpi/GAME/releases/tag/v1.0.0) | 固定代码 tag `v1.0.0` / commit `e66c31251605e334b1bf0f565252d4987a9065c0`，源码归档 SHA-256 `41188c7b0f9f4baf0a7b9ad0621c20f643d8c90751b92221493f49e8aeef47d4`，代码 MIT；官方权重 CC BY-NC-SA 4.0。small zip SHA-256 `3d3e1ac0a83234b2a163a3d43043455d15670765eaa25ef6285c399da1ccc576`，`model.pt` SHA-256 `7dd10022a4011938843249a31d9527691376c493d13687a7fc1dec88786b9691`；medium zip SHA-256 `8c5b3e531e2905b935e664e2f533921cd637243770fab5282413bdb5051ca60c`，`model.pt` SHA-256 `e9904159fb0646e1a352b9d2bc74615547cfa3e32d45c7464d440ac142846d93`。medium 权重通过宿主机 `data/` 只读挂载，不打包进镜像。训练含约 32 小时私有人工标注数据及公开/私有噪声数据 |
 | SOME | P1 独立 CPU 对照完成；未接入默认 Worker | [代码](https://github.com/openvpi/SOME)、[权重](https://github.com/openvpi/SOME/releases/tag/v1.0.0-baseline) | 固定代码 tag `v1.0.0-baseline` / commit `dcfd40f9bfaa7c9649aae01a2795af73946ec5e7`，代码 MIT；权重 CC BY-NC-SA 4.0。`0119_continuous128_5spk.zip` SHA-256 `bc91b1afc3ae350bd70d36ec418c471baa65c94fbeeaa09d6e178cbcfca886ec`；压缩包内部实际为 `0119_continuous256_5spk`，checkpoint SHA-256 `aa710fce920b4dae281b0e6cc2acba83345d82ee62d51f7bafeb29636f28f97c` |
 | ROSVOT | 按需备选，歌声转 MIDI | [代码与模型说明](https://github.com/RickyL-2000/ROSVOT) | 代码 MIT；权重及训练数据使用限制待核实，不自动继承 MIT |
