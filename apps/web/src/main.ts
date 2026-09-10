@@ -62,7 +62,7 @@ document
   .querySelector(".score-tools")!
   .insertAdjacentHTML(
     "beforeend",
-    `<div class="edit-actions"><button id="undo" title="撤销" disabled>↶</button><button id="redo" title="重做" disabled>↷</button><button id="pitch-up" title="升高半音" disabled>↑</button><button id="pitch-down" title="降低半音" disabled>↓</button><button id="shorter" disabled>缩短</button><button id="longer" disabled>延长</button><button id="split" disabled>拆分</button><button id="merge" disabled>与后音合并</button><button id="delete-note" disabled>删除</button></div><output id="playback-state" class="playback-state" aria-live="polite"></output>`,
+    `<div class="edit-actions"><button id="undo" title="撤销" aria-label="撤销" disabled>↶</button><button id="redo" title="重做" aria-label="重做" disabled>↷</button><button id="pitch-up" title="升高半音" aria-label="升高半音" disabled>↑</button><button id="pitch-down" title="降低半音" aria-label="降低半音" disabled>↓</button><button id="move-earlier" title="按当前网格提前起音" aria-label="提前起音" disabled>←</button><button id="move-later" title="按当前网格延后起音" aria-label="延后起音" disabled>→</button><button id="shorter" disabled>缩短</button><button id="longer" disabled>延长</button><button id="split" disabled>拆分</button><button id="merge" disabled>与后音合并</button><button id="delete-note" disabled>删除</button></div><output id="playback-state" class="playback-state" aria-live="polite"></output>`,
   );
 const playbackTools = document.createElement("div");
 playbackTools.className = "playback-tools";
@@ -1608,6 +1608,8 @@ function refreshSelection() {
   [
     "#pitch-up",
     "#pitch-down",
+    "#move-earlier",
+    "#move-later",
     "#shorter",
     "#longer",
     "#split",
@@ -1705,6 +1707,10 @@ $("#zoom").addEventListener("input", () =>
 );
 let rollDrag: { index: number; resize: boolean; x: number; y: number } | null =
   null;
+function scoreEditStep() {
+  const step = Number($<HTMLSelectElement>("#quantize-grid").value);
+  return Number.isFinite(step) && step > 0 ? step : 0.25;
+}
 $<HTMLDivElement>("#piano").addEventListener("pointerdown", (event) => {
   const target = (event.target as Element).closest<SVGElement>("[data-note]");
   if (!target) return;
@@ -1733,9 +1739,10 @@ $<HTMLDivElement>("#piano").addEventListener("pointerup", (event) => {
   const x = (event.clientX - drag.x) / bounds.width;
   const y = (event.clientY - drag.y) / bounds.height;
   const metrics = pianoRollMetrics(notes);
+  const step = scoreEditStep();
   if (drag.resize) {
     const duration =
-      Math.round((note.quantized_duration + x * metrics.endBeat) * 4) / 4;
+      Math.round((note.quantized_duration + x * metrics.endBeat) / step) * step;
     void saveEditedNotes(
       scoreHistory.execute({
         type: "resize",
@@ -1746,7 +1753,7 @@ $<HTMLDivElement>("#piano").addEventListener("pointerup", (event) => {
     );
   } else {
     const start =
-      Math.round((note.quantized_start + x * metrics.endBeat) * 4) / 4;
+      Math.round((note.quantized_start + x * metrics.endBeat) / step) * step;
     const pitch = Math.round(
       note.pitch_midi - y * (metrics.highPitch - metrics.lowPitch + 1),
     );
@@ -1766,6 +1773,21 @@ async function transposeSelected(semitones: number) {
     pitch: current.pitch_midi + semitones,
   });
   await saveEditedNotes(updated, "音高校正");
+}
+async function moveSelected(delta: number) {
+  const current = selectedEditableNote();
+  if (!current || !scoreHistory) return;
+  const start = Math.max(0, current.quantized_start + delta);
+  if (start === current.quantized_start) return;
+  await saveEditedNotes(
+    scoreHistory.execute({
+      type: "move",
+      noteId: current.id,
+      start,
+      pitch: current.pitch_midi,
+    }),
+    delta < 0 ? "提前起音" : "延后起音",
+  );
 }
 function useEditedNotes(updated: EditableNote[]) {
   const secondsPerBeat = 60 / analysis.bpm;
@@ -1833,11 +1855,17 @@ document.addEventListener("keydown", (event) => {
   }
   if (
     selectedNoteIndex === null ||
-    !["ArrowUp", "ArrowDown"].includes(event.key)
+    !["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.key)
   )
     return;
   event.preventDefault();
-  void transposeSelected(event.key === "ArrowUp" ? 1 : -1);
+  if (event.key === "ArrowUp" || event.key === "ArrowDown") {
+    void transposeSelected(event.key === "ArrowUp" ? 1 : -1);
+  } else {
+    void moveSelected(
+      (event.key === "ArrowLeft" ? -1 : 1) * scoreEditStep(),
+    );
+  }
 });
 function selectedEditableNote() {
   return selectedNoteIndex === null || editSaving
@@ -1846,6 +1874,12 @@ function selectedEditableNote() {
 }
 $("#pitch-up").addEventListener("click", () => void transposeSelected(1));
 $("#pitch-down").addEventListener("click", () => void transposeSelected(-1));
+$("#move-earlier").addEventListener("click", () =>
+  void moveSelected(-scoreEditStep()),
+);
+$("#move-later").addEventListener("click", () =>
+  void moveSelected(scoreEditStep()),
+);
 $("#delete-note").addEventListener("click", () => {
   const note = selectedEditableNote();
   if (note && scoreHistory)
@@ -1854,8 +1888,8 @@ $("#delete-note").addEventListener("click", () => {
       "删除",
     );
 });
-$("#shorter").addEventListener("click", () => resizeSelected(-0.25));
-$("#longer").addEventListener("click", () => resizeSelected(0.25));
+$("#shorter").addEventListener("click", () => resizeSelected(-scoreEditStep()));
+$("#longer").addEventListener("click", () => resizeSelected(scoreEditStep()));
 function resizeSelected(delta: number) {
   const note = selectedEditableNote();
   if (note && scoreHistory)

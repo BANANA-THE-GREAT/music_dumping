@@ -89,6 +89,33 @@ try {
       document.querySelector('#piano .roll-note[data-note="1"] title')
         ?.textContent === "MIDI 61",
   );
+  await page.selectOption("#quantize-grid", "0.125");
+  const originalSecondNoteX = Number(
+    await page.locator('#piano .roll-note[data-note="1"]').getAttribute("x"),
+  );
+  await page.click("#move-earlier");
+  await page.waitForFunction(
+    (originalX) =>
+      Number(
+        document
+          .querySelector('#piano .roll-note[data-note="1"]')
+          .getAttribute("x"),
+      ) < originalX,
+    originalSecondNoteX,
+  );
+  await page.keyboard.press("ArrowRight");
+  await page.waitForFunction(
+    (originalX) =>
+      Math.abs(
+        Number(
+          document
+            .querySelector('#piano .roll-note[data-note="1"]')
+            .getAttribute("x"),
+        ) - originalX,
+      ) < 0.01,
+    originalSecondNoteX,
+  );
+  await page.selectOption("#quantize-grid", "0.25");
   await page.click("#shorter");
   await page.click("#split");
   await page.waitForFunction(
@@ -485,7 +512,7 @@ try {
     "PASS: quantization controls, F0 overlay, boundary review, revision sequencing and local reset (mock API only)",
   );
   console.log(
-    "PASS: staff selection, cross-view pitch editing, undo, numbered bars, split, example reset, Ctrl-wheel zoom, drag, desktop/mobile layout",
+    "PASS: staff selection, cross-view pitch/timing editing, grid movement, undo, numbered bars, split, example reset, Ctrl-wheel zoom, drag, desktop/mobile layout",
   );
 } finally {
   await browser.close();
