@@ -79,3 +79,14 @@ def test_convert_svg_reports_renderer_failure(monkeypatch: pytest.MonkeyPatch) -
     monkeypatch.setattr("app.renderer_client.urlopen", failed)
     with pytest.raises(RendererFailedError):
         convert_svg(b"<svg></svg>", "png", "http://renderer:8090")
+
+
+def test_convert_svg_reports_busy_renderer_as_unavailable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def busy(*args: object, **kwargs: object) -> None:
+        raise HTTPError("http://renderer", 503, "busy", {}, None)
+
+    monkeypatch.setattr("app.renderer_client.urlopen", busy)
+    with pytest.raises(RendererUnavailableError, match="temporarily unavailable"):
+        convert_svg(b"<svg></svg>", "png", "http://renderer:8090")

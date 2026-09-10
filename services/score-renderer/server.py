@@ -7,13 +7,25 @@ from functools import lru_cache
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from threading import BoundedSemaphore
 from urllib.parse import parse_qs, urlparse
+from xml.etree.ElementTree import Element, SubElement, fromstring, register_namespace, tostring
 
 MAX_SVG_BYTES = 16 * 1024 * 1024
 CONTENT_TYPES = {"svg": "image/svg+xml", "png": "image/png", "pdf": "application/pdf"}
 PAGE_WIDTH = 2100
-PAGE_HEIGHT = 60000
+PAGE_HEIGHT = 2970
 PNG_DPI = 144
+MAX_CONCURRENT_RENDERS = 2
+RENDER_QUEUE_TIMEOUT_SECONDS = 5
+SVG_NAMESPACE = "http://www.w3.org/2000/svg"
+INKSCAPE_NAMESPACE = "http://www.inkscape.org/namespaces/inkscape"
+SODIPODI_NAMESPACE = "http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+
+register_namespace("", SVG_NAMESPACE)
+register_namespace("inkscape", INKSCAPE_NAMESPACE)
+register_namespace("sodipodi", SODIPODI_NAMESPACE)
+RENDER_SLOTS = BoundedSemaphore(MAX_CONCURRENT_RENDERS)
 
 
 @lru_cache
@@ -41,6 +53,7 @@ def renderer_metadata() -> dict[str, str]:
         "page_width": str(PAGE_WIDTH),
         "page_height": str(PAGE_HEIGHT),
         "png_dpi": str(PNG_DPI),
+        "max_concurrent_renders": str(MAX_CONCURRENT_RENDERS),
     }
 
 
@@ -58,13 +71,45 @@ def render(svg: bytes, output_format: str) -> bytes:
         command = [
             "inkscape",
             str(source),
-            "--export-area-page",
             f"--export-filename={output}",
         ]
         if output_format == "png":
-            command.append(f"--export-dpi={PNG_DPI}")
+            command.extend(("--export-area-drawing", f"--export-dpi={PNG_DPI}"))
         subprocess.run(command, check=True, timeout=90, capture_output=True)
         return output.read_bytes()
+
+
+def _combine_svg_pages(pages: list[str]) -> bytes:
+    if not pages:
+        raise ValueError("Verovio produced no pages")
+    root = Element(
+        f"{{{SVG_NAMESPACE}}}svg",
+        {
+            "width": str(PAGE_WIDTH),
+            "height": str(PAGE_HEIGHT * len(pages)),
+            "viewBox": f"0 0 {PAGE_WIDTH} {PAGE_HEIGHT * len(pages)}",
+            "data-page-count": str(len(pages)),
+        },
+    )
+    named_view = SubElement(root, f"{{{SODIPODI_NAMESPACE}}}namedview")
+    for index, page_source in enumerate(pages):
+        SubElement(
+            named_view,
+            f"{{{INKSCAPE_NAMESPACE}}}page",
+            {
+                "x": "0",
+                "y": str(index * PAGE_HEIGHT),
+                "width": str(PAGE_WIDTH),
+                "height": str(PAGE_HEIGHT),
+            },
+        )
+        page = fromstring(page_source)
+        page.set("x", "0")
+        page.set("y", str(index * PAGE_HEIGHT))
+        page.set("width", str(PAGE_WIDTH))
+        page.set("height", str(PAGE_HEIGHT))
+        root.append(page)
+    return tostring(root, encoding="utf-8", xml_declaration=True)
 
 
 def engrave_musicxml(musicxml: bytes) -> bytes:
@@ -73,7 +118,7 @@ def engrave_musicxml(musicxml: bytes) -> bytes:
     toolkit = verovio.toolkit()
     toolkit.setOptions(
         {
-            "adjustPageHeight": True,
+            "adjustPageHeight": False,
             "breaks": "auto",
             "footer": "none",
             "header": "none",
@@ -84,7 +129,9 @@ def engrave_musicxml(musicxml: bytes) -> bytes:
     )
     if not toolkit.loadData(musicxml.decode("utf-8")):
         raise ValueError("Verovio could not load the MusicXML document")
-    return toolkit.renderToSVG(1).encode("utf-8")
+    return _combine_svg_pages(
+        [toolkit.renderToSVG(page) for page in range(1, toolkit.getPageCount() + 1)]
+    )
 
 
 class RendererHandler(BaseHTTPRequestHandler):
@@ -133,8 +180,17 @@ class RendererHandler(BaseHTTPRequestHandler):
             return
         try:
             source = self.rfile.read(length)
-            svg = engrave_musicxml(source) if parsed.path == "/engrave" else source
-            output = render(svg, output_format)
+            if not RENDER_SLOTS.acquire(timeout=RENDER_QUEUE_TIMEOUT_SECONDS):
+                self._json(
+                    HTTPStatus.SERVICE_UNAVAILABLE,
+                    {"code": "RENDERER_BUSY", "message": "renderer queue is full"},
+                )
+                return
+            try:
+                svg = engrave_musicxml(source) if parsed.path == "/engrave" else source
+                output = render(svg, output_format)
+            finally:
+                RENDER_SLOTS.release()
         except ValueError as error:
             self._json(HTTPStatus.BAD_REQUEST, {"code": "INVALID_SVG", "message": str(error)})
             return
@@ -154,6 +210,11 @@ class RendererHandler(BaseHTTPRequestHandler):
         for key, value in metadata.items():
             header = "-".join(part.capitalize() for part in key.split("_"))
             self.send_header(f"X-Renderer-{header}", value)
+        try:
+            page_count = fromstring(svg).get("data-page-count", "1")
+        except ValueError:
+            page_count = "1"
+        self.send_header("X-Renderer-Page-Count", page_count)
         self.end_headers()
         self.wfile.write(output)
 

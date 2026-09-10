@@ -3,12 +3,15 @@ SHELL := /bin/bash
 COMPOSE := docker compose -f infra/compose.yaml
 GPU_COMPOSE := $(COMPOSE) -f infra/compose.gpu.yaml
 QUALITY_DOCKERFILE := infra/docker/Dockerfile.worker-quality
+VSS_RENDERER_BASE_IMAGE ?= python:3.11.16-slim-trixie
+VSS_DEBIAN_MIRROR ?= https://mirrors.tuna.tsinghua.edu.cn/debian
+VSS_DEBIAN_SECURITY_MIRROR ?= https://mirrors.tuna.tsinghua.edu.cn/debian-security
 
 .PHONY: help config status images up restart down logs \
 	build-web build-api build-renderer build-worker build-worker-gpu rebuild \
 	quality-build quality-up quality-smoke \
 	quality-build-gpu quality-up-gpu gpu-check \
-	check-web check-api
+	check-web check-api benchmark-renderer
 
 help: ## Show common Docker commands
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z0-9_-]+:.*## / {printf "%-20s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -41,7 +44,17 @@ build-api: ## Rebuild API after backend or migration changes
 	scripts/build-api-image.sh
 
 build-renderer: ## Build renderer; set VSS_RENDERER_BASE_IMAGE to reuse a local Python image
-	$(COMPOSE) build renderer
+	VSS_RENDERER_BASE_IMAGE=$(VSS_RENDERER_BASE_IMAGE) \
+	VSS_DEBIAN_MIRROR=$(VSS_DEBIAN_MIRROR) \
+	VSS_DEBIAN_SECURITY_MIRROR=$(VSS_DEBIAN_SECURITY_MIRROR) \
+	$(COMPOSE) build \
+		--build-arg VSS_RENDERER_BASE_IMAGE=$(VSS_RENDERER_BASE_IMAGE) \
+		--build-arg VSS_DEBIAN_MIRROR=$(VSS_DEBIAN_MIRROR) \
+		--build-arg VSS_DEBIAN_SECURITY_MIRROR=$(VSS_DEBIAN_SECURITY_MIRROR) \
+		renderer
+
+benchmark-renderer: ## Benchmark approximate 1, 10, and 50 page renderer inputs
+	$(COMPOSE) exec -T renderer python /app/benchmark.py
 
 build-worker: ## Rebuild the standard CPU Worker
 	scripts/build-worker-image.sh

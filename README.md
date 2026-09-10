@@ -106,6 +106,17 @@ VSS_DEBIAN_SECURITY_MIRROR=https://mirrors.tuna.tsinghua.edu.cn/debian-security 
 make build-renderer
 ```
 
+`make build-renderer` 默认使用以上 Debian 镜像，并显式传递 Docker build args。Inkscape
+与 Noto CJK 字体分层安装；网络中断后重复执行命令会复用已经成功完成的构建层。
+
+renderer 启动后可运行约 1、10、50 页的 SVG/PNG/PDF 基准：
+
+```bash
+make benchmark-renderer
+```
+
+基准输出 JSONL，包含实际页数、耗时、文件大小及容器 cgroup 内存变化。
+
 ```bash
 docker compose -f infra/compose.yaml up -d --wait web worker
 ```

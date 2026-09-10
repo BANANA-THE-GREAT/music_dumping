@@ -6,14 +6,25 @@ ARG VSS_DEBIAN_SECURITY_MIRROR=http://deb.debian.org/debian-security
 RUN sed -i \
       -e "s|URIs: http://deb.debian.org/debian-security|URIs: ${VSS_DEBIAN_SECURITY_MIRROR}|" \
       -e "s|URIs: http://deb.debian.org/debian|URIs: ${VSS_DEBIAN_MIRROR}|" \
-      /etc/apt/sources.list.d/debian.sources
+      /etc/apt/sources.list.d/debian.sources \
+    && printf '%s\n' \
+      'Acquire::Retries "5";' \
+      'Acquire::http::Timeout "30";' \
+      'Acquire::https::Timeout "30";' \
+      'Acquire::http::Pipeline-Depth "0";' \
+      > /etc/apt/apt.conf.d/80vss-network
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
     apt-get update \
-    && apt-get install -y --no-install-recommends inkscape fonts-noto-cjk
+    && apt-get install -y --no-install-recommends inkscape
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
+    apt-get update \
+    && apt-get install -y --no-install-recommends fonts-noto-cjk
 RUN --mount=type=cache,target=/root/.cache/pip,sharing=locked \
     pip install verovio==6.2.1
 WORKDIR /app
 COPY services/score-renderer/server.py /app/server.py
+COPY services/score-renderer/benchmark.py /app/benchmark.py
 EXPOSE 8090
 CMD ["python", "/app/server.py"]

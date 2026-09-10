@@ -45,6 +45,10 @@ def _post_renderer(
             }
             return RendererResult(content=cast(bytes, response.read()), metadata=metadata)
     except HTTPError as error:
+        if error.code in {429, 503}:
+            raise RendererUnavailableError(
+                f"score renderer is temporarily unavailable (HTTP {error.code})"
+            ) from error
         raise RendererFailedError(f"renderer returned HTTP {error.code}") from error
     except (OSError, URLError) as error:
         raise RendererUnavailableError("score renderer is unavailable") from error

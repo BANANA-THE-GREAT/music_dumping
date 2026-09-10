@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "project_id": "rendering-score-fixture",
+  "project_name": "Synthetic rendering fixture",
+  "score_name": "复杂节奏与简谱符号样例",
+  "engine": "synthetic",
+  "source": {
+    "file_name": "rendering-fixture.wav",
+    "duration_ms": 8000,
+    "audio_object_key": "fixtures/rendering-fixture.wav"
+  },
+  "analysis": {
+    "tempo_map": [
+      {"time_ms": 0, "bpm": 120},
+      {"time_ms": 2000, "bpm": 90}
+    ],
+    "meter_map": [{"beat": 0, "numerator": 4, "denominator": 4}],
+    "key_map": [{"beat": 0, "tonic": 0, "mode": "major"}],
+    "confidence": {"tempo": 1, "meter": 1, "key": 1}
+  },
+  "notes": [
+    {"id": "low-c3", "source_start_ms": 0, "source_end_ms": 500, "source_note_ids": ["src-low-c3"], "pitch_midi": 48, "confidence": 1, "quantized_start": 0, "quantized_duration": 1, "origin": "model"},
+    {"id": "sharp-f4", "source_start_ms": 500, "source_end_ms": 750, "source_note_ids": ["src-sharp-f4"], "pitch_midi": 66, "confidence": 1, "quantized_start": 1, "quantized_duration": 0.5, "origin": "model"},
+    {"id": "high-c5-dotted", "source_start_ms": 750, "source_end_ms": 1500, "source_note_ids": ["src-high-c5"], "pitch_midi": 72, "confidence": 1, "quantized_start": 1.5, "quantized_duration": 1.5, "origin": "model"},
+    {"id": "triplet-a", "source_start_ms": 1500, "source_end_ms": 1667, "source_note_ids": ["src-triplet-a"], "pitch_midi": 60, "confidence": 1, "quantized_start": 3, "quantized_duration": 0.3333333333333333, "origin": "model"},
+    {"id": "triplet-b", "source_start_ms": 1667, "source_end_ms": 1833, "source_note_ids": ["src-triplet-b"], "pitch_midi": 62, "confidence": 1, "quantized_start": 3.3333333333333333, "quantized_duration": 0.3333333333333333, "origin": "model"},
+    {"id": "triplet-c", "source_start_ms": 1833, "source_end_ms": 2000, "source_note_ids": ["src-triplet-c"], "pitch_midi": 64, "confidence": 1, "quantized_start": 3.6666666666666665, "quantized_duration": 0.3333333333333333, "origin": "model"},
+    {"id": "sixlet-a", "source_start_ms": 2250, "source_end_ms": 2361, "source_note_ids": ["src-sixlet-a"], "pitch_midi": 69, "confidence": 1, "quantized_start": 4.5, "quantized_duration": 0.16666666666666666, "origin": "model"},
+    {"id": "sixlet-b", "source_start_ms": 2361, "source_end_ms": 2472, "source_note_ids": ["src-sixlet-b"], "pitch_midi": 69, "confidence": 1, "quantized_start": 4.666666666666667, "quantized_duration": 0.16666666666666666, "origin": "model"},
+    {"id": "flat-b4", "source_start_ms": 2500, "source_end_ms": 2750, "source_note_ids": ["src-flat-b4"], "pitch_midi": 70, "confidence": 1, "quantized_start": 5, "quantized_duration": 0.25, "origin": "model"},
+    {"id": "same-start-a", "source_start_ms": 3000, "source_end_ms": 3500, "source_note_ids": ["src-same-a"], "pitch_midi": 60, "confidence": 1, "quantized_start": 6, "quantized_duration": 1, "origin": "model"},
+    {"id": "same-start-b", "source_start_ms": 3000, "source_end_ms": 3500, "source_note_ids": ["src-same-b"], "pitch_midi": 64, "confidence": 1, "quantized_start": 6, "quantized_duration": 1, "origin": "model"},
+    {"id": "cross-measure", "source_start_ms": 3750, "source_end_ms": 4750, "source_note_ids": ["src-cross-measure"], "pitch_midi": 67, "confidence": 1, "quantized_start": 7.5, "quantized_duration": 2, "origin": "model"}
+  ],
+  "pipeline": [],
+  "revision": 1
+}
