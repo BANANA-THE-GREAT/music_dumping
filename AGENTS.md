@@ -6,17 +6,18 @@
 
 - 本项目长期以 `infra/compose.yaml` 和 `infra/docker/` 中的镜像作为标准运行环境。不要因为宿主机缺少或版本较旧的 Node.js、npm、Python、FFmpeg、Basic Pitch、Demucs 或 PyTorch，就判断项目依赖缺失或验证不可执行；先检查 Docker 配置和现有容器。
 - 开始环境诊断时优先运行 `docker compose -f infra/compose.yaml config`、`docker compose -f infra/compose.yaml ps -a` 和 `docker compose -f infra/compose.yaml images`。除非用户明确要求本地非容器开发，不要为迁就宿主机版本擅自修改 workspace、依赖或构建脚本。
-- Web 构建镜像为 `node:22-alpine`，镜像构建阶段执行 `npm ci`、`npm test` 和 `npm run build`；最终由 `nginx:1.29-alpine` 提供静态文件。因此前端标准验证是 `docker compose -f infra/compose.yaml build web`，宿主机无需安装 Node.js 22。前端改动后先构建，再使用 `docker compose -f infra/compose.yaml up -d --wait web` 更新运行服务；未改动镜像时不要使用 `--build`。
-- API 镜像为 `python:3.11-slim`，安装 `pyproject.toml` 的生产依赖，启动时先执行 Alembic migration，再运行 Uvicorn。API 默认映射到宿主机 `127.0.0.1:8000`。
-- Worker 镜像为 `python:3.11-slim`，安装 FFmpeg/FFprobe、libsndfile、OpenMP、CPU 版 PyTorch 以及 `.[models]` 中的 Basic Pitch 和 Demucs。构建时已经检查 FFmpeg、FFprobe 和主要 Python 模块导入；运行时以 Celery 单并发执行任务。需要核验时使用：
+- Web 构建镜像为 `node:22-alpine`，镜像构建阶段执行 `npm ci`、`npm test` 和 `npm run build`；最终由 `nginx:1.27-alpine` 提供静态文件。因此前端标准验证是 `docker compose -f infra/compose.yaml build web`，宿主机无需安装 Node.js 22。前端改动后先构建，再使用 `docker compose -f infra/compose.yaml up -d --wait web` 更新运行服务；未改动镜像时不要使用 `--build`。
+- API 基础环境固定为 Python `3.11.16` / Debian trixie，第三方依赖固定在 `requirements/api.lock`，由 `infra/docker/Dockerfile.api-deps` 生成内容寻址的本地依赖镜像；`infra/docker/Dockerfile.api` 只复制业务代码并以 `--no-deps` 安装项目。标准构建入口是 `make build-api`，不要改回每次源码变化都执行完整 `pip install .`。API 启动时先执行 Alembic migration，再运行 Uvicorn，默认映射到宿主机 `127.0.0.1:8000`。
+- Worker 第三方依赖固定在 `requirements/worker.lock`，由 `infra/docker/Dockerfile.worker-deps` 安装 FFmpeg/FFprobe、libsndfile、OpenMP、PyTorch、Basic Pitch 和 Demucs；业务 Worker 镜像同样只覆盖项目代码。CPU 标准构建入口是 `make build-worker`，CUDA 标准构建入口是 `make build-worker-gpu`。依赖镜像标签由锁文件、Dockerfile、API 依赖镜像和 PyTorch 参数共同计算；只有标签不存在时才可能联网。需要核验时使用：
 
 ```bash
-docker compose -f infra/compose.yaml build api worker
+make build-api
+make build-worker
 docker compose -f infra/compose.yaml run --rm --no-deps worker ffmpeg -version
 docker compose -f infra/compose.yaml run --rm --no-deps worker python -c "from basic_pitch.inference import Model; import demucs.separate; print('model dependencies OK')"
 ```
 
-- 默认 Compose Worker 使用 CPU PyTorch。GPU 模式通过叠加 `infra/compose.gpu.yaml` 构建 CUDA PyTorch 并申请可见 GPU，设备由 `VSS_INFERENCE_DEVICE=auto|cpu|cuda` 控制；宿主机仍须预先安装并配置 NVIDIA Container Toolkit。宿主机存在 NVIDIA GPU 不代表容器已经使用 GPU，启动后必须在容器内检查 `torch.cuda.is_available()`。
+- 默认 Compose Worker 使用 CPU PyTorch。普通 GPU Worker 先通过 `make build-worker-gpu` 生成 CUDA 依赖镜像，再叠加 `infra/compose.gpu.yaml` 申请可见 GPU；设备由 `VSS_INFERENCE_DEVICE=auto|cpu|cuda` 控制。宿主机仍须预先安装并配置 NVIDIA Container Toolkit。宿主机存在 NVIDIA GPU 不代表容器已经使用 GPU，启动后必须在容器内检查 `torch.cuda.is_available()`。
 - GAME + torchcrepe 不进入默认 Worker；显式实验模式使用 `scripts/build-quality-worker.sh` 构建。脚本保留独立的 `vocal-score-studio-worker-basic:latest` 基础标签，校验固定源码归档和 `data/models/game/GAME-1.0-medium/model.pt` 的 SHA-256，再生成 `vocal-score-studio-worker:latest`。启动时必须沿用同一 Dockerfile 选择：
 
 ```bash
@@ -35,7 +36,7 @@ GPU override 默认设置 `HF_HUB_OFFLINE=1`，避免 Demucs 每个子进程访�
 - GAME 权重通过 `../data/models/game:/models/game:ro` 只读挂载，不在 Docker build context 内。quality Worker 仍保留 Basic Pitch 回退；默认 Compose 未构建 quality Worker 时，实验任务必须明确失败为 `EXPERIMENTAL_ENGINE_NOT_CONFIGURED`，不得静默改用其他模型。模型运行验证优先检查 F0 JSONL、项目 provenance、pending 边界建议和子进程取消，不要把建议自动应用到项目音符。
 - API 与 Worker 共享 `app-data` 卷；Demucs 等下载缓存位于 `model-cache` 卷，重建 Worker 不应默认删除这些卷。PostgreSQL 和 Redis 分别使用持久化卷。MinIO 当前在 Compose 中定义但不属于常规 `up -d --wait web worker` 启动链路，不要无故启动或依赖它。
 - 常规启动命令为 `docker compose -f infra/compose.yaml up -d --wait web worker`，浏览器入口为 `http://localhost:8888`。Nginx 将同源 `/api` 转发到 API；不要因宿主机直连方式不同而改写前端默认 API 路径。
-- 常规启动不需要重新构建或拉取镜像，使用 `docker compose -f infra/compose.yaml up -d --wait web worker`；只有代码、依赖或 Dockerfile 变化时才使用 `docker compose -f infra/compose.yaml build web`，再执行 `up -d --wait web`。Compose 的 PostgreSQL、Redis 和 MinIO 服务使用 `pull_policy: if_not_present`，本地已有镜像时不会因启动重复拉取。首次构建 Web 时仍可能需要拉取 `node:22-alpine` 和 `nginx:1.29-alpine` 这两个 Dockerfile 基础镜像；基础镜像元数据由 Docker 构建器检查，无法完全通过 Compose 的服务拉取策略禁用。
+- 常规启动不需要重新构建或拉取镜像，使用 `docker compose -f infra/compose.yaml up -d --wait web worker`。后端源码变化使用 `make build-api` 或 `make build-worker`，这些脚本在依赖哈希不变时只构建本地业务代码层；不要为普通源码更新使用 `--no-cache` 或删除 `vocal-score-studio-*-deps` 镜像。Compose 的 PostgreSQL、Redis 和 MinIO 服务使用 `pull_policy: if_not_present`。首次构建或依赖锁、PyTorch 配置变化时仍可能需要访问 Python、APT、PyPI 或 PyTorch 仓库；链接不通时按本文件下载约定交给用户处理。
 - Python 的 Ruff、mypy、pytest 属于开发依赖，不在精简的 API/Worker 运行镜像中。宿主机 `.venv` 可用时可直接运行；需要完全隔离验证时，可在重新构建 API 镜像后使用一次性容器安装开发额外依赖再执行检查。无论使用哪种方式，都要说明验证发生在宿主机还是容器内。
 - `.dockerignore` 明确排除宿主机的 `.venv`、`node_modules`、构建产物、模型、音频和运行数据。不要假设镜像会复用这些宿主机目录，也不要为加快构建而把模型权重或用户数据加入构建上下文。
 - 外部依赖、模型权重或数据集的下载链接无法联通，或下载速度慢到明显阻塞工作时，可以停止反复重试，向用户说明目标文件、来源、期望路径和校验信息，请用户自行设法下载后再继续。

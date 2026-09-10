@@ -38,18 +38,8 @@ verify_sha256 \
   e9904159fb0646e1a352b9d2bc74615547cfa3e32d45c7464d440ac142846d93 \
   "$model"
 
-if ! docker image inspect vocal-score-studio-worker-basic:latest >/dev/null 2>&1; then
-  if docker image inspect vocal-score-studio-worker:latest >/dev/null 2>&1 \
-    && docker run --rm --entrypoint sh vocal-score-studio-worker:latest \
-      -c 'test ! -d /opt/game'; then
-    docker tag vocal-score-studio-worker:latest vocal-score-studio-worker-basic:latest
-  else
-    docker build \
-      -f "$root/infra/docker/Dockerfile.worker" \
-      -t vocal-score-studio-worker-basic:latest \
-      "$root"
-  fi
-fi
+VSS_DEPENDENCIES_ONLY=1 "$root/scripts/build-worker-image.sh"
+docker tag vocal-score-studio-worker-deps:local vocal-score-studio-worker-basic:latest
 DOCKER_BUILDKIT=0 docker build \
   -f "$root/infra/docker/Dockerfile.worker-quality" \
   --build-arg "PYTORCH_INDEX_URL=$pytorch_index_url" \

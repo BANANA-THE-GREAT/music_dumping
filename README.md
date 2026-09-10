@@ -63,6 +63,18 @@ python -m pip install -e ".[models]"
 宿主机只需要 Docker 和 Docker Compose，不需要安装或升级 Node.js、npm、Python、FFmpeg 或模型依赖。
 前端在 Node.js 22 构建容器中安装 npm 依赖；音频处理工具和模型运行依赖安装在后端 Worker 镜像中，与宿主机的其他项目隔离。
 
+API 与 Worker 使用固定的 Python `3.11.16` / Debian trixie 依赖基础镜像。`requirements/api.lock` 和
+`requirements/worker.lock` 固定已经验证的 Python 依赖；业务代码镜像只安装项目自身，
+不会因为修改 Python 源码而重新下载整套依赖。使用以下入口构建：
+
+```bash
+make build-api
+make build-worker
+```
+
+构建脚本根据锁文件、依赖 Dockerfile 和 PyTorch 配置计算基础镜像标签。本地已有对应标签时直接复用；
+只有首次构建、锁文件变化或 Python/PyTorch/系统依赖变化时才构建依赖层，此时可能需要联网。
+
 ```bash
 docker compose -f infra/compose.yaml up -d --wait web worker
 ```
@@ -98,7 +110,7 @@ NVIDIA GPU 为可选运行模式，不改变默认 CPU Compose。宿主机完成
 scripts/setup-nvidia-container-toolkit.sh
 docker run --rm --gpus all vocal-score-studio-worker:latest \
   python -c "import torch; print(torch.cuda.is_available(), torch.cuda.get_device_name(0))"
-docker compose -f infra/compose.yaml -f infra/compose.gpu.yaml build worker
+make build-worker-gpu
 docker compose -f infra/compose.yaml -f infra/compose.gpu.yaml up -d --no-build --wait worker
 docker compose -f infra/compose.yaml -f infra/compose.gpu.yaml exec worker \
   python -c "import torch; print(torch.__version__, torch.cuda.is_available(), torch.cuda.get_device_name(0))"
@@ -122,9 +134,13 @@ GPU override 默认设置 `HF_HUB_OFFLINE=1`，让 Demucs 直接读取 `model-ca
 docker compose -f infra/compose.yaml up -d --wait web worker
 docker compose -f infra/compose.yaml build web
 docker compose -f infra/compose.yaml up -d --wait web
+make build-api
+docker compose -f infra/compose.yaml up -d --no-build --wait api
 ```
 
 没有修改镜像相关代码时只执行第一条；`build web` 只在前端源码、依赖或 Dockerfile 变化后执行。
+后端源码变化使用 `make build-api`，它会复用固定依赖镜像；不要使用 `--no-cache`，也不要删除
+`vocal-score-studio-api-deps:*`、`vocal-score-studio-worker-deps:*` 或模型缓存来解决普通代码更新。
 
 前端采用构建后由 Nginx 提供静态文件的方式，修改源代码后需重新构建 Web 镜像；运行和构建均不依赖宿主机或 `/tmp` 中的 Node/npm。容器数据保存到 Docker 卷，与本地开发的 `data/` 目录独立。
 

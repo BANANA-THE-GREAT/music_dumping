@@ -1,8 +1,11 @@
-FROM python:3.11-slim
+ARG API_DEPENDENCY_IMAGE=vocal-score-studio-api-deps:local
+FROM ${API_DEPENDENCY_IMAGE}
 WORKDIR /app
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_DEFAULT_TIMEOUT=120
 COPY pyproject.toml ./
 COPY apps/api apps/api
 COPY workers/transcription workers/transcription
-RUN pip install --no-cache-dir .
+RUN pip install --no-cache-dir --no-deps --no-build-isolation .
 COPY alembic.ini ./
 CMD ["sh", "-c", "python -m alembic upgrade head && python -m uvicorn app.main:app --host 0.0.0.0 --port 8000"]

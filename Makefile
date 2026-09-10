@@ -5,7 +5,7 @@ GPU_COMPOSE := $(COMPOSE) -f infra/compose.gpu.yaml
 QUALITY_DOCKERFILE := infra/docker/Dockerfile.worker-quality
 
 .PHONY: help config status images up restart down logs \
-	build-web build-api build-worker rebuild \
+	build-web build-api build-worker build-worker-gpu rebuild \
 	quality-build quality-up quality-smoke \
 	quality-build-gpu quality-up-gpu gpu-check \
 	check-web check-api
@@ -38,13 +38,21 @@ build-web: ## Rebuild Web after frontend, contract, or Nginx changes
 	$(COMPOSE) build web
 
 build-api: ## Rebuild API after backend or migration changes
-	$(COMPOSE) build api
+	scripts/build-api-image.sh
 
 build-worker: ## Rebuild the standard CPU Worker
-	$(COMPOSE) build worker
+	scripts/build-worker-image.sh
+
+build-worker-gpu: ## Rebuild the standard CUDA Worker dependency and app layers
+	VSS_PYTORCH_INDEX_URL=https://download.pytorch.org/whl/cu128 \
+	VSS_PYTORCH_PACKAGE=torch==2.8.0+cu128 \
+	VSS_PYTORCH_EXPECT_CUDA=1 \
+	scripts/build-worker-image.sh
 
 rebuild: ## Rebuild API, CPU Worker, and Web, then start Web and Worker
-	$(COMPOSE) build api worker web
+	$(MAKE) build-api
+	$(MAKE) build-worker
+	$(MAKE) build-web
 	$(COMPOSE) up -d --wait web worker
 
 quality-build: ## Build the experimental GAME + F0 quality Worker
