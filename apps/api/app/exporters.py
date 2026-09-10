@@ -71,7 +71,12 @@ def _performance_midi_events(
         )
         events.append((start, 3, bytes((0x90, note.pitch_midi, 96))))
         for bend in note.pitch_bends:
-            tick = min(end, round(to_beats(note.source_start_ms + bend.offset_ms) * TICKS_PER_QUARTER))
+            tick = min(
+                end,
+                round(
+                    to_beats(note.source_start_ms + bend.offset_ms) * TICKS_PER_QUARTER
+                ),
+            )
             events.append((tick, 2, _pitch_bend_message(bend.cents)))
         events.append((end, 0, bytes((0x80, note.pitch_midi, 0))))
         if note.pitch_bends:
@@ -176,6 +181,12 @@ def _append_note(parent: Element, segment: XmlSegment) -> None:
         SubElement(note, "tie", type="stop")
     if segment.tie_start:
         SubElement(note, "tie", type="start")
+    if segment.tie_stop or segment.tie_start:
+        notations = SubElement(note, "notations")
+        if segment.tie_stop:
+            SubElement(notations, "tied", type="stop")
+        if segment.tie_start:
+            SubElement(notations, "tied", type="start")
 
 
 def _append_rest(parent: Element, duration: float) -> None:
@@ -187,7 +198,7 @@ def _append_rest(parent: Element, duration: float) -> None:
 def project_to_musicxml(project: ScoreProject) -> bytes:
     root = Element("score-partwise", version="4.0")
     work = SubElement(root, "work")
-    SubElement(work, "work-title").text = project.source.file_name
+    SubElement(work, "work-title").text = project.score_name or project.source.file_name
     part_list = SubElement(root, "part-list")
     score_part = SubElement(part_list, "score-part", id="P1")
     SubElement(score_part, "part-name").text = "Melody"

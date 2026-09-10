@@ -59,8 +59,18 @@ def test_upload_to_export_and_delete_workflow() -> None:
 
     midi = client.get(f"/v1/projects/{project_id}/exports/midi")
     musicxml = client.get(f"/v1/projects/{project_id}/exports/musicxml")
+    staff_svg = client.get(f"/v1/projects/{project_id}/exports/staff.svg")
+    jianpu_svg = client.get(f"/v1/projects/{project_id}/exports/jianpu.svg")
     assert midi.status_code == 200 and midi.content.startswith(b"MThd")
     assert musicxml.status_code == 200 and b"<score-partwise" in musicxml.content
+    assert staff_svg.status_code == 200
+    assert staff_svg.headers["content-type"].startswith("image/svg+xml")
+    assert b"<svg" in staff_svg.content
+    assert b'data-note-id=' in staff_svg.content
+    assert jianpu_svg.status_code == 200
+    assert jianpu_svg.headers["content-type"].startswith("image/svg+xml")
+    assert 'aria-label="简谱"'.encode() in jianpu_svg.content
+    assert b'data-note-id=' in jianpu_svg.content
 
     assert client.delete(f"/v1/projects/{project_id}").status_code == 204
     assert client.get(f"/v1/projects/{project_id}").status_code == 404

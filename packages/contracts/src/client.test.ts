@@ -90,6 +90,18 @@ describe("project exports", () => {
     expect(api.exportUrl("project", "musicxml", "performance")).toBe(
       "http://api/v1/projects/project/exports/musicxml",
     );
+    expect(api.exportUrl("project", "staff.svg")).toBe(
+      "http://api/v1/projects/project/exports/staff.svg",
+    );
+    expect(api.exportUrl("project", "jianpu.svg")).toBe(
+      "http://api/v1/projects/project/exports/jianpu.svg",
+    );
+    expect(api.exportUrl("project", "staff.png")).toBe(
+      "http://api/v1/projects/project/exports/staff.png",
+    );
+    expect(api.exportUrl("project", "jianpu.pdf")).toBe(
+      "http://api/v1/projects/project/exports/jianpu.pdf",
+    );
   });
 });
 

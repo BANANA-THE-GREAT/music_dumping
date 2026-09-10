@@ -2397,6 +2397,117 @@
         "summary": "Stream Project F0"
       }
     },
+    "/v1/projects/{project_id}/exports/jianpu.pdf": {
+      "get": {
+        "operationId": "export_project_jianpu_pdf_v1_projects__project_id__exports_jianpu_pdf_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Export Project Jianpu Pdf"
+      }
+    },
+    "/v1/projects/{project_id}/exports/jianpu.png": {
+      "get": {
+        "operationId": "export_project_jianpu_png_v1_projects__project_id__exports_jianpu_png_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Export Project Jianpu Png"
+      }
+    },
+    "/v1/projects/{project_id}/exports/jianpu.svg": {
+      "get": {
+        "operationId": "export_project_jianpu_svg_v1_projects__project_id__exports_jianpu_svg_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Export Project Jianpu Svg"
+      }
+    },
     "/v1/projects/{project_id}/exports/midi": {
       "get": {
         "operationId": "export_project_midi_v1_projects__project_id__exports_midi_get",
@@ -2483,6 +2594,117 @@
           }
         },
         "summary": "Export Project Musicxml"
+      }
+    },
+    "/v1/projects/{project_id}/exports/staff.pdf": {
+      "get": {
+        "operationId": "export_project_staff_pdf_v1_projects__project_id__exports_staff_pdf_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Export Project Staff Pdf"
+      }
+    },
+    "/v1/projects/{project_id}/exports/staff.png": {
+      "get": {
+        "operationId": "export_project_staff_png_v1_projects__project_id__exports_staff_png_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Export Project Staff Png"
+      }
+    },
+    "/v1/projects/{project_id}/exports/staff.svg": {
+      "get": {
+        "operationId": "export_project_staff_svg_v1_projects__project_id__exports_staff_svg_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Export Project Staff Svg"
       }
     },
     "/v1/projects/{project_id}/melody": {

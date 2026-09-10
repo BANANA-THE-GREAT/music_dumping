@@ -19,6 +19,13 @@ from app.project_service import (
     requantize,
     synchronize_score_edits,
 )
+from app.renderer_client import (
+    RendererFailedError,
+    RendererUnavailableError,
+    convert_svg,
+    engrave_musicxml,
+)
+from app.renderers import render_jianpu_svg, render_staff_svg
 from app.repository import create_job, create_upload, job_response
 from app.schemas import (
     AudioAlignmentRequest,
@@ -312,6 +319,122 @@ def export_project_musicxml(project_id: str, session: SessionDep) -> Response:
         media_type="application/vnd.recordare.musicxml+xml",
         headers={"Content-Disposition": f'attachment; filename="{project_id}.musicxml"'},
     )
+
+
+def _renderer_http_error(error: Exception) -> HTTPException:
+    if isinstance(error, RendererUnavailableError):
+        return HTTPException(
+            status_code=503,
+            detail={"code": "SCORE_RENDERER_UNAVAILABLE", "message": str(error)},
+        )
+    return HTTPException(
+        status_code=502,
+        detail={"code": "SCORE_RENDER_FAILED", "message": str(error)},
+    )
+
+
+@router.get("/projects/{project_id}/exports/staff.svg")
+def export_project_staff_svg(
+    project_id: str, session: SessionDep, settings: SettingsDep
+) -> Response:
+    project = _project_document(project_id, session)
+    if settings.renderer_url:
+        renderer = "verovio"
+        try:
+            content = engrave_musicxml(
+                project_to_musicxml(project), "svg", settings.renderer_url
+            )
+        except (RendererUnavailableError, RendererFailedError) as error:
+            raise _renderer_http_error(error) from error
+    else:
+        renderer = "native-staff-svg"
+        content = render_staff_svg(project)
+    return Response(
+        content=content,
+        media_type="image/svg+xml",
+        headers={
+            "Content-Disposition": f'attachment; filename="{project_id}.staff.svg"',
+            "X-Score-Renderer": renderer,
+            "X-Score-Format": "staff.svg",
+        },
+    )
+
+
+@router.get("/projects/{project_id}/exports/jianpu.svg")
+def export_project_jianpu_svg(project_id: str, session: SessionDep) -> Response:
+    content = render_jianpu_svg(_project_document(project_id, session))
+    return Response(
+        content=content,
+        media_type="image/svg+xml",
+        headers={
+            "Content-Disposition": f'attachment; filename="{project_id}.jianpu.svg"',
+            "X-Score-Renderer": "native-jianpu-svg",
+            "X-Score-Format": "jianpu.svg",
+        },
+    )
+
+
+def _converted_score_export(
+    project_id: str,
+    notation: Literal["staff", "jianpu"],
+    output_format: Literal["png", "pdf"],
+    session: Session,
+    settings: Settings,
+) -> Response:
+    project = _project_document(project_id, session)
+    try:
+        if notation == "staff":
+            content = engrave_musicxml(
+                project_to_musicxml(project), output_format, settings.renderer_url
+            )
+        else:
+            content = convert_svg(
+                render_jianpu_svg(project), output_format, settings.renderer_url
+            )
+    except (RendererUnavailableError, RendererFailedError) as error:
+        raise _renderer_http_error(error) from error
+    media_type = "image/png" if output_format == "png" else "application/pdf"
+    return Response(
+        content=content,
+        media_type=media_type,
+        headers={
+            "Content-Disposition": (
+                f'attachment; filename="{project_id}.{notation}.{output_format}"'
+            ),
+            "X-Score-Renderer": (
+                "verovio+inkscape" if notation == "staff" else "native-jianpu+inkscape"
+            ),
+            "X-Score-Format": f"{notation}.{output_format}",
+        },
+    )
+
+
+@router.get("/projects/{project_id}/exports/staff.png")
+def export_project_staff_png(
+    project_id: str, session: SessionDep, settings: SettingsDep
+) -> Response:
+    return _converted_score_export(project_id, "staff", "png", session, settings)
+
+
+@router.get("/projects/{project_id}/exports/staff.pdf")
+def export_project_staff_pdf(
+    project_id: str, session: SessionDep, settings: SettingsDep
+) -> Response:
+    return _converted_score_export(project_id, "staff", "pdf", session, settings)
+
+
+@router.get("/projects/{project_id}/exports/jianpu.png")
+def export_project_jianpu_png(
+    project_id: str, session: SessionDep, settings: SettingsDep
+) -> Response:
+    return _converted_score_export(project_id, "jianpu", "png", session, settings)
+
+
+@router.get("/projects/{project_id}/exports/jianpu.pdf")
+def export_project_jianpu_pdf(
+    project_id: str, session: SessionDep, settings: SettingsDep
+) -> Response:
+    return _converted_score_export(project_id, "jianpu", "pdf", session, settings)
 
 
 @router.get("/projects/{project_id}/audio")

@@ -157,7 +157,15 @@ export class VocalScoreApi {
   }
   exportUrl(
     id: string,
-    format: "midi" | "musicxml",
+    format:
+      | "midi"
+      | "musicxml"
+      | "staff.svg"
+      | "staff.png"
+      | "staff.pdf"
+      | "jianpu.svg"
+      | "jianpu.png"
+      | "jianpu.pdf",
     version: "score" | "performance" = "score",
   ): string {
     const query = format === "midi" ? `?version=${version}` : "";

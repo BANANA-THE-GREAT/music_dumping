@@ -453,7 +453,7 @@ def test_requantize_supports_piecewise_tempo_map() -> None:
     assert result["notes"][1]["quantized_start"] == 2.25
 
 
-def test_project_exports_standard_midi_and_musicxml() -> None:
+def test_project_exports_standard_midi_and_musicxml(monkeypatch) -> None:
     project = create_project()
     project_id = project["project_id"]
 
@@ -474,8 +474,35 @@ def test_project_exports_standard_midi_and_musicxml() -> None:
     musicxml = client.get(f"/v1/projects/{project_id}/exports/musicxml")
     assert musicxml.status_code == 200
     assert b'<score-partwise version="4.0">' in musicxml.content
+    assert b"<work-title>edit-1</work-title>" in musicxml.content
     assert musicxml.content.count(b"<note>") >= len(project["notes"])
     assert musicxml.content.count(b"<measure ") == 3
+
+    def fake_convert(svg: bytes, output_format: str, renderer_url: str | None) -> bytes:
+        assert svg.startswith(b"<svg")
+        assert output_format in {"png", "pdf"}
+        return b"PNG" if output_format == "png" else b"%PDF-1.4"
+
+    def fake_engrave(
+        musicxml: bytes, output_format: str, renderer_url: str | None
+    ) -> bytes:
+        assert b"<score-partwise" in musicxml
+        assert output_format in {"png", "pdf"}
+        return b"PNG" if output_format == "png" else b"%PDF-1.4"
+
+    monkeypatch.setattr("app.routes.convert_svg", fake_convert)
+    monkeypatch.setattr("app.routes.engrave_musicxml", fake_engrave)
+    revision_before = client.get(f"/v1/projects/{project_id}").json()["revision"]
+    staff_png = client.get(f"/v1/projects/{project_id}/exports/staff.png")
+    jianpu_pdf = client.get(f"/v1/projects/{project_id}/exports/jianpu.pdf")
+    assert staff_png.status_code == 200 and staff_png.content == b"PNG"
+    assert staff_png.headers["content-type"].startswith("image/png")
+    assert staff_png.headers["x-score-renderer"] == "verovio+inkscape"
+    assert staff_png.headers["x-score-format"] == "staff.png"
+    assert jianpu_pdf.status_code == 200 and jianpu_pdf.content.startswith(b"%PDF")
+    assert jianpu_pdf.headers["content-type"].startswith("application/pdf")
+    assert jianpu_pdf.headers["x-score-renderer"] == "native-jianpu+inkscape"
+    assert client.get(f"/v1/projects/{project_id}").json()["revision"] == revision_before
 
     audio = client.get(f"/v1/projects/{project_id}/audio")
     assert audio.status_code == 200
