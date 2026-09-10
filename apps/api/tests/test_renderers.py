@@ -1,3 +1,7 @@
+import json
+from pathlib import Path
+from xml.etree.ElementTree import fromstring
+
 from app.renderers import render_jianpu_svg, render_staff_svg
 from app.schemas import (
     Analysis,
@@ -133,5 +137,27 @@ def test_jianpu_svg_offsets_notes_with_the_same_start() -> None:
     )
 
     content = render_jianpu_svg(project).decode()
-    assert '<text x="80.00" y="160.00"' in content
-    assert '<text x="102.00" y="160.00"' in content
+    root = fromstring(content)
+    positions = {
+        group.get("data-note-id"): float(group.get("data-layout-x", "0"))
+        for group in root.iter("{http://www.w3.org/2000/svg}g")
+        if group.get("data-note-id")
+    }
+    assert positions["note-g4"] - positions["note-c4"] >= 44
+
+
+def test_complex_jianpu_fixture_maintains_minimum_event_spacing() -> None:
+    fixture = Path(__file__).parents[3] / "evaluation/fixtures/rendering-score-project.json"
+    project = ScoreProject.model_validate(json.loads(fixture.read_text()))
+    root = fromstring(render_jianpu_svg(project))
+    events_by_measure: dict[str, list[float]] = {}
+    for measure in root.findall(".//{http://www.w3.org/2000/svg}g[@data-measure]"):
+        positions = [
+            float(group.get("data-layout-x", "0"))
+            for group in measure.findall(".//{http://www.w3.org/2000/svg}g[@data-layout-x]")
+        ]
+        events_by_measure[measure.get("data-measure", "")] = sorted(set(positions))
+    for positions in events_by_measure.values():
+        assert all(
+            right - left >= 28 for left, right in zip(positions, positions[1:], strict=False)
+        )

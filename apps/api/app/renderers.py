@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from html import escape
-from math import isclose, log2
+from math import ceil, isclose, log2
 
 from app.schemas import MeterPoint, ScoreNote, ScoreProject
 
@@ -16,12 +16,17 @@ JIANPU_WIDTH = 1400
 JIANPU_LEFT = 80
 JIANPU_TOP = 150
 JIANPU_LINE_HEIGHT = 150
+JIANPU_EVENT_GAP = 12.0
+JIANPU_MEASURE_PADDING = 18.0
+JIANPU_CHORD_GAP = 10.0
 
 
 def _meter_at(project: ScoreProject, beat: float) -> MeterPoint:
     points = [point for point in project.analysis.meter_map if point.beat <= beat]
-    return max(points, key=lambda point: point.beat) if points else MeterPoint(
-        beat=0, numerator=4, denominator=4
+    return (
+        max(points, key=lambda point: point.beat)
+        if points
+        else MeterPoint(beat=0, numerator=4, denominator=4)
     )
 
 
@@ -96,9 +101,9 @@ def _draw_note(note: ScoreNote, x: float, top: float, duration_beats: float) -> 
     source_ids = escape(",".join(note.source_note_ids))
     return (
         f'<g data-note-id="{escape(note.id)}" data-source-note-ids="{source_ids}">'
-        f'{_ledger_lines(note.pitch_midi, x, top)}'
-        f'{_svg_text(x - 18 if alter else x, y + 5, accidental, 20)}'
-        f'{notehead}{stem}</g>'
+        f"{_ledger_lines(note.pitch_midi, x, top)}"
+        f"{_svg_text(x - 18 if alter else x, y + 5, accidental, 20)}"
+        f"{notehead}{stem}</g>"
     )
 
 
@@ -110,14 +115,14 @@ def render_staff_svg(project: ScoreProject) -> bytes:
     )
     meter = _meter_at(project, 0)
     beats_per_measure = meter.numerator * 4 / meter.denominator
-    measure_count = max(1, int((last_beat + beats_per_measure - 1e-9) // beats_per_measure) + 1)
+    measure_count = max(1, ceil(last_beat / beats_per_measure - 1e-9))
     system_count = (measure_count + MEASURES_PER_SYSTEM - 1) // MEASURES_PER_SYSTEM
     system_height = 230
     height = max(PAGE_HEIGHT, 150 + system_count * system_height)
     content: list[str] = [
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{PAGE_WIDTH}" height="{height}" '
         f'viewBox="0 0 {PAGE_WIDTH} {height}" role="img" aria-label="五线谱">',
-        '<style>.staff{stroke:#201d19;stroke-width:1}.bar{stroke:#201d19;stroke-width:1.5}.notehead{fill:#201d19;stroke:#201d19;stroke-width:1}.stem{stroke:#201d19;stroke-width:1.5}.title{font-family:serif;font-size:26px;font-weight:700}.meta{font-family:sans-serif;font-size:14px;fill:#5f584e}</style>',
+        "<style>.staff{stroke:#201d19;stroke-width:1}.bar{stroke:#201d19;stroke-width:1.5}.notehead{fill:#201d19;stroke:#201d19;stroke-width:1}.stem{stroke:#201d19;stroke-width:1.5}.title{font-family:serif;font-size:26px;font-weight:700}.meta{font-family:sans-serif;font-size:14px;fill:#5f584e}</style>",
         _svg_text(PAGE_WIDTH / 2, 48, project.score_name or project.source.file_name, 26),
         _svg_text(PAGE_WIDTH / 2, 76, "五线谱 · 谱面版", 14),
     ]
@@ -135,8 +140,7 @@ def render_staff_svg(project: ScoreProject) -> bytes:
         for line in range(5):
             y = top + line * STAFF_LINE_GAP
             content.append(
-                f'<line x1="90" y1="{y:.2f}" x2="{PAGE_WIDTH - 60}" '
-                f'y2="{y:.2f}" class="staff" />'
+                f'<line x1="90" y1="{y:.2f}" x2="{PAGE_WIDTH - 60}" y2="{y:.2f}" class="staff" />'
             )
         content.append(_svg_text(105, top + 38, "𝄞", 42))
         content.append(_svg_text(132, top - 12, f"{meter.numerator}/{meter.denominator}", 16))
@@ -150,7 +154,12 @@ def render_staff_svg(project: ScoreProject) -> bytes:
             left = 150 + (measure - first_measure) * measure_width
             for note in notes_by_measure.get(measure, []):
                 offset = note.quantized_start - measure * beats_per_measure
-                x = left + (offset / beats_per_measure) * measure_width
+                note_padding = min(28.0, measure_width * 0.08)
+                x = (
+                    left
+                    + note_padding
+                    + (offset / beats_per_measure) * (measure_width - 2 * note_padding)
+                )
                 content.append(_draw_note(note, x, top, note.quantized_duration))
         content.append(_svg_text(80, top + 4 * STAFF_LINE_GAP + 28, str(system + 1), 12))
         content.append("</g>")
@@ -216,6 +225,41 @@ def _rest_ranges(
     return rests
 
 
+def _jianpu_label_width(label: str) -> float:
+    return 50.0 if len(label) > 1 else 34.0
+
+
+def _jianpu_event_positions(
+    events: list[tuple[float, float]], measure_width: float, beats_per_measure: float
+) -> dict[float, float]:
+    """Lay out event centers while preserving time order and minimum glyph spacing."""
+    if not events:
+        return {}
+    ordered = sorted(events)
+    centers: list[float] = []
+    half_widths = [width / 2 for _, width in ordered]
+    for index, ((offset, _), half_width) in enumerate(zip(ordered, half_widths, strict=True)):
+        ideal = JIANPU_MEASURE_PADDING + (offset / beats_per_measure) * (
+            measure_width - 2 * JIANPU_MEASURE_PADDING
+        )
+        minimum = JIANPU_MEASURE_PADDING + half_width
+        if index:
+            minimum = max(
+                minimum,
+                centers[-1] + half_widths[index - 1] + half_width + JIANPU_EVENT_GAP,
+            )
+        centers.append(max(ideal, minimum))
+
+    maximum = measure_width - JIANPU_MEASURE_PADDING - half_widths[-1]
+    centers[-1] = min(centers[-1], maximum)
+    for index in range(len(centers) - 2, -1, -1):
+        centers[index] = min(
+            centers[index],
+            centers[index + 1] - half_widths[index] - half_widths[index + 1] - JIANPU_EVENT_GAP,
+        )
+    return {round(offset, 8): center for (offset, _), center in zip(ordered, centers, strict=True)}
+
+
 def render_jianpu_svg(project: ScoreProject) -> bytes:
     notes = sorted(project.notes, key=lambda note: (note.quantized_start, note.id))
     last_beat = max(
@@ -224,73 +268,168 @@ def render_jianpu_svg(project: ScoreProject) -> bytes:
     )
     meter = _meter_at(project, 0)
     beats_per_measure = meter.numerator * 4 / meter.denominator
-    measure_count = max(1, int((last_beat + beats_per_measure - 1e-9) // beats_per_measure) + 1)
-    measures_per_line = 4
-    line_count = (measure_count + measures_per_line - 1) // measures_per_line
+    measure_count = max(1, ceil(last_beat / beats_per_measure - 1e-9))
+    system_width = JIANPU_WIDTH - 2 * JIANPU_LEFT
+    measure_layouts: list[
+        tuple[
+            int,
+            list[ScoreNote],
+            list[tuple[float, float]],
+            dict[float, list[ScoreNote]],
+            dict[float, float],
+            float,
+        ]
+    ] = []
+    for measure in range(measure_count):
+        measure_start = measure * beats_per_measure
+        measure_end = measure_start + beats_per_measure
+        measure_notes = [
+            note
+            for note in notes
+            if note.quantized_start < measure_end
+            and note.quantized_start + note.quantized_duration > measure_start
+        ]
+        rest_ranges = _rest_ranges(notes, measure_start, measure_end)
+        note_groups: dict[float, list[ScoreNote]] = {}
+        for note in measure_notes:
+            segment_start = max(note.quantized_start, measure_start)
+            if note.quantized_start < measure_start - 1e-8:
+                continue
+            note_groups.setdefault(round(segment_start - measure_start, 8), []).append(note)
+        event_widths: dict[float, float] = {
+            round(rest_start - measure_start, 8): 30.0 for rest_start, _ in rest_ranges
+        }
+        for offset, group in note_groups.items():
+            width = sum(
+                _jianpu_label_width(_jianpu_note_text(project, note)[0]) for note in group
+            ) + JIANPU_CHORD_GAP * max(0, len(group) - 1)
+            event_widths[offset] = max(event_widths.get(offset, 0), width)
+        minimum_width = (
+            2 * JIANPU_MEASURE_PADDING
+            + sum(event_widths.values())
+            + JIANPU_EVENT_GAP * max(0, len(event_widths) - 1)
+        )
+        measure_layouts.append(
+            (
+                measure,
+                measure_notes,
+                rest_ranges,
+                note_groups,
+                event_widths,
+                max(150.0, minimum_width),
+            )
+        )
+    systems: list[
+        list[
+            tuple[
+                int,
+                list[ScoreNote],
+                list[tuple[float, float]],
+                dict[float, list[ScoreNote]],
+                dict[float, float],
+                float,
+            ]
+        ]
+    ] = []
+    current_system: list[
+        tuple[
+            int,
+            list[ScoreNote],
+            list[tuple[float, float]],
+            dict[float, list[ScoreNote]],
+            dict[float, float],
+            float,
+        ]
+    ] = []
+    current_width = 0.0
+    for layout in measure_layouts:
+        if current_system and (
+            len(current_system) == 4 or current_width + layout[-1] > system_width
+        ):
+            systems.append(current_system)
+            current_system = []
+            current_width = 0.0
+        current_system.append(layout)
+        current_width += layout[-1]
+    if current_system:
+        systems.append(current_system)
+    line_count = len(systems)
     height = max(500, JIANPU_TOP + line_count * JIANPU_LINE_HEIGHT + 100)
     content: list[str] = [
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{JIANPU_WIDTH}" height="{height}" '
         f'viewBox="0 0 {JIANPU_WIDTH} {height}" role="img" aria-label="简谱">',
-        '<style>'
+        "<style>"
         '.jp-number{font-family:"Noto Sans SC",sans-serif;font-size:32px;'
-        'font-weight:600;fill:#201d19}.jp-octave-dot,.jp-rhythm-dot{fill:#201d19}'
-        '.jp-bar{stroke:#201d19;stroke-width:1.5}.jp-rest{font-family:serif;'
-        'font-size:28px;fill:#5f584e}.jp-tie{fill:none;stroke:#201d19;'
-        'stroke-width:1.5}.jp-underline{stroke:#201d19;stroke-width:1.8}'
-        '.jp-meta{font-family:sans-serif;font-size:15px;'
-        'fill:#5f584e}</style>',
+        "font-weight:600;fill:#201d19}.jp-octave-dot,.jp-rhythm-dot{fill:#201d19}"
+        ".jp-bar{stroke:#201d19;stroke-width:1.5}.jp-rest{font-family:serif;"
+        "font-size:28px;fill:#5f584e}.jp-tie{fill:none;stroke:#201d19;"
+        "stroke-width:1.5}.jp-underline{stroke:#201d19;stroke-width:1.8}"
+        ".jp-meta{font-family:sans-serif;font-size:15px;"
+        "fill:#5f584e}</style>",
         _svg_text(JIANPU_WIDTH / 2, 45, project.score_name or project.source.file_name, 26),
         _svg_text(JIANPU_WIDTH / 2, 74, f"1 = {meter.numerator}/{meter.denominator} · 简谱版", 15),
     ]
-    for line in range(line_count):
+    for line, system in enumerate(systems):
         top = JIANPU_TOP + line * JIANPU_LINE_HEIGHT
-        first_measure = line * measures_per_line
-        last_measure = min(measure_count, first_measure + measures_per_line)
-        system_width = JIANPU_WIDTH - 2 * JIANPU_LEFT
-        measure_width = system_width / max(1, last_measure - first_measure)
+        minimum_width = sum(layout[-1] for layout in system)
+        extra_width = max(0.0, system_width - minimum_width) / len(system)
+        measure_widths = [layout[-1] + extra_width for layout in system]
         content.append(f'<g data-system="{line + 1}">')
-        for measure in range(first_measure, last_measure + 1):
-            x = JIANPU_LEFT + (measure - first_measure) * measure_width
-            content.append(
-                f'<line x1="{x:.2f}" y1="{top - 36}" x2="{x:.2f}" '
-                f'y2="{top + 40}" class="jp-bar" />'
-            )
-        for measure in range(first_measure, last_measure):
-            left = JIANPU_LEFT + (measure - first_measure) * measure_width
+        left = float(JIANPU_LEFT)
+        content.append(
+            f'<line x1="{left:.2f}" y1="{top - 36}" x2="{left:.2f}" '
+            f'y2="{top + 40}" class="jp-bar" />'
+        )
+        for layout, measure_width in zip(system, measure_widths, strict=True):
+            measure, measure_notes, rest_ranges, note_groups, event_widths, _ = layout
             measure_start = measure * beats_per_measure
             measure_end = measure_start + beats_per_measure
-            measure_notes = [
-                note
-                for note in notes
-                if note.quantized_start < measure_end
-                and note.quantized_start + note.quantized_duration > measure_start
-            ]
-            for rest_start, rest_end in _rest_ranges(notes, measure_start, measure_end):
-                rest_x = left + ((rest_start - measure_start) / beats_per_measure) * measure_width
+            positions = _jianpu_event_positions(
+                list(event_widths.items()), measure_width, beats_per_measure
+            )
+            content.append(f'<g data-measure="{measure + 1}">')
+            for rest_start, rest_end in rest_ranges:
+                rest_offset = round(rest_start - measure_start, 8)
+                rest_x = left + positions[rest_offset]
                 content.append(
                     f'<g class="jp-rest-range" data-rest-start="{rest_start:.6g}" '
-                    f'data-rest-end="{rest_end:.6g}">{_svg_text(rest_x, top + 10, "0", 26)}</g>'
+                    f'data-rest-end="{rest_end:.6g}" data-layout-x="{rest_x:.2f}">'
+                    f"{_svg_text(rest_x, top + 10, '0', 26)}</g>"
                 )
-            same_start_indexes: dict[float, int] = {}
             for note in measure_notes:
                 segment_start = max(note.quantized_start, measure_start)
                 segment_end = min(note.quantized_start + note.quantized_duration, measure_end)
                 offset = segment_start - measure_start
-                start_key = round(note.quantized_start, 8)
-                collision_index = same_start_indexes.get(start_key, 0)
-                same_start_indexes[start_key] = collision_index + 1
-                x = (
-                    left
-                    + (offset / beats_per_measure) * measure_width
-                    + collision_index * 22
-                )
                 label, octave, accidental = _jianpu_note_text(project, note)
                 source_ids = escape(",".join(note.source_note_ids))
                 continuation = note.quantized_start < measure_start - 1e-8
+                group = note_groups.get(round(offset, 8), [])
+                collision_index = group.index(note) if note in group else 0
+                group_width = event_widths.get(round(offset, 8), 0)
+                preceding_width = (
+                    sum(
+                        _jianpu_label_width(_jianpu_note_text(project, item)[0])
+                        for item in group[:collision_index]
+                    )
+                    + JIANPU_CHORD_GAP * collision_index
+                )
+                label_width = _jianpu_label_width(label)
+                x = (
+                    left + 4
+                    if continuation
+                    else (
+                        left
+                        + positions[round(offset, 8)]
+                        - group_width / 2
+                        + preceding_width
+                        + label_width / 2
+                    )
+                )
                 content.append(
                     f'<g data-note-id="{escape(note.id)}" '
                     f'data-source-note-ids="{source_ids}" '
-                    f'data-continuation="{str(continuation).lower()}">'
+                    f'data-continuation="{str(continuation).lower()}" '
+                    f'data-layout-x="{x:.2f}">'
                 )
                 if not continuation:
                     content.append(_svg_text(x, top + 10, label, 32))
@@ -315,9 +454,7 @@ def render_jianpu_svg(project: ScoreProject) -> bytes:
                         )
                 extension_start = x + (20 if not continuation else 4)
                 extension_end = (
-                    left
-                    + ((segment_end - measure_start) / beats_per_measure) * measure_width
-                    - 8
+                    left + ((segment_end - measure_start) / beats_per_measure) * measure_width - 8
                 )
                 if (
                     continuation or note.quantized_duration > 1.0
@@ -327,6 +464,12 @@ def render_jianpu_svg(project: ScoreProject) -> bytes:
                         f'x2="{extension_end:.2f}" y2="{top + 18}" class="jp-tie" />'
                     )
                 content.append("</g>")
+            content.append("</g>")
+            left += measure_width
+            content.append(
+                f'<line x1="{left:.2f}" y1="{top - 36}" x2="{left:.2f}" '
+                f'y2="{top + 40}" class="jp-bar" />'
+            )
         content.append(_svg_text(45, top + 10, str(line + 1), 12))
         content.append("</g>")
     content.append("</svg>")
