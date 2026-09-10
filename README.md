@@ -86,6 +86,16 @@ make build-renderer
 Noto CJK 字体；API 不在请求期间下载渲染器或字体。首次执行 `make build-renderer` 需要联网，
 后续普通启动和业务代码更新复用本地镜像。
 
+如果 Docker Hub 的基础镜像元数据请求失败，但本机已经构建过 API 依赖镜像，可以跳过
+Docker Hub，复用同一 Python 3.11/Trixie 基础层：
+
+```bash
+VSS_RENDERER_BASE_IMAGE=vocal-score-studio-api-deps:local make build-renderer
+```
+
+该方式仍需要 Debian 软件源和 PyPI 下载 Inkscape、Noto CJK 与 Verovio，但不会访问
+`registry-1.docker.io` 获取 Python 基础镜像。
+
 ```bash
 docker compose -f infra/compose.yaml up -d --wait web worker
 ```

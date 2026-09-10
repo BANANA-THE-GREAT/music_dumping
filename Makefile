@@ -40,7 +40,7 @@ build-web: ## Rebuild Web after frontend, contract, or Nginx changes
 build-api: ## Rebuild API after backend or migration changes
 	scripts/build-api-image.sh
 
-build-renderer: ## Build the Inkscape score image renderer (network required initially)
+build-renderer: ## Build renderer; set VSS_RENDERER_BASE_IMAGE to reuse a local Python image
 	$(COMPOSE) build renderer
 
 build-worker: ## Rebuild the standard CPU Worker
