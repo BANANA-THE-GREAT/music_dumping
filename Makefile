@@ -5,7 +5,7 @@ GPU_COMPOSE := $(COMPOSE) -f infra/compose.gpu.yaml
 QUALITY_DOCKERFILE := infra/docker/Dockerfile.worker-quality
 
 .PHONY: help config status images up restart down logs \
-	build-web build-api build-worker build-worker-gpu rebuild \
+	build-web build-api build-renderer build-worker build-worker-gpu rebuild \
 	quality-build quality-up quality-smoke \
 	quality-build-gpu quality-up-gpu gpu-check \
 	check-web check-api
@@ -40,6 +40,9 @@ build-web: ## Rebuild Web after frontend, contract, or Nginx changes
 build-api: ## Rebuild API after backend or migration changes
 	scripts/build-api-image.sh
 
+build-renderer: ## Build the Inkscape score image renderer (network required initially)
+	$(COMPOSE) build renderer
+
 build-worker: ## Rebuild the standard CPU Worker
 	scripts/build-worker-image.sh
 
@@ -51,6 +54,7 @@ build-worker-gpu: ## Rebuild the standard CUDA Worker dependency and app layers
 
 rebuild: ## Rebuild API, CPU Worker, and Web, then start Web and Worker
 	$(MAKE) build-api
+	$(MAKE) build-renderer
 	$(MAKE) build-worker
 	$(MAKE) build-web
 	$(COMPOSE) up -d --wait web worker
