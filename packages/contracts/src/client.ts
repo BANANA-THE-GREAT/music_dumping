@@ -23,6 +23,22 @@ export class ApiError extends Error {
     super(message);
   }
 }
+
+export type ProjectExportFormat =
+  | "midi"
+  | "musicxml"
+  | "staff.svg"
+  | "staff.png"
+  | "staff.pdf"
+  | "jianpu.svg"
+  | "jianpu.png"
+  | "jianpu.pdf";
+
+export interface ProjectExportDownload {
+  blob: Blob;
+  fileName: string;
+}
+
 export class VocalScoreApi {
   constructor(private baseUrl = "/api") {}
   private async fail(response: Response): Promise<never> {
@@ -157,19 +173,25 @@ export class VocalScoreApi {
   }
   exportUrl(
     id: string,
-    format:
-      | "midi"
-      | "musicxml"
-      | "staff.svg"
-      | "staff.png"
-      | "staff.pdf"
-      | "jianpu.svg"
-      | "jianpu.png"
-      | "jianpu.pdf",
+    format: ProjectExportFormat,
     version: "score" | "performance" = "score",
   ): string {
     const query = format === "midi" ? `?version=${version}` : "";
     return `${this.baseUrl}/v1/projects/${id}/exports/${format}${query}`;
+  }
+  async downloadExport(
+    id: string,
+    format: ProjectExportFormat,
+    version: "score" | "performance" = "score",
+  ): Promise<ProjectExportDownload> {
+    const response = await fetch(this.exportUrl(id, format, version));
+    if (!response.ok) await this.fail(response);
+    const disposition = response.headers.get("content-disposition") || "";
+    const match = /filename="?([^";]+)"?/i.exec(disposition);
+    return {
+      blob: await response.blob(),
+      fileName: match?.[1] || `${id}.${format}`,
+    };
   }
   audioUrl(id: string, variant: "source" | "vocals" = "source"): string {
     return `${this.baseUrl}/v1/projects/${id}/audio${variant === "vocals" ? "?variant=vocals" : ""}`;

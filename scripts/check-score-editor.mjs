@@ -373,7 +373,18 @@ try {
         '{"time_seconds":0.02,"f0_hz":262.2,"periodicity":0.85}\n',
     }),
   );
+  let failNextExport = false;
   await page.route("**/api/v1/projects/editor-check/exports/**", (route) => {
+    if (failNextExport) {
+      failNextExport = false;
+      return route.fulfill({
+        status: 503,
+        contentType: "application/json",
+        body: JSON.stringify({
+          detail: { code: "SCORE_RENDERER_UNAVAILABLE" },
+        }),
+      });
+    }
     const fileName = route.request().url().split("/").at(-1);
     route.fulfill({
       status: 200,
@@ -460,6 +471,11 @@ try {
   const jianpuDownload = page.waitForEvent("download");
   await page.click("#jianpu-export");
   assert.equal((await jianpuDownload).suggestedFilename(), "jianpu.pdf");
+  failNextExport = true;
+  await page.click("#jianpu-export");
+  await page.waitForFunction(() =>
+    document.querySelector("#status").textContent.includes("渲染服务不可用"),
+  );
   await page.selectOption("#playback-version", "score");
   await page.selectOption("#playback-mode", "score");
   await page.selectOption("#playback-start", "beginning");

@@ -79,6 +79,8 @@ describe("F0 evidence", () => {
 });
 
 describe("project exports", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
   it("selects the performance or score MIDI explicitly", () => {
     const api = new VocalScoreApi("http://api");
     expect(api.exportUrl("project", "midi")).toBe(
@@ -102,6 +104,42 @@ describe("project exports", () => {
     expect(api.exportUrl("project", "jianpu.pdf")).toBe(
       "http://api/v1/projects/project/exports/jianpu.pdf",
     );
+  });
+
+  it("downloads an export and preserves the server filename", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response("score", {
+          status: 200,
+          headers: {
+            "content-type": "application/pdf",
+            "content-disposition": 'attachment; filename="named-score.staff.pdf"',
+          },
+        }),
+      ),
+    );
+    const result = await new VocalScoreApi("http://api").downloadExport(
+      "project",
+      "staff.pdf",
+    );
+    expect(result.fileName).toBe("named-score.staff.pdf");
+    expect(await result.blob.text()).toBe("score");
+  });
+
+  it("preserves structured renderer errors", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(
+          JSON.stringify({ detail: { code: "SCORE_RENDERER_UNAVAILABLE" } }),
+          { status: 503, headers: { "content-type": "application/json" } },
+        ),
+      ),
+    );
+    await expect(
+      new VocalScoreApi("http://api").downloadExport("project", "jianpu.png"),
+    ).rejects.toMatchObject({ status: 503, message: "SCORE_RENDERER_UNAVAILABLE" });
   });
 });
 

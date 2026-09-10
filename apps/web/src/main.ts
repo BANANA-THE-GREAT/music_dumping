@@ -6,6 +6,7 @@ import {
   type ScoreProject as ApiScoreProject,
 } from "@vocal-score/contracts";
 import { ApiError, VocalScoreApi } from "@vocal-score/contracts/client";
+import type { ProjectExportFormat } from "@vocal-score/contracts/client";
 import { ScoreHistory, type EditableNote } from "@vocal-score/score-core";
 import { analyzeMusic } from "./analysis";
 import { keyName, keyRootMidi } from "./key";
@@ -2242,52 +2243,63 @@ function midiVersion() {
     | "score"
     | "performance";
 }
-function downloadServerExport(
-  format:
-    | "midi"
-    | "musicxml"
-    | "staff.svg"
-    | "staff.png"
-    | "staff.pdf"
-    | "jianpu.svg"
-    | "jianpu.png"
-    | "jianpu.pdf",
+async function downloadServerExport(
+  format: ProjectExportFormat,
   version: "score" | "performance" = "score",
-) {
+): Promise<boolean> {
   if (!serverProject) return false;
-  const link = document.createElement("a");
-  link.href = api.exportUrl(serverProject.project_id, format, version);
-  link.download = "";
-  link.click();
+  status("正在生成导出文件…");
+  try {
+    const download = await api.downloadExport(
+      serverProject.project_id,
+      format,
+      version,
+    );
+    const url = URL.createObjectURL(download.blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = download.fileName;
+    link.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1_000);
+    status(`已导出 ${download.fileName}`);
+  } catch (error) {
+    if (error instanceof ApiError && error.message === "SCORE_RENDERER_UNAVAILABLE") {
+      status("谱面渲染服务不可用，请启动 renderer 容器后重试");
+    } else if (error instanceof ApiError && error.message === "SCORE_RENDER_FAILED") {
+      status("谱面渲染失败，请检查谱面内容或 renderer 日志");
+    } else {
+      status(`导出失败：${error instanceof Error ? error.message : "未知错误"}`);
+    }
+  }
   return true;
 }
-$("#midi").addEventListener("click", () => {
+$("#midi").addEventListener("click", async () => {
   const version = midiVersion();
-  if (!downloadServerExport("midi", version))
+  if (!(await downloadServerExport("midi", version)))
     void import("./export").then(({ exportMidi }) =>
       exportMidi(notes, analysis, version),
     );
 });
-$("#xml").addEventListener("click", () => {
-  if (!downloadServerExport("musicxml"))
+$("#xml").addEventListener("click", async () => {
+  if (!(await downloadServerExport("musicxml")))
     void import("./export").then(({ exportMusicXml }) =>
       exportMusicXml(notes, analysis),
     );
 });
-$("#staff-export").addEventListener("click", () => {
+$("#staff-export").addEventListener("click", async () => {
   const format = $<HTMLSelectElement>("#staff-export-format").value as
     | "svg"
     | "png"
     | "pdf";
-  if (!downloadServerExport(`staff.${format}`))
+  if (!(await downloadServerExport(`staff.${format}`)))
     status("请先保存或载入服务端谱面");
 });
-$("#jianpu-export").addEventListener("click", () => {
+$("#jianpu-export").addEventListener("click", async () => {
   const format = $<HTMLSelectElement>("#jianpu-export-format").value as
     | "svg"
     | "png"
     | "pdf";
-  if (!downloadServerExport(`jianpu.${format}`))
+  if (!(await downloadServerExport(`jianpu.${format}`)))
     status("请先保存或载入服务端谱面");
 });
 $<HTMLButtonElement>("#retry-job").disabled =
