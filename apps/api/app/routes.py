@@ -14,7 +14,7 @@ from app.database import SessionLocal, get_session
 from app.exporters import project_to_midi, project_to_musicxml
 from app.job_runner import dispatch_job
 from app.models import JobRecord, ProjectRecord, UploadRecord
-from app.project_service import requantize
+from app.project_service import boundary_quantized_duration, requantize
 from app.repository import create_job, create_upload, job_response
 from app.schemas import (
     AudioAlignmentRequest,
@@ -447,7 +447,6 @@ def review_boundary_suggestion(
     changes_note = request.action == "accept" or (
         request.action == "reset" and suggestion.review_status == "accepted"
     )
-    beat_ms = 60_000 / project.analysis.tempo_map[0].bpm
     if changes_note:
         if target is None or performance_target is None:
             raise HTTPException(status_code=409, detail={"code": "SUGGESTION_TARGET_MISSING"})
@@ -459,9 +458,8 @@ def review_boundary_suggestion(
         if performance_target.source_end_ms != expected_end:
             raise HTTPException(status_code=409, detail={"code": "SUGGESTION_TARGET_CHANGED"})
         if request.action == "reset":
-            expected_duration = max(
-                0.01,
-                (suggestion.proposed_end_ms - target.source_start_ms) / beat_ms,
+            expected_duration = boundary_quantized_duration(
+                project, target, suggestion.proposed_end_ms
             )
             if not math.isclose(target.quantized_duration, expected_duration):
                 raise HTTPException(status_code=409, detail={"code": "SUGGESTION_TARGET_CHANGED"})
@@ -473,9 +471,8 @@ def review_boundary_suggestion(
         suggestion.accepted_from_origin = target.origin
         suggestion.accepted_from_quantized_duration = target.quantized_duration
         target.source_end_ms = suggestion.proposed_end_ms
-        target.quantized_duration = max(
-            0.01,
-            (target.source_end_ms - target.source_start_ms) / beat_ms,
+        target.quantized_duration = boundary_quantized_duration(
+            project, target, target.source_end_ms
         )
         target.origin = "user"
         performance_target.source_end_ms = suggestion.proposed_end_ms
@@ -493,10 +490,7 @@ def review_boundary_suggestion(
             target.quantized_duration = (
                 suggestion.accepted_from_quantized_duration
                 if suggestion.accepted_from_quantized_duration is not None
-                else max(
-                    0.01,
-                    (target.source_end_ms - target.source_start_ms) / beat_ms,
-                )
+                else boundary_quantized_duration(project, target, target.source_end_ms)
             )
             target.origin = suggestion.accepted_from_origin or "model"
             performance_target.source_end_ms = suggestion.original_end_ms
@@ -562,10 +556,8 @@ def _review_boundary_batch(
             ):
                 continue
             target.source_end_ms = suggestion.original_end_ms
-            target.quantized_duration = suggestion.accepted_from_quantized_duration or max(
-                0.01,
-                (target.source_end_ms - target.source_start_ms)
-                / (60_000 / project.analysis.tempo_map[0].bpm),
+            target.quantized_duration = suggestion.accepted_from_quantized_duration or (
+                boundary_quantized_duration(project, target, target.source_end_ms)
             )
             target.origin = suggestion.accepted_from_origin or "model"
             performance_target.source_end_ms = suggestion.original_end_ms
@@ -588,7 +580,6 @@ def _review_boundary_batch(
 
     batch_id = str(uuid4())
     changed = 0
-    beat_ms = 60_000 / project.analysis.tempo_map[0].bpm
     for suggestion in pending:
         target = next(
             (note for note in project.notes if suggestion.source_note_id in note.source_note_ids),
@@ -611,8 +602,8 @@ def _review_boundary_batch(
         suggestion.accepted_from_origin = target.origin
         suggestion.accepted_from_quantized_duration = target.quantized_duration
         target.source_end_ms = suggestion.proposed_end_ms
-        target.quantized_duration = max(
-            0.01, (target.source_end_ms - target.source_start_ms) / beat_ms
+        target.quantized_duration = boundary_quantized_duration(
+            project, target, target.source_end_ms
         )
         target.origin = "user"
         performance_target.source_end_ms = suggestion.proposed_end_ms

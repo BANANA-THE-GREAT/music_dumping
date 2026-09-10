@@ -523,7 +523,7 @@ def test_boundary_suggestion_review_accept_reject_and_reset() -> None:
     project_id = project["project_id"]
     original_end = project["notes"][0]["source_end_ms"]
     original_duration = project["notes"][0]["quantized_duration"]
-    proposed_end = original_end + 70
+    proposed_end = original_end + 230
     project["notes"][0]["source_note_ids"] = ["game-0000"]
     project["performance_notes"][0]["source_note_ids"] = ["game-0000"]
     project["raw_notes"] = [dict(note) for note in project["notes"]]
@@ -556,6 +556,7 @@ def test_boundary_suggestion_review_accept_reject_and_reset() -> None:
     accepted_project = accepted.json()
     assert accepted_project["revision"] == 2
     assert accepted_project["notes"][0]["source_end_ms"] == proposed_end
+    assert accepted_project["notes"][0]["quantized_duration"] == 1.25
     assert accepted_project["raw_notes"][0]["source_end_ms"] == original_end
     assert (
         accepted_project["transcription_evidence"]["boundary_suggestions"][0]["review_status"]
@@ -624,6 +625,7 @@ def test_boundary_suggestion_batch_route_accepts_and_resets() -> None:
     assert accepted.status_code == 200
     accepted_project = accepted.json()
     assert accepted_project["notes"][0]["source_end_ms"] == proposed_end
+    assert accepted_project["notes"][0]["quantized_duration"] == 1.0
     assert (
         accepted_project["transcription_evidence"]["boundary_suggestions"][0]["review_status"]
         == "accepted"

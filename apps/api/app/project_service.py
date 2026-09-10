@@ -12,6 +12,24 @@ from app.schemas import (
 from app.tempo import beat_at_ms
 
 
+def boundary_quantized_duration(
+    project: ScoreProject, note: ScoreNote, proposed_end_ms: int
+) -> float:
+    """Map a reviewed performance end to one readable score duration."""
+    end_beats = beat_at_ms(proposed_end_ms, project.analysis.tempo_map)
+    settings = project.quantization
+    if not settings.enabled:
+        return max(0.01, end_beats - note.quantized_start)
+
+    offset_beats = beat_at_ms(max(0, settings.offset_ms), project.analysis.tempo_map)
+    snapped_end = (
+        round((end_beats - offset_beats) / settings.grid) * settings.grid
+        + offset_beats
+    )
+    # A boundary review must never create an unreadably short score value.
+    return max(settings.grid, snapped_end - note.quantized_start)
+
+
 def requantize(project: ScoreProject, request: RequantizeRequest) -> ScoreProject:
     tempo_map = request.tempo_map or [TempoPoint(time_ms=0, bpm=request.bpm)]
     offset_beats = beat_at_ms(max(0, request.offset_ms), tempo_map)
