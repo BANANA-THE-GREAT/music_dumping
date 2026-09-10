@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>简谱渲染对照</title>
+    <style>
+      :root {
+        font-family: system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+        color: #24211d;
+        background: #eeeae2;
+      }
+      * { box-sizing: border-box; }
+      body { margin: 0; }
+      header {
+        min-height: 64px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 12px 18px;
+        background: #fff;
+        border-bottom: 1px solid #d8d1c5;
+      }
+      h1 { margin: 0; font-size: 18px; white-space: nowrap; }
+      select {
+        min-width: 260px;
+        max-width: min(560px, 60vw);
+        padding: 8px 10px;
+        border: 1px solid #bdb5a8;
+        background: #fff;
+      }
+      #status { color: #6c645a; font-size: 13px; }
+      main {
+        display: grid;
+        grid-template-columns: minmax(420px, 1fr) minmax(420px, 1fr);
+        gap: 12px;
+        height: calc(100vh - 64px);
+        padding: 12px;
+      }
+      section {
+        min-width: 0;
+        display: grid;
+        grid-template-rows: 38px 1fr;
+        background: #fff;
+        border: 1px solid #d8d1c5;
+      }
+      h2 { margin: 0; padding: 9px 12px; font-size: 14px; border-bottom: 1px solid #e5dfd5; }
+      iframe, object { width: 100%; height: 100%; border: 0; background: #fff; }
+      .empty { display: grid; place-items: center; color: #81786d; }
+      @media (max-width: 900px) {
+        header { align-items: stretch; flex-direction: column; }
+        select { max-width: none; width: 100%; }
+        main { height: auto; grid-template-columns: 1fr; }
+        section { height: 72vh; }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>简谱渲染对照</h1>
+      <select id="project" aria-label="选择谱面"><option value="">正在读取项目...</option></select>
+      <span id="status" role="status"></span>
+    </header>
+    <main>
+      <section>
+        <h2>当前交互编辑器</h2>
+        <div id="editor-empty" class="empty">请选择一份谱面</div>
+        <iframe id="editor" title="当前交互编辑器" hidden></iframe>
+      </section>
+      <section>
+        <h2>导出简谱 SVG</h2>
+        <div id="export-empty" class="empty">请选择一份谱面</div>
+        <object id="export" type="image/svg+xml" aria-label="导出简谱 SVG" hidden></object>
+      </section>
+    </main>
+    <script>
+      const select = document.querySelector("#project");
+      const status = document.querySelector("#status");
+      const editor = document.querySelector("#editor");
+      const exported = document.querySelector("#export");
+      const editorEmpty = document.querySelector("#editor-empty");
+      const exportEmpty = document.querySelector("#export-empty");
+
+      function showProject(projectId) {
+        const selected = select.selectedOptions[0];
+        if (!projectId) return;
+        const encoded = encodeURIComponent(projectId);
+        editor.src = `/?project=${encoded}`;
+        exported.data = `/api/v1/projects/${encoded}/exports/jianpu.svg`;
+        editor.hidden = false;
+        exported.hidden = false;
+        editorEmpty.hidden = true;
+        exportEmpty.hidden = true;
+        status.textContent = selected?.textContent ?? "";
+        history.replaceState(null, "", `?project=${encoded}`);
+      }
+
+      select.addEventListener("change", () => showProject(select.value));
+      fetch("/api/v1/project-catalog")
+        .then((response) => {
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          return response.json();
+        })
+        .then((projects) => {
+          const saved = projects.filter((project) => project.project_id);
+          select.replaceChildren(new Option("选择已保存谱面...", ""));
+          for (const project of saved) {
+            const label = `${project.project_name || "未命名项目"} / ${project.score_name || "未命名谱面"}`;
+            select.add(new Option(label, project.project_id));
+          }
+          const requested = new URLSearchParams(location.search).get("project");
+          if (requested && saved.some((project) => project.project_id === requested)) {
+            select.value = requested;
+            showProject(requested);
+          } else {
+            status.textContent = saved.length ? `${saved.length} 份谱面可对照` : "没有已保存谱面";
+          }
+        })
+        .catch((error) => {
+          select.replaceChildren(new Option("项目列表不可用", ""));
+          status.textContent = `读取失败：${error.message}`;
+        });
+    </script>
+  </body>
+</html>

@@ -942,40 +942,43 @@ function clearLoadedProject() {
   $("#transcription-diagnostics").classList.add("hidden");
   void render();
 }
+async function openSavedProject(projectId: string, closeDialog = true) {
+  $<HTMLButtonElement>("#delete-project").disabled = !projectId;
+  $<HTMLButtonElement>("#rename-project").disabled = !projectId;
+  $<HTMLButtonElement>("#rename-score").disabled = !projectId;
+  $<HTMLButtonElement>("#bulk-delete-projects").disabled = !projectId;
+  if (!projectId) return;
+  taskProgress.reset();
+  try {
+    status("正在打开已保存项目…");
+    serverProject = await api.getProject(projectId);
+    activeUploadId = serverProject.project_group_id ?? null;
+    activeUploadName = serverProject.project_name ?? serverProject.source.file_name;
+    applyApiProject(serverProject);
+    await Promise.all([
+      loadServerAudio(serverProject),
+      loadF0Evidence(serverProject),
+    ]);
+    sync();
+    render();
+    status(
+      `已恢复 ${serverProject.source.file_name} · 修订 ${serverProject.revision}`,
+    );
+    $("#project-picker").textContent =
+      `${serverProject.project_name ?? "未命名项目"} / ${serverProject.score_name ?? "未命名谱面"}`;
+    if (closeDialog) $<HTMLDialogElement>("#project-dialog").close();
+  } catch (error) {
+    if (await recoverRevisionConflict(error)) return;
+    status(
+      `恢复失败：${error instanceof Error ? error.message : "未知错误"}`,
+    );
+  }
+}
 $<HTMLSelectElement>("#recent-project").addEventListener(
   "change",
-  async (event) => {
+  (event) => {
     const projectId = (event.currentTarget as HTMLSelectElement).value;
-    $<HTMLButtonElement>("#delete-project").disabled = !projectId;
-    $<HTMLButtonElement>("#rename-project").disabled = !projectId;
-    $<HTMLButtonElement>("#rename-score").disabled = !projectId;
-    $<HTMLButtonElement>("#bulk-delete-projects").disabled = !projectId;
-    if (!projectId) return;
-    taskProgress.reset();
-    try {
-      status("正在打开已保存项目…");
-      serverProject = await api.getProject(projectId);
-      activeUploadId = serverProject.project_group_id ?? null;
-      activeUploadName = serverProject.project_name ?? serverProject.source.file_name;
-      applyApiProject(serverProject);
-      await Promise.all([
-        loadServerAudio(serverProject),
-        loadF0Evidence(serverProject),
-      ]);
-      sync();
-      render();
-      status(
-        `已恢复 ${serverProject.source.file_name} · 修订 ${serverProject.revision}`,
-      );
-      $("#project-picker").textContent =
-        `${serverProject.project_name ?? "未命名项目"} / ${serverProject.score_name ?? "未命名谱面"}`;
-      $<HTMLDialogElement>("#project-dialog").close();
-    } catch (error) {
-      if (await recoverRevisionConflict(error)) return;
-      status(
-        `恢复失败：${error instanceof Error ? error.message : "未知错误"}`,
-      );
-    }
+    void openSavedProject(projectId);
   },
 );
 $<HTMLInputElement>("#boundary-threshold").addEventListener("input", () => {
@@ -2305,4 +2308,9 @@ $("#jianpu-export").addEventListener("click", async () => {
 $<HTMLButtonElement>("#retry-job").disabled =
   !localStorage.getItem(FAILED_JOB_KEY);
 void refreshProjects();
-void resumeActiveJob();
+const initialProjectId = new URLSearchParams(window.location.search).get("project");
+if (initialProjectId) {
+  void openSavedProject(initialProjectId, false);
+} else {
+  void resumeActiveJob();
+}

@@ -117,6 +117,10 @@ make benchmark-renderer
 
 基准输出 JSONL，包含实际页数、耗时、文件大小及容器 cgroup 内存变化。
 
+前端构建后可打开 `http://localhost:8888/score-rendering-comparison.html`，选择一份已保存
+谱面，并排检查当前交互编辑器与导出简谱 SVG。该诊断页也支持
+`?project=<project_id>` 直接定位谱面。
+
 ```bash
 docker compose -f infra/compose.yaml up -d --wait web worker
 ```
