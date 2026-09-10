@@ -28,6 +28,7 @@ import { detectEnergyOnsets, estimateGlobalOffset } from "./alignment";
 import {
   boundaryDeltaLabel,
   boundaryReasonLabel,
+  boundarySupersededLabel,
   orderedBoundarySuggestions,
   reviewableBoundarySuggestions,
 } from "./boundary-review";
@@ -534,6 +535,8 @@ function reviewActions(suggestion: BoundarySuggestion) {
   const encodedId = encodeURIComponent(suggestion.id);
   if (suggestion.review_status === "pending")
     return `<button data-boundary-action="accept" data-suggestion-id="${encodedId}" title="接受建议" aria-label="接受建议">✓</button><button data-boundary-action="reject" data-suggestion-id="${encodedId}" title="忽略建议" aria-label="忽略建议">×</button>`;
+  if (suggestion.review_status === "superseded")
+    return `<span class="boundary-state superseded" title="${boundarySupersededLabel(suggestion)}">已被人工编辑替代</span>`;
   const label = suggestion.review_status === "accepted" ? "已接受" : "已忽略";
   return `<span class="boundary-state ${suggestion.review_status}">${label}</span><button data-boundary-action="reset" data-suggestion-id="${encodedId}" title="撤销审阅" aria-label="撤销审阅">↶</button>`;
 }
@@ -557,9 +560,12 @@ function renderBoundaryReview() {
   const accepted = suggestions.filter(
     (suggestion) => suggestion.review_status === "accepted",
   ).length;
-  const rejected = suggestions.length - pending - accepted;
+  const superseded = suggestions.filter(
+    (suggestion) => suggestion.review_status === "superseded",
+  ).length;
+  const rejected = suggestions.length - pending - accepted - superseded;
   $("#boundary-summary").textContent =
-    `${pending} 待审 · ${accepted} 已接受 · ${rejected} 已忽略`;
+    `${pending} 待审 · ${accepted} 已接受 · ${rejected} 已忽略 · ${superseded} 已替代`;
   $("#boundary-list").innerHTML = orderedBoundarySuggestions(suggestions)
     .map(
       (suggestion) =>
@@ -1796,6 +1802,7 @@ async function saveEditedNotes(updated: EditableNote[], label: string) {
       serverProject.revision,
       updated,
     );
+    renderBoundaryReview();
     status(`${label}已保存 · 修订 ${serverProject.revision}`);
   } catch (error) {
     if (await recoverRevisionConflict(error)) return;

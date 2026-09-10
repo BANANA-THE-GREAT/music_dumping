@@ -102,7 +102,12 @@ export interface BoundarySuggestion {
   proposed_end_ms: number;
   confidence: number;
   reason: "f0_voicing_extension" | "f0_voicing_contraction";
-  review_status: "pending" | "accepted" | "rejected";
+  review_status: "pending" | "accepted" | "rejected" | "superseded";
+  superseded_reason?:
+    | "manual_timing_edit"
+    | "target_deleted"
+    | "target_structure_changed"
+    | null;
   reviewed_revision?: number | null;
   accepted_from_origin?: "model" | "user" | null;
   accepted_from_quantized_duration?: number | null;

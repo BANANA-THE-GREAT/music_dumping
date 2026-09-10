@@ -3,6 +3,7 @@ import type { BoundarySuggestion } from "@vocal-score/contracts";
 import {
   boundaryDeltaLabel,
   boundaryReasonLabel,
+  boundarySupersededLabel,
   orderedBoundarySuggestions,
   reviewableBoundarySuggestions,
 } from "./boundary-review";
@@ -58,5 +59,18 @@ describe("boundary review presentation", () => {
         ],
       ).map((item) => item.id),
     ).toEqual(["visible"]);
+  });
+
+  it("keeps superseded suggestions visible and puts them after reviewed items", () => {
+    const superseded = {
+      ...suggestion("superseded", "superseded", 500, 570),
+      superseded_reason: "target_structure_changed" as const,
+    };
+    const rejected = suggestion("rejected", "rejected", 800, 740);
+    expect(
+      orderedBoundarySuggestions([superseded, rejected]).map((item) => item.id),
+    ).toEqual(["rejected", "superseded"]);
+    expect(reviewableBoundarySuggestions([superseded], [])).toEqual([superseded]);
+    expect(boundarySupersededLabel(superseded)).toBe("音符结构已人工修改");
   });
 });

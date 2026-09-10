@@ -21,7 +21,7 @@ export interface PianoRollBoundaryMarker {
   noteIndex: number;
   originalEndSeconds: number;
   proposedEndSeconds: number;
-  status: "pending" | "accepted" | "rejected";
+  status: "pending" | "accepted" | "rejected" | "superseded";
 }
 
 export interface PianoRollEvidence {

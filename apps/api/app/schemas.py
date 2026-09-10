@@ -207,7 +207,10 @@ class BoundarySuggestion(BaseModel):
     proposed_end_ms: int = Field(ge=0)
     confidence: float = Field(ge=0, le=1)
     reason: Literal["f0_voicing_extension", "f0_voicing_contraction"]
-    review_status: Literal["pending", "accepted", "rejected"] = "pending"
+    review_status: Literal["pending", "accepted", "rejected", "superseded"] = "pending"
+    superseded_reason: Literal[
+        "manual_timing_edit", "target_deleted", "target_structure_changed"
+    ] | None = None
     reviewed_revision: int | None = Field(default=None, ge=1)
     accepted_from_origin: Literal["model", "user"] | None = None
     accepted_from_quantized_duration: float | None = Field(default=None, gt=0)

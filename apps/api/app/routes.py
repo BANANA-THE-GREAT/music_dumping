@@ -14,7 +14,11 @@ from app.database import SessionLocal, get_session
 from app.exporters import project_to_midi, project_to_musicxml
 from app.job_runner import dispatch_job
 from app.models import JobRecord, ProjectRecord, UploadRecord
-from app.project_service import boundary_quantized_duration, requantize
+from app.project_service import (
+    boundary_quantized_duration,
+    requantize,
+    synchronize_score_edits,
+)
 from app.repository import create_job, create_upload, job_response
 from app.schemas import (
     AudioAlignmentRequest,
@@ -392,7 +396,7 @@ def _save_project(record: ProjectRecord, project: ScoreProject, session: Session
 def update_project(project_id: str, request: ProjectPatch, session: SessionDep) -> ScoreProject:
     record, project = _editable_project(project_id, request.expected_revision, session)
     if request.notes is not None:
-        project.notes = request.notes
+        synchronize_score_edits(project, request.notes, record.revision + 1)
     return _save_project(record, project, session)
 
 
@@ -427,6 +431,8 @@ def review_boundary_suggestion(
     )
     if suggestion is None:
         raise HTTPException(status_code=404, detail={"code": "SUGGESTION_NOT_FOUND"})
+    if suggestion.review_status == "superseded":
+        raise HTTPException(status_code=409, detail={"code": "SUGGESTION_SUPERSEDED"})
     if request.action != "reset" and suggestion.review_status != "pending":
         raise HTTPException(status_code=409, detail={"code": "SUGGESTION_ALREADY_REVIEWED"})
     if request.action == "reset" and suggestion.review_status == "pending":
@@ -478,9 +484,11 @@ def review_boundary_suggestion(
         performance_target.source_end_ms = suggestion.proposed_end_ms
         performance_target.origin = "user"
         suggestion.review_status = "accepted"
+        suggestion.superseded_reason = None
         suggestion.reviewed_revision = next_revision
     elif request.action == "reject":
         suggestion.review_status = "rejected"
+        suggestion.superseded_reason = None
         suggestion.reviewed_revision = next_revision
     else:
         if changes_note:
@@ -496,6 +504,7 @@ def review_boundary_suggestion(
             performance_target.source_end_ms = suggestion.original_end_ms
             performance_target.origin = suggestion.accepted_from_origin or "model"
         suggestion.review_status = "pending"
+        suggestion.superseded_reason = None
         suggestion.reviewed_revision = None
         suggestion.accepted_from_origin = None
         suggestion.accepted_from_quantized_duration = None
@@ -563,6 +572,7 @@ def _review_boundary_batch(
             performance_target.source_end_ms = suggestion.original_end_ms
             performance_target.origin = suggestion.accepted_from_origin or "model"
             suggestion.review_status = "pending"
+            suggestion.superseded_reason = None
             suggestion.reviewed_revision = None
             suggestion.review_batch_id = None
             suggestion.accepted_from_origin = None
@@ -609,6 +619,7 @@ def _review_boundary_batch(
         performance_target.source_end_ms = suggestion.proposed_end_ms
         performance_target.origin = "user"
         suggestion.review_status = "accepted"
+        suggestion.superseded_reason = None
         suggestion.review_batch_id = batch_id
         suggestion.reviewed_revision = record.revision + 1
         changed += 1

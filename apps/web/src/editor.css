@@ -468,6 +468,12 @@
   opacity: 0.55;
 }
 
+.piano-roll .boundary-guide.superseded {
+  stroke: #8a8174;
+  stroke-dasharray: 3 4;
+  opacity: 0.25;
+}
+
 .waveform-panel {
   padding: 10px 0 0;
 }
@@ -803,6 +809,11 @@
 }
 .boundary-state.rejected {
   color: #8a8174;
+}
+.boundary-state.superseded {
+  color: #6b6257;
+  white-space: normal;
+  text-align: right;
 }
 .empty {
   pointer-events: none;

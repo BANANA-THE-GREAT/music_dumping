@@ -1,4 +1,5 @@
 import time
+from copy import deepcopy
 from io import BytesIO
 
 from app.config import get_settings
@@ -27,6 +28,45 @@ def create_project() -> dict[str, object]:
     return client.get(f"/v1/projects/{job['project_id']}").json()
 
 
+def add_boundary_evidence(project: dict[str, object]) -> list[dict[str, object]]:
+    notes = project["notes"]
+    performance_notes = project["performance_notes"]
+    assert isinstance(notes, list)
+    assert isinstance(performance_notes, list)
+    suggestions = []
+    for index, (note, performance_note) in enumerate(
+        zip(notes[:2], performance_notes[:2], strict=True)
+    ):
+        source_id = f"source-{index}"
+        note["source_note_ids"] = [source_id]
+        performance_note["source_note_ids"] = [source_id]
+        suggestions.append(
+            {
+                "id": f"boundary-{index}",
+                "source_note_id": source_id,
+                "original_end_ms": note["source_end_ms"],
+                "proposed_end_ms": note["source_end_ms"] + 50,
+                "confidence": 0.9 - index * 0.1,
+                "reason": "f0_voicing_extension",
+            }
+        )
+    project["raw_notes"] = deepcopy(notes)
+    project["transcription_evidence"] = {
+        "note_model": {
+            "name": "GAME medium",
+            "implementation": "test",
+            "code_revision": "test",
+            "parameters": {},
+        },
+        "boundary_suggestions": suggestions,
+    }
+    with SessionLocal() as session:
+        record = session.get(ProjectRecord, project["project_id"])
+        record.document = project
+        session.commit()
+    return deepcopy(project["raw_notes"])
+
+
 def test_project_edit_uses_optimistic_revision() -> None:
     project = create_project()
     notes = project["notes"]
@@ -47,6 +87,132 @@ def test_project_edit_uses_optimistic_revision() -> None:
     )
     assert stale.status_code == 409
     assert stale.json()["detail"]["code"] == "REVISION_CONFLICT"
+
+
+def test_pitch_edit_updates_performance_without_superseding_boundary() -> None:
+    project = create_project()
+    raw_notes = add_boundary_evidence(project)
+    original_timing = (
+        project["performance_notes"][0]["source_start_ms"],
+        project["performance_notes"][0]["source_end_ms"],
+    )
+    project["notes"][0]["pitch_midi"] += 2
+
+    result = client.patch(
+        f"/v1/projects/{project['project_id']}",
+        json={"expected_revision": 1, "notes": project["notes"]},
+    ).json()
+
+    assert result["performance_notes"][0]["pitch_midi"] == project["notes"][0]["pitch_midi"]
+    assert (
+        result["performance_notes"][0]["source_start_ms"],
+        result["performance_notes"][0]["source_end_ms"],
+    ) == original_timing
+    assert result["transcription_evidence"]["boundary_suggestions"][0]["review_status"] == "pending"
+    assert result["raw_notes"] == raw_notes
+
+
+def test_timing_edit_updates_performance_and_only_supersedes_related_boundary() -> None:
+    project = create_project()
+    raw_notes = add_boundary_evidence(project)
+    project["notes"][0]["quantized_duration"] += 0.5
+
+    result = client.patch(
+        f"/v1/projects/{project['project_id']}",
+        json={"expected_revision": 1, "notes": project["notes"]},
+    ).json()
+
+    assert result["performance_notes"][0]["source_end_ms"] == 750
+    suggestions = result["transcription_evidence"]["boundary_suggestions"]
+    assert suggestions[0]["review_status"] == "superseded"
+    assert suggestions[0]["superseded_reason"] == "manual_timing_edit"
+    assert suggestions[1]["review_status"] == "pending"
+    assert result["raw_notes"] == raw_notes
+
+    reset = client.post(
+        f"/v1/projects/{project['project_id']}/boundary-suggestions/boundary-0",
+        json={"expected_revision": result["revision"], "action": "reset"},
+    )
+    assert reset.status_code == 409
+    assert reset.json()["detail"]["code"] == "SUGGESTION_SUPERSEDED"
+
+    requantized = client.post(
+        f"/v1/projects/{project['project_id']}/requantize",
+        json={
+            "expected_revision": result["revision"],
+            "bpm": 120,
+            "numerator": 4,
+            "denominator": 4,
+            "tonic": 0,
+            "mode": "major",
+            "grid": 0.25,
+        },
+    ).json()
+    assert requantized["performance_notes"][0]["source_end_ms"] == 750
+    assert requantized["notes"][0]["quantized_duration"] == 1.5
+
+
+def test_delete_and_split_supersede_boundary_with_specific_reasons() -> None:
+    deleted_project = create_project()
+    add_boundary_evidence(deleted_project)
+    deleted = client.patch(
+        f"/v1/projects/{deleted_project['project_id']}",
+        json={"expected_revision": 1, "notes": deleted_project["notes"][1:]},
+    ).json()
+    assert all(
+        note["id"] != deleted_project["notes"][0]["id"]
+        for note in deleted["performance_notes"]
+    )
+    deleted_suggestion = deleted["transcription_evidence"]["boundary_suggestions"][0]
+    assert deleted_suggestion["review_status"] == "superseded"
+    assert deleted_suggestion["superseded_reason"] == "target_deleted"
+
+    split_project = create_project()
+    add_boundary_evidence(split_project)
+    original = split_project["notes"][0]
+    half = original["quantized_duration"] / 2
+    original["quantized_duration"] = half
+    right = deepcopy(original)
+    right["id"] = "manual-split-right"
+    right["quantized_start"] += half
+    split_project["notes"].insert(1, right)
+    split = client.patch(
+        f"/v1/projects/{split_project['project_id']}",
+        json={"expected_revision": 1, "notes": split_project["notes"]},
+    ).json()
+    owners = [
+        note
+        for note in split["performance_notes"]
+        if "source-0" in note["source_note_ids"]
+    ]
+    assert len(owners) == 2
+    split_suggestion = split["transcription_evidence"]["boundary_suggestions"][0]
+    assert split_suggestion["review_status"] == "superseded"
+    assert split_suggestion["superseded_reason"] == "target_structure_changed"
+
+
+def test_merge_preserves_source_union_and_supersedes_both_boundaries() -> None:
+    project = create_project()
+    raw_notes = add_boundary_evidence(project)
+    left, right = project["notes"][:2]
+    left["source_note_ids"] = ["source-0", "source-1"]
+    left["quantized_duration"] = (
+        right["quantized_start"] + right["quantized_duration"] - left["quantized_start"]
+    )
+    merged_notes = [left, *project["notes"][2:]]
+
+    result = client.patch(
+        f"/v1/projects/{project['project_id']}",
+        json={"expected_revision": 1, "notes": merged_notes},
+    ).json()
+
+    assert result["performance_notes"][0]["source_note_ids"] == ["source-0", "source-1"]
+    suggestions = result["transcription_evidence"]["boundary_suggestions"]
+    assert [item["review_status"] for item in suggestions] == ["superseded", "superseded"]
+    assert all(
+        item["superseded_reason"] == "target_structure_changed" for item in suggestions
+    )
+    assert result["raw_notes"] == raw_notes
 
 
 def test_project_catalog_can_rename_score_and_audio_project() -> None:
@@ -153,11 +319,17 @@ def test_project_can_be_requantized() -> None:
         session.commit()
     project["notes"][0]["quantized_start"] = 9
     project["notes"][0]["quantized_duration"] = 9
+    project["notes"][1]["quantized_start"] = 9
+    project["notes"][1]["quantized_duration"] = 9
     patched = client.patch(
         f"/v1/projects/{project['project_id']}",
         json={"expected_revision": project["revision"], "notes": project["notes"]},
     ).json()
-    assert patched["performance_notes"] == performance_notes
+    assert patched["performance_notes"][0]["source_start_ms"] == 4500
+    assert patched["performance_notes"][0]["source_end_ms"] == 9000
+    assert patched["performance_notes"][1]["source_start_ms"] == 4500
+    assert patched["performance_notes"][1]["source_end_ms"] == 9000
+    performance_notes = patched["performance_notes"]
     response = client.post(
         f"/v1/projects/{project['project_id']}/requantize",
         json={
@@ -715,4 +887,4 @@ def test_boundary_suggestion_reset_preserves_later_duration_edit() -> None:
     assert patched.status_code == 200
     reset = client.post(path, json={"expected_revision": 3, "action": "reset"})
     assert reset.status_code == 409
-    assert reset.json()["detail"]["code"] == "SUGGESTION_TARGET_CHANGED"
+    assert reset.json()["detail"]["code"] == "SUGGESTION_SUPERSEDED"

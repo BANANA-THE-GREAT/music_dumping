@@ -2,6 +2,7 @@ export interface EditableNote {
   id: string;
   source_start_ms: number;
   source_end_ms: number;
+  source_note_ids?: string[];
   pitch_midi: number;
   confidence: number;
   quantized_start: number;
@@ -17,7 +18,11 @@ export type ScoreCommand =
   | { type: "split"; noteId: string; at: number; rightId: string }
   | { type: "merge"; leftId: string; rightId: string };
 
-const clone = (notes: EditableNote[]) => notes.map((note) => ({ ...note }));
+const clone = (notes: EditableNote[]) =>
+  notes.map((note) => ({
+    ...note,
+    source_note_ids: note.source_note_ids ? [...note.source_note_ids] : undefined,
+  }));
 const positive = (value: number) => Math.max(0.125, value);
 
 export function applyCommand(notes: EditableNote[], command: ScoreCommand): EditableNote[] {
@@ -90,6 +95,12 @@ export function applyCommand(notes: EditableNote[], command: ScoreCommand): Edit
             ? {
                 ...note,
                 source_end_ms: Math.max(left.source_end_ms, right.source_end_ms),
+                source_note_ids: [
+                  ...new Set([
+                    ...(left.source_note_ids ?? []),
+                    ...(right.source_note_ids ?? []),
+                  ]),
+                ],
                 quantized_duration: end - left.quantized_start,
                 origin: "user" as const,
               }

@@ -263,7 +263,8 @@
             "enum": [
               "pending",
               "accepted",
-              "rejected"
+              "rejected",
+              "superseded"
             ],
             "title": "Review Status",
             "type": "string"
@@ -283,6 +284,22 @@
           "source_note_id": {
             "title": "Source Note Id",
             "type": "string"
+          },
+          "superseded_reason": {
+            "anyOf": [
+              {
+                "enum": [
+                  "manual_timing_edit",
+                  "target_deleted",
+                  "target_structure_changed"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Superseded Reason"
           }
         },
         "required": [
