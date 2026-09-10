@@ -1,4 +1,5 @@
 import math
+import re
 import struct
 from collections.abc import Iterable
 from dataclasses import dataclass
@@ -9,7 +10,7 @@ from app.schemas import PerformanceNote, ScoreNote, ScoreProject, TempoPoint
 from app.tempo import beat_at_ms
 
 TICKS_PER_QUARTER = 480
-DIVISIONS = 8
+DIVISIONS = 24
 PITCH_NAMES = (
     ("C", 0),
     ("C", 1),
@@ -137,6 +138,8 @@ class XmlSegment:
     pitch_midi: int
     tie_stop: bool
     tie_start: bool
+    note_id: str
+    segment_index: int
 
 
 def _key_fifths(project: ScoreProject) -> int:
@@ -149,10 +152,11 @@ def _key_fifths(project: ScoreProject) -> int:
 
 def _segments(project: ScoreProject, measure_beats: float) -> list[XmlSegment]:
     result: list[XmlSegment] = []
-    for note in sorted(project.notes, key=lambda item: item.quantized_start):
+    for note in sorted(project.notes, key=lambda item: (item.quantized_start, item.id)):
         start = note.quantized_start
         remaining = note.quantized_duration
         first = True
+        segment_index = 0
         while remaining > 1e-9:
             measure = int(start // measure_beats)
             offset = start - measure * measure_beats
@@ -166,17 +170,58 @@ def _segments(project: ScoreProject, measure_beats: float) -> list[XmlSegment]:
                     pitch_midi=note.pitch_midi,
                     tie_stop=not first,
                     tie_start=remaining > 1e-9,
+                    note_id=note.id,
+                    segment_index=segment_index,
                 )
             )
             start += duration
             first = False
+            segment_index += 1
     return result
 
 
-def _append_note(parent: Element, segment: XmlSegment) -> None:
-    note = SubElement(parent, "note")
+def _xml_note_id(segment: XmlSegment) -> str:
+    sanitized = re.sub(r"[^A-Za-z0-9_.-]", "-", segment.note_id).strip("-.")
+    if not sanitized or not sanitized[0].isalpha():
+        sanitized = f"note-{sanitized}"
+    return f"vss-{sanitized}-segment-{segment.segment_index}"
+
+
+def _duration_notation(duration: float) -> tuple[str, int, tuple[int, int] | None] | None:
+    values = (
+        (4.0, "whole"),
+        (2.0, "half"),
+        (1.0, "quarter"),
+        (0.5, "eighth"),
+        (0.25, "16th"),
+        (0.125, "32nd"),
+    )
+    for base, name in values:
+        for dots, multiplier in ((0, 1.0), (1, 1.5), (2, 1.75)):
+            if math.isclose(duration, base * multiplier, abs_tol=1e-7):
+                return name, dots, None
+        if math.isclose(duration, base * 2 / 3, abs_tol=1e-7):
+            return name, 0, (3, 2)
+    return None
+
+
+def _append_note(parent: Element, segment: XmlSegment, *, chord: bool = False) -> None:
+    note = SubElement(parent, "note", id=_xml_note_id(segment))
+    if chord:
+        SubElement(note, "chord")
     _append_pitch(note, segment.pitch_midi)
     SubElement(note, "duration").text = str(max(1, round(segment.duration * DIVISIONS)))
+    notation = _duration_notation(segment.duration)
+    if notation:
+        note_type, dots, time_modification = notation
+        SubElement(note, "type").text = note_type
+        for _ in range(dots):
+            SubElement(note, "dot")
+        if time_modification:
+            actual, normal = time_modification
+            modification = SubElement(note, "time-modification")
+            SubElement(modification, "actual-notes").text = str(actual)
+            SubElement(modification, "normal-notes").text = str(normal)
     if segment.tie_stop:
         SubElement(note, "tie", type="stop")
     if segment.tie_start:
@@ -193,6 +238,30 @@ def _append_rest(parent: Element, duration: float) -> None:
     note = SubElement(parent, "note")
     SubElement(note, "rest")
     SubElement(note, "duration").text = str(max(1, round(duration * DIVISIONS)))
+    notation = _duration_notation(duration)
+    if notation:
+        note_type, dots, time_modification = notation
+        SubElement(note, "type").text = note_type
+        for _ in range(dots):
+            SubElement(note, "dot")
+        if time_modification:
+            actual, normal = time_modification
+            modification = SubElement(note, "time-modification")
+            SubElement(modification, "actual-notes").text = str(actual)
+            SubElement(modification, "normal-notes").text = str(normal)
+
+
+def _append_tempo_direction(parent: Element, bpm: float, offset: float) -> None:
+    direction = SubElement(parent, "direction", placement="above")
+    direction_type = SubElement(direction, "direction-type")
+    metronome = SubElement(direction_type, "metronome")
+    SubElement(metronome, "beat-unit").text = "quarter"
+    SubElement(metronome, "per-minute").text = f"{bpm:g}"
+    if offset > 1e-9:
+        SubElement(direction, "offset", sound="yes").text = str(
+            round(offset * DIVISIONS)
+        )
+    SubElement(direction, "sound", tempo=f"{bpm:g}")
 
 
 def project_to_musicxml(project: ScoreProject) -> bytes:
@@ -206,7 +275,17 @@ def project_to_musicxml(project: ScoreProject) -> bytes:
     meter = project.analysis.meter_map[0]
     measure_beats = meter.numerator * 4 / meter.denominator
     segments = _segments(project, measure_beats)
-    last_measure = max((segment.measure for segment in segments), default=0)
+    tempo_events: dict[int, list[tuple[float, float]]] = {}
+    for point in project.analysis.tempo_map:
+        beat = beat_at_ms(point.time_ms, project.analysis.tempo_map)
+        measure_index = int(beat // measure_beats)
+        tempo_events.setdefault(measure_index, []).append(
+            (beat - measure_index * measure_beats, point.bpm)
+        )
+    last_measure = max(
+        max((segment.measure for segment in segments), default=0),
+        max(tempo_events, default=0),
+    )
     by_measure = {
         index: [segment for segment in segments if segment.measure == index]
         for index in range(last_measure + 1)
@@ -224,15 +303,19 @@ def project_to_musicxml(project: ScoreProject) -> bytes:
             clef = SubElement(attributes, "clef")
             SubElement(clef, "sign").text = "G"
             SubElement(clef, "line").text = "2"
-            direction = SubElement(measure, "direction", placement="above")
-            sound = SubElement(direction, "sound")
-            sound.set("tempo", str(project.analysis.tempo_map[0].bpm))
+        for offset, tempo in sorted(tempo_events.get(measure_index, [])):
+            _append_tempo_direction(measure, tempo, offset)
         cursor = 0.0
+        previous_offset: float | None = None
         for segment in by_measure[measure_index]:
             if segment.offset > cursor:
                 _append_rest(measure, segment.offset - cursor)
-            _append_note(measure, segment)
+            chord = previous_offset is not None and math.isclose(
+                segment.offset, previous_offset, abs_tol=1e-9
+            )
+            _append_note(measure, segment, chord=chord)
             cursor = max(cursor, segment.offset + segment.duration)
+            previous_offset = segment.offset
         if cursor < measure_beats:
             _append_rest(measure, measure_beats - cursor)
     xml = cast(bytes, tostring(root, encoding="utf-8"))

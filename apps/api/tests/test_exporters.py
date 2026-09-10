@@ -1,5 +1,21 @@
-from app.exporters import TICKS_PER_QUARTER, _performance_midi_events
-from app.schemas import PerformanceNote, TempoPoint
+from xml.etree.ElementTree import fromstring
+
+from app.exporters import (
+    DIVISIONS,
+    TICKS_PER_QUARTER,
+    _performance_midi_events,
+    project_to_musicxml,
+)
+from app.schemas import (
+    Analysis,
+    KeyPoint,
+    MeterPoint,
+    PerformanceNote,
+    ScoreNote,
+    ScoreProject,
+    SourceAudio,
+    TempoPoint,
+)
 
 
 def test_performance_midi_uses_source_timing_and_pitch_bends() -> None:
@@ -69,3 +85,79 @@ def test_performance_midi_uses_piecewise_tempo_map() -> None:
     )
     assert events[0][0] == round(2.25 * TICKS_PER_QUARTER)
     assert events[1][0] == round(2.75 * TICKS_PER_QUARTER)
+
+
+def test_musicxml_preserves_tuplets_ties_chords_and_tempo_map() -> None:
+    project = ScoreProject(
+        project_id="rendering-fixture",
+        score_name="复杂节奏样例",
+        source=SourceAudio(
+            file_name="fixture.wav",
+            duration_ms=4000,
+            audio_object_key="fixtures/fixture.wav",
+        ),
+        analysis=Analysis(
+            tempo_map=[
+                TempoPoint(time_ms=0, bpm=120),
+                TempoPoint(time_ms=1000, bpm=90),
+            ],
+            meter_map=[MeterPoint(beat=0, numerator=4, denominator=4)],
+            key_map=[KeyPoint(beat=0, tonic=0, mode="major")],
+            confidence={},
+        ),
+        notes=[
+            ScoreNote(
+                id="triplet 1",
+                source_start_ms=0,
+                source_end_ms=167,
+                pitch_midi=60,
+                confidence=0.9,
+                quantized_start=0,
+                quantized_duration=1 / 3,
+                origin="model",
+            ),
+            ScoreNote(
+                id="chord-note",
+                source_start_ms=0,
+                source_end_ms=167,
+                pitch_midi=64,
+                confidence=0.9,
+                quantized_start=0,
+                quantized_duration=1 / 3,
+                origin="model",
+            ),
+            ScoreNote(
+                id="cross-measure",
+                source_start_ms=1750,
+                source_end_ms=2750,
+                pitch_midi=67,
+                confidence=0.9,
+                quantized_start=3.5,
+                quantized_duration=2,
+                origin="model",
+            ),
+        ],
+        pipeline=[],
+        revision=1,
+    )
+
+    root = fromstring(project_to_musicxml(project).split(b"\n", 1)[1])
+    assert root.findtext("./work/work-title") == "复杂节奏样例"
+    assert root.findtext("./part/measure/attributes/divisions") == str(DIVISIONS)
+    triplet = root.find(".//note[@id='vss-triplet-1-segment-0']")
+    assert triplet is not None
+    assert triplet.findtext("duration") == "8"
+    assert triplet.findtext("type") == "eighth"
+    assert triplet.findtext("time-modification/actual-notes") == "3"
+    same_start = [
+        root.find(".//note[@id='vss-chord-note-segment-0']"),
+        root.find(".//note[@id='vss-triplet-1-segment-0']"),
+    ]
+    assert sum(note is not None and note.find("chord") is not None for note in same_start) == 1
+    tied = [note for note in root.findall(".//note") if note.find("notations/tied") is not None]
+    assert len(tied) == 2
+    assert [sound.attrib["tempo"] for sound in root.findall(".//direction/sound")] == [
+        "120",
+        "90",
+    ]
+    assert root.findtext(".//direction[offset]/offset") == "48"
