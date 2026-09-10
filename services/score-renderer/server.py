@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import subprocess
 import tempfile
+from functools import lru_cache
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -10,6 +11,37 @@ from urllib.parse import parse_qs, urlparse
 
 MAX_SVG_BYTES = 16 * 1024 * 1024
 CONTENT_TYPES = {"svg": "image/svg+xml", "png": "image/png", "pdf": "application/pdf"}
+PAGE_WIDTH = 2100
+PAGE_HEIGHT = 60000
+PNG_DPI = 144
+
+
+@lru_cache
+def renderer_metadata() -> dict[str, str]:
+    import verovio
+
+    inkscape_version = subprocess.run(
+        ["inkscape", "--version"],
+        check=True,
+        timeout=10,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    font = subprocess.run(
+        ["fc-match", "Noto Sans CJK SC", "--format=%{family}"],
+        check=True,
+        timeout=10,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    return {
+        "engraver": f"Verovio {verovio.getVersion()}",
+        "converter": inkscape_version,
+        "font": font or "Noto Sans CJK SC",
+        "page_width": str(PAGE_WIDTH),
+        "page_height": str(PAGE_HEIGHT),
+        "png_dpi": str(PNG_DPI),
+    }
 
 
 def render(svg: bytes, output_format: str) -> bytes:
@@ -30,7 +62,7 @@ def render(svg: bytes, output_format: str) -> bytes:
             f"--export-filename={output}",
         ]
         if output_format == "png":
-            command.append("--export-dpi=144")
+            command.append(f"--export-dpi={PNG_DPI}")
         subprocess.run(command, check=True, timeout=90, capture_output=True)
         return output.read_bytes()
 
@@ -45,8 +77,8 @@ def engrave_musicxml(musicxml: bytes) -> bytes:
             "breaks": "auto",
             "footer": "none",
             "header": "none",
-            "pageHeight": 60000,
-            "pageWidth": 2100,
+            "pageHeight": PAGE_HEIGHT,
+            "pageWidth": PAGE_WIDTH,
             "scale": 42,
         }
     )
@@ -71,32 +103,16 @@ class RendererHandler(BaseHTTPRequestHandler):
             self._json(HTTPStatus.NOT_FOUND, {"code": "NOT_FOUND"})
             return
         try:
-            version = subprocess.run(
-                ["inkscape", "--version"],
-                check=True,
-                timeout=10,
-                capture_output=True,
-                text=True,
-            ).stdout.strip()
-        except (OSError, subprocess.SubprocessError):
+            metadata = renderer_metadata()
+        except (ImportError, AttributeError, OSError, subprocess.SubprocessError):
             self._json(
                 HTTPStatus.SERVICE_UNAVAILABLE,
-                {"status": "unavailable", "renderer": "inkscape"},
-            )
-            return
-        try:
-            import verovio
-
-            verovio_version = verovio.getVersion()
-        except (ImportError, AttributeError):
-            self._json(
-                HTTPStatus.SERVICE_UNAVAILABLE,
-                {"status": "unavailable", "renderer": "verovio"},
+                {"status": "unavailable", "renderer": "score-renderer"},
             )
             return
         self._json(
             HTTPStatus.OK,
-            {"status": "ok", "renderer": version, "engraver": verovio_version},
+            {"status": "ok", **metadata},
         )
 
     def do_POST(self) -> None:
@@ -131,6 +147,13 @@ class RendererHandler(BaseHTTPRequestHandler):
         self.send_response(HTTPStatus.OK)
         self.send_header("Content-Type", CONTENT_TYPES[output_format])
         self.send_header("Content-Length", str(len(output)))
+        try:
+            metadata = renderer_metadata()
+        except (ImportError, AttributeError, OSError, subprocess.SubprocessError):
+            metadata = {}
+        for key, value in metadata.items():
+            header = "-".join(part.capitalize() for part in key.split("_"))
+            self.send_header(f"X-Renderer-{header}", value)
         self.end_headers()
         self.wfile.write(output)
 

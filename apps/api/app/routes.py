@@ -333,6 +333,19 @@ def _renderer_http_error(error: Exception) -> HTTPException:
     )
 
 
+def _renderer_headers(
+    renderer: str, output_format: str, metadata: dict[str, str] | None = None
+) -> dict[str, str]:
+    headers = {
+        "X-Score-Renderer": renderer,
+        "X-Score-Format": output_format,
+    }
+    for key, value in (metadata or {}).items():
+        header = "-".join(part.capitalize() for part in key.split("_"))
+        headers[f"X-Score-Renderer-{header}"] = value
+    return headers
+
+
 @router.get("/projects/{project_id}/exports/staff.svg")
 def export_project_staff_svg(
     project_id: str, session: SessionDep, settings: SettingsDep
@@ -341,21 +354,23 @@ def export_project_staff_svg(
     if settings.renderer_url:
         renderer = "verovio"
         try:
-            content = engrave_musicxml(
+            result = engrave_musicxml(
                 project_to_musicxml(project), "svg", settings.renderer_url
             )
+            content = result.content
+            metadata = result.metadata
         except (RendererUnavailableError, RendererFailedError) as error:
             raise _renderer_http_error(error) from error
     else:
         renderer = "native-staff-svg"
         content = render_staff_svg(project)
+        metadata = None
     return Response(
         content=content,
         media_type="image/svg+xml",
         headers={
             "Content-Disposition": f'attachment; filename="{project_id}.staff.svg"',
-            "X-Score-Renderer": renderer,
-            "X-Score-Format": "staff.svg",
+            **_renderer_headers(renderer, "staff.svg", metadata),
         },
     )
 
@@ -368,8 +383,7 @@ def export_project_jianpu_svg(project_id: str, session: SessionDep) -> Response:
         media_type="image/svg+xml",
         headers={
             "Content-Disposition": f'attachment; filename="{project_id}.jianpu.svg"',
-            "X-Score-Renderer": "native-jianpu-svg",
-            "X-Score-Format": "jianpu.svg",
+            **_renderer_headers("native-jianpu-svg", "jianpu.svg"),
         },
     )
 
@@ -384,27 +398,30 @@ def _converted_score_export(
     project = _project_document(project_id, session)
     try:
         if notation == "staff":
-            content = engrave_musicxml(
+            result = engrave_musicxml(
                 project_to_musicxml(project), output_format, settings.renderer_url
             )
         else:
-            content = convert_svg(
+            result = convert_svg(
                 render_jianpu_svg(project), output_format, settings.renderer_url
             )
     except (RendererUnavailableError, RendererFailedError) as error:
         raise _renderer_http_error(error) from error
     media_type = "image/png" if output_format == "png" else "application/pdf"
     return Response(
-        content=content,
+        content=result.content,
         media_type=media_type,
         headers={
             "Content-Disposition": (
                 f'attachment; filename="{project_id}.{notation}.{output_format}"'
             ),
-            "X-Score-Renderer": (
-                "verovio+inkscape" if notation == "staff" else "native-jianpu+inkscape"
+            **_renderer_headers(
+                "verovio+inkscape"
+                if notation == "staff"
+                else "native-jianpu+inkscape",
+                f"{notation}.{output_format}",
+                result.metadata,
             ),
-            "X-Score-Format": f"{notation}.{output_format}",
         },
     )
 

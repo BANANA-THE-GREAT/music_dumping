@@ -6,6 +6,7 @@ from app.config import get_settings
 from app.database import SessionLocal
 from app.main import app
 from app.models import JobRecord, ProjectRecord, UploadRecord
+from app.renderer_client import RendererResult
 from app.schemas import ScoreProject
 from fastapi.testclient import TestClient
 
@@ -478,17 +479,25 @@ def test_project_exports_standard_midi_and_musicxml(monkeypatch) -> None:
     assert musicxml.content.count(b"<note") >= len(project["notes"])
     assert musicxml.content.count(b"<measure ") == 3
 
-    def fake_convert(svg: bytes, output_format: str, renderer_url: str | None) -> bytes:
+    def fake_convert(
+        svg: bytes, output_format: str, renderer_url: str | None
+    ) -> RendererResult:
         assert svg.startswith(b"<svg")
         assert output_format in {"png", "pdf"}
-        return b"PNG" if output_format == "png" else b"%PDF-1.4"
+        return RendererResult(
+            content=b"PNG" if output_format == "png" else b"%PDF-1.4",
+            metadata={"converter": "Inkscape 1.4", "png_dpi": "144"},
+        )
 
     def fake_engrave(
         musicxml: bytes, output_format: str, renderer_url: str | None
-    ) -> bytes:
+    ) -> RendererResult:
         assert b"<score-partwise" in musicxml
         assert output_format in {"png", "pdf"}
-        return b"PNG" if output_format == "png" else b"%PDF-1.4"
+        return RendererResult(
+            content=b"PNG" if output_format == "png" else b"%PDF-1.4",
+            metadata={"engraver": "Verovio 6.2.1", "converter": "Inkscape 1.4"},
+        )
 
     monkeypatch.setattr("app.routes.convert_svg", fake_convert)
     monkeypatch.setattr("app.routes.engrave_musicxml", fake_engrave)
@@ -499,6 +508,8 @@ def test_project_exports_standard_midi_and_musicxml(monkeypatch) -> None:
     assert staff_png.headers["content-type"].startswith("image/png")
     assert staff_png.headers["x-score-renderer"] == "verovio+inkscape"
     assert staff_png.headers["x-score-format"] == "staff.png"
+    assert staff_png.headers["x-score-renderer-engraver"] == "Verovio 6.2.1"
+    assert staff_png.headers["x-score-renderer-converter"] == "Inkscape 1.4"
     assert jianpu_pdf.status_code == 200 and jianpu_pdf.content.startswith(b"%PDF")
     assert jianpu_pdf.headers["content-type"].startswith("application/pdf")
     assert jianpu_pdf.headers["x-score-renderer"] == "native-jianpu+inkscape"
