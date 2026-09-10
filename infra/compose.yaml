@@ -38,6 +38,8 @@ services:
       dockerfile: infra/docker/Dockerfile.renderer
       args:
         VSS_RENDERER_BASE_IMAGE: ${VSS_RENDERER_BASE_IMAGE:-python:3.11.16-slim-trixie}
+        VSS_DEBIAN_MIRROR: ${VSS_DEBIAN_MIRROR:-http://deb.debian.org/debian}
+        VSS_DEBIAN_SECURITY_MIRROR: ${VSS_DEBIAN_SECURITY_MIRROR:-http://deb.debian.org/debian-security}
     image: vocal-score-studio-renderer:latest
     healthcheck:
       test: ["CMD", "python", "-c", "import json, urllib.request; assert json.load(urllib.request.urlopen('http://127.0.0.1:8090/health', timeout=3))['status'] == 'ok'"]

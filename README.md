@@ -96,6 +96,16 @@ VSS_RENDERER_BASE_IMAGE=vocal-score-studio-api-deps:local make build-renderer
 该方式仍需要 Debian 软件源和 PyPI 下载 Inkscape、Noto CJK 与 Verovio，但不会访问
 `registry-1.docker.io` 获取 Python 基础镜像。
 
+如果 `deb.debian.org` 在当前网络中超时，可以同时指定 Debian 镜像。Dockerfile 使用
+BuildKit 的 apt/pip 缓存挂载，网络中断后重试会复用已经下载的包：
+
+```bash
+VSS_RENDERER_BASE_IMAGE=vocal-score-studio-api-deps:local \
+VSS_DEBIAN_MIRROR=https://mirrors.tuna.tsinghua.edu.cn/debian \
+VSS_DEBIAN_SECURITY_MIRROR=https://mirrors.tuna.tsinghua.edu.cn/debian-security \
+make build-renderer
+```
+
 ```bash
 docker compose -f infra/compose.yaml up -d --wait web worker
 ```
