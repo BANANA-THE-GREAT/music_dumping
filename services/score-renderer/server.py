@@ -18,6 +18,7 @@ PAGE_HEIGHT = 2970
 PNG_DPI = 144
 MAX_CONCURRENT_RENDERS = 2
 RENDER_QUEUE_TIMEOUT_SECONDS = 5
+REQUIRED_FONT_FAMILY = "Noto Sans CJK"
 SVG_NAMESPACE = "http://www.w3.org/2000/svg"
 INKSCAPE_NAMESPACE = "http://www.inkscape.org/namespaces/inkscape"
 SODIPODI_NAMESPACE = "http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
@@ -46,10 +47,12 @@ def renderer_metadata() -> dict[str, str]:
         capture_output=True,
         text=True,
     ).stdout.strip()
+    if REQUIRED_FONT_FAMILY.casefold() not in font.casefold():
+        raise RuntimeError(f"required font is unavailable: {REQUIRED_FONT_FAMILY}")
     return {
         "engraver": f"Verovio {verovio.getVersion()}",
         "converter": inkscape_version,
-        "font": font or "Noto Sans CJK SC",
+        "font": font,
         "page_width": str(PAGE_WIDTH),
         "page_height": str(PAGE_HEIGHT),
         "png_dpi": str(PNG_DPI),
@@ -151,7 +154,13 @@ class RendererHandler(BaseHTTPRequestHandler):
             return
         try:
             metadata = renderer_metadata()
-        except (ImportError, AttributeError, OSError, subprocess.SubprocessError):
+        except (
+            ImportError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+            subprocess.SubprocessError,
+        ):
             self._json(
                 HTTPStatus.SERVICE_UNAVAILABLE,
                 {"status": "unavailable", "renderer": "score-renderer"},
@@ -179,6 +188,20 @@ class RendererHandler(BaseHTTPRequestHandler):
             self._json(HTTPStatus.REQUEST_ENTITY_TOO_LARGE, {"code": "INVALID_SVG_SIZE"})
             return
         try:
+            renderer_metadata()
+        except (
+            ImportError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+            subprocess.SubprocessError,
+        ) as error:
+            self._json(
+                HTTPStatus.SERVICE_UNAVAILABLE,
+                {"code": "RENDERER_UNAVAILABLE", "message": str(error)},
+            )
+            return
+        try:
             source = self.rfile.read(length)
             if not RENDER_SLOTS.acquire(timeout=RENDER_QUEUE_TIMEOUT_SECONDS):
                 self._json(
@@ -191,10 +214,11 @@ class RendererHandler(BaseHTTPRequestHandler):
                 output = render(svg, output_format)
             finally:
                 RENDER_SLOTS.release()
-        except ValueError as error:
-            self._json(HTTPStatus.BAD_REQUEST, {"code": "INVALID_SVG", "message": str(error)})
+        except (UnicodeDecodeError, ValueError) as error:
+            code = "INVALID_MUSICXML" if parsed.path == "/engrave" else "INVALID_SVG"
+            self._json(HTTPStatus.BAD_REQUEST, {"code": code, "message": str(error)})
             return
-        except (OSError, subprocess.SubprocessError) as error:
+        except (OSError, RuntimeError, subprocess.SubprocessError) as error:
             self._json(
                 HTTPStatus.UNPROCESSABLE_ENTITY,
                 {"code": "RENDER_FAILED", "message": str(error)},
@@ -205,7 +229,13 @@ class RendererHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(output)))
         try:
             metadata = renderer_metadata()
-        except (ImportError, AttributeError, OSError, subprocess.SubprocessError):
+        except (
+            ImportError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+            subprocess.SubprocessError,
+        ):
             metadata = {}
         for key, value in metadata.items():
             header = "-".join(part.capitalize() for part in key.split("_"))

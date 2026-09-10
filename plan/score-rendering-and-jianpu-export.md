@@ -244,7 +244,7 @@ ScoreNote
 - [ ] 验证 SVG 非空、PNG 可解码、PDF 可打开；
 - [x] 验证现有编辑器音符高亮、选中、编辑和播放时间轴不受导出入口影响；
 - [ ] 测试 1、10、50 页谱面的渲染时间和内存；
-- [ ] 测试渲染器不可用、字体缺失和格式错误时的回退；
+- [x] 测试渲染器不可用、字体缺失和格式错误时的明确失败与本地 SVG 回退；
 - [x] 更新 README、`docs/model-licenses.md`、`docs/api.md` 和 `docs/architecture.md`；
 - [x] 更新 `docs/todo.md`，记录简谱导出主线和剩余第三方候选状态；
 - [x] 每个已完成阶段创建独立 Conventional Commit，不推送远端。

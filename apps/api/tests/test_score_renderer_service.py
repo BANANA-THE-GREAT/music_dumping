@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import sys
 from pathlib import Path
 from types import ModuleType
 from xml.etree.ElementTree import fromstring
@@ -75,3 +76,40 @@ def test_renderer_benchmark_generates_requested_measure_count() -> None:
     measures = root.findall("./part/measure")
     assert len(measures) == 40
     assert len(root.findall(".//note")) == 160
+
+
+def test_renderer_metadata_requires_noto_cjk(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    renderer = _renderer_module()
+    renderer.renderer_metadata.cache_clear()
+    fake_verovio = ModuleType("verovio")
+    fake_verovio.getVersion = lambda: "6.2.1"  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "verovio", fake_verovio)
+
+    def fake_run(command: list[str], **kwargs: object) -> object:
+        output = "Inkscape 1.4" if command[0] == "inkscape" else "DejaVu Sans"
+        return type("Result", (), {"stdout": output})()
+
+    monkeypatch.setattr(renderer.subprocess, "run", fake_run)
+    with pytest.raises(RuntimeError, match="required font is unavailable"):
+        renderer.renderer_metadata()
+
+
+def test_engraver_rejects_invalid_utf8_before_loading_verovio(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    renderer = _renderer_module()
+    fake_verovio = ModuleType("verovio")
+
+    class Toolkit:
+        def setOptions(self, options: dict[str, object]) -> None:
+            pass
+
+        def loadData(self, source: str) -> bool:
+            raise AssertionError("invalid UTF-8 must not reach Verovio")
+
+    fake_verovio.toolkit = Toolkit  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "verovio", fake_verovio)
+    with pytest.raises(UnicodeDecodeError):
+        renderer.engrave_musicxml(b"\xff")
