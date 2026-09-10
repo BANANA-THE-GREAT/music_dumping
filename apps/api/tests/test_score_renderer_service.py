@@ -1,9 +1,16 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import sys
+from collections.abc import Iterator
+from contextlib import contextmanager
+from http.server import ThreadingHTTPServer
 from pathlib import Path
+from threading import Thread
 from types import ModuleType
+from urllib.error import HTTPError
+from urllib.request import Request, urlopen
 from xml.etree.ElementTree import fromstring
 
 import pytest
@@ -25,6 +32,29 @@ def _benchmark_module() -> ModuleType:
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+@contextmanager
+def _running_renderer(renderer: ModuleType) -> Iterator[str]:
+    server = ThreadingHTTPServer(("127.0.0.1", 0), renderer.RendererHandler)
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        host, port = server.server_address
+        yield f"http://{host}:{port}"
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=2)
+
+
+def _post_error(url: str, path: str, body: bytes) -> tuple[int, dict[str, object]]:
+    request = Request(f"{url}{path}", data=body, method="POST")
+    try:
+        urlopen(request, timeout=2)
+    except HTTPError as error:
+        return error.code, json.loads(error.read())
+    raise AssertionError("request unexpectedly succeeded")
 
 
 def test_renderer_returns_svg_without_starting_a_subprocess() -> None:
@@ -113,3 +143,53 @@ def test_engraver_rejects_invalid_utf8_before_loading_verovio(
     monkeypatch.setitem(sys.modules, "verovio", fake_verovio)
     with pytest.raises(UnicodeDecodeError):
         renderer.engrave_musicxml(b"\xff")
+
+
+def test_renderer_http_reports_missing_runtime_dependency(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    renderer = _renderer_module()
+
+    def unavailable() -> dict[str, str]:
+        raise RuntimeError("required font is unavailable")
+
+    monkeypatch.setattr(renderer, "renderer_metadata", unavailable)
+    with _running_renderer(renderer) as url:
+        status, payload = _post_error(url, "/render?format=png", b"<svg></svg>")
+    assert status == 503
+    assert payload["code"] == "RENDERER_UNAVAILABLE"
+
+
+def test_renderer_http_reports_full_queue(monkeypatch: pytest.MonkeyPatch) -> None:
+    renderer = _renderer_module()
+
+    class FullQueue:
+        def acquire(self, timeout: int) -> bool:
+            assert timeout == renderer.RENDER_QUEUE_TIMEOUT_SECONDS
+            return False
+
+        def release(self) -> None:
+            raise AssertionError("an unacquired render slot must not be released")
+
+    monkeypatch.setattr(renderer, "renderer_metadata", lambda: {})
+    monkeypatch.setattr(renderer, "RENDER_SLOTS", FullQueue())
+    with _running_renderer(renderer) as url:
+        status, payload = _post_error(url, "/render?format=png", b"<svg></svg>")
+    assert status == 503
+    assert payload["code"] == "RENDERER_BUSY"
+
+
+def test_renderer_http_rejects_invalid_musicxml(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    renderer = _renderer_module()
+
+    def invalid(_: bytes) -> bytes:
+        raise ValueError("Verovio could not load the MusicXML document")
+
+    monkeypatch.setattr(renderer, "renderer_metadata", lambda: {})
+    monkeypatch.setattr(renderer, "engrave_musicxml", invalid)
+    with _running_renderer(renderer) as url:
+        status, payload = _post_error(url, "/engrave?format=svg", b"<broken>")
+    assert status == 400
+    assert payload["code"] == "INVALID_MUSICXML"
