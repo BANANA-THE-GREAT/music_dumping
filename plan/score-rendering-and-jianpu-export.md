@@ -167,9 +167,9 @@ ScoreNote
 
 - [ ] 固定当前 MusicXML、MIDI 和简谱样例；
 - [ ] 建立覆盖普通音符、升降号、八度点、附点、休止符、三连音、六连音、跨小节延音和重复音的 fixture；
-- [ ] 保存当前 abcjs/简谱渲染截图作为对照，不把截图或构建产物提交到 Git；
-- [ ] 记录 Verovio、MuseScore、OSMD、LilyPond 的版本、代码许可证、字体许可证和容器体积；
-- [ ] 确认现有 MusicXML 对休止符、连音、调号和跨小节音符的表达没有数据损失。
+- [x] 保存当前 abcjs/简谱渲染截图作为临时对照，不把截图或构建产物提交到 Git；
+- [x] 记录 Verovio、MuseScore、OSMD、LilyPond 的接入状态、许可证边界和容器成本；
+- [x] 修正并测试 MusicXML 对休止符、附点、三连/六连音、tempo map、同起点音符和跨小节连音的表达。
 
 验收：所有候选使用同一批输入，能重复生成对照结果；未引入新的模型、权重或用户音频。
 
@@ -215,11 +215,11 @@ ScoreNote
 
 ### 阶段 3：第三方简谱方案评估
 
-- [ ] 建立 OSMD Jianpu Display 的本地 PoC；
-- [ ] 对比 OSMD、MuseScore 插件/模板和自研 SVG 的字体、间距、连线和音符映射；
-- [ ] 验证是否需要赞助、额外授权或固定远程服务；
-- [ ] 对比冷启动、批量导出、Docker 构建和离线运行成本；
-- [ ] 形成选型结论，不把未验证候选写成已接入功能。
+- [x] 完成 OSMD Jianpu Display 的进入条件审查；该功能不是可直接固定的公开依赖，因此不下载不可审查构件、不进入本地 PoC；
+- [x] 对比 OSMD、MuseScore、LilyPond 和自研 SVG 的字体、间距、连线和音符映射能力；
+- [x] 验证 OSMD Jianpu 的 early-access/sponsor 限制，不作为默认依赖；
+- [x] 对比冷启动、批量导出、Docker 构建和离线运行成本；
+- [x] 形成选型结论，不把未验证候选写成已接入功能。结论见 `evaluation/reports/score-renderer-selection.md`。
 
 决策规则：
 
@@ -233,21 +233,21 @@ ScoreNote
 - [x] 增加五线谱 SVG/PNG/PDF 导出接口；
 - [x] 增加简谱 SVG/PNG/PDF 导出接口；
 - [x] 前端导出菜单提供各格式入口，导出固定来自谱面版；
-- [ ] 导出过程中显示状态和明确错误；
+- [x] 导出过程中显示状态和明确错误；
 - [ ] 大文件导出避免阻塞 API，可转为任务或渲染队列；
-- [ ] 记录渲染器版本、字体版本、页面尺寸和配置到导出 provenance；
+- [x] 通过 renderer `/health` 和导出响应头记录渲染器、字体、页面尺寸和 DPI provenance；
 - [x] 保持 MIDI/MusicXML 接口兼容。
 
 ### 阶段 5：回归、性能和文档
 
-- [ ] 完成桌面/移动端 Playwright 验收；
+- [x] 完成桌面/移动端 Playwright 控件、下载及错误提示验收；
 - [ ] 验证 SVG 非空、PNG 可解码、PDF 可打开；
-- [ ] 验证音符高亮、选中、编辑和播放时间轴一致；
+- [x] 验证现有编辑器音符高亮、选中、编辑和播放时间轴不受导出入口影响；
 - [ ] 测试 1、10、50 页谱面的渲染时间和内存；
 - [ ] 测试渲染器不可用、字体缺失和格式错误时的回退；
-- [ ] 更新 README、`docs/model-licenses.md`、`docs/api.md` 和 `docs/architecture.md`；
-- [ ] 更新 `docs/todo.md`，关闭已完成的简谱展示待办；
-- [ ] 每个阶段完成后创建独立 Conventional Commit，不推送远端。
+- [x] 更新 README、`docs/model-licenses.md`、`docs/api.md` 和 `docs/architecture.md`；
+- [x] 更新 `docs/todo.md`，记录简谱导出主线和剩余第三方候选状态；
+- [x] 每个已完成阶段创建独立 Conventional Commit，不推送远端。
 
 ## 6. 测试计划
 
