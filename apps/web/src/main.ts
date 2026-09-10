@@ -41,7 +41,17 @@ const api = new VocalScoreApi();
 const ACTIVE_JOB_KEY = "vocal-score.active-job";
 const FAILED_JOB_KEY = "vocal-score.failed-job";
 document.querySelector<HTMLDivElement>("#app")!.innerHTML =
-  `<main><header><div><span class="eyebrow">VOCAL SCORE STUDIO</span><h1>拾音</h1></div><p>从一首歌里分离人声，自动识别速度、拍号与调性，生成可演奏的简谱和五线谱。</p></header><section class="workbench"><aside><label class="drop" id="drop"><input id="file" type="file" accept="audio/*"><span class="drop-icon">↥</span><strong>放入歌曲或人声以创建新项目</strong><small>MP3 · WAV · OGG · FLAC</small></label><audio id="audio" controls></audio><div class="field"><label>人声分离 <output id="isolateValue">82%</output></label><input id="isolate" type="range" min="0" max="100" value="82"><small>适合主唱居中的立体声歌曲</small></div><div class="field"><label>识别灵敏度</label><select id="sensitivity"><option value="0.35">均衡</option><option value="0.48">保守</option><option value="0.25">灵敏</option></select></div><button class="primary" id="transcribe" disabled>自动分析并扒谱</button><button class="ghost" id="example">载入完整示例</button><section id="task-progress" aria-label="转录任务进度"></section><p class="status" id="status" role="status">等待音频</p></aside><article><section class="analysis-panel"><div><span>速度 BPM</span><input id="bpm" type="number" min="40" max="240" value="120"><small id="bpmConfidence">待分析</small></div><div><span>拍号</span><select id="meter"><option value="4">4 / 4</option><option value="3">3 / 4</option></select><small id="meterConfidence">待分析</small></div><div><span>调性</span><section><select id="key">${KEYS.map((k, i) => `<option value="${i}">${k}</option>`).join("")}</select><select id="mode"><option value="major">大调</option><option value="minor">小调</option></select></section><small id="keyConfidence">待分析</small></div></section><div class="toolbar"><div class="actions"><button id="play" disabled>▶ 演奏</button><button id="midi" disabled>导出 MIDI</button><button id="xml" disabled>导出 MusicXML</button></div></div><div class="score-shell"><div class="score-content"><div id="staff" class="score"></div><div id="jianpu" class="score hidden"></div><div class="empty" id="empty"><div>♪</div><strong>完整乐谱会出现在这里</strong><span>导入歌曲后，一次完成分离、分析与转谱</span></div></div><nav class="score-tools" aria-label="谱面工具"><div class="tabs"><button class="active" data-view="staff">五线谱</button><button data-view="jianpu">简谱</button></div></nav></div></article></section><footer>本地处理 · 不上传音频 · 自动识别结果可手动修正</footer></main>`;
+  `<main><header><div><span class="eyebrow">VOCAL SCORE STUDIO</span><h1>拾音</h1></div><p>从一首歌里分离人声，自动识别速度、拍号与调性，生成可演奏的简谱和五线谱。</p></header><section class="workbench"><aside><label class="drop" id="drop"><input id="file" type="file" accept="audio/*"><span class="drop-icon">↥</span><strong>放入歌曲或人声以创建新项目</strong><small>MP3 · WAV · OGG · FLAC</small></label><audio id="audio" controls></audio><div class="field"><label>人声分离 <output id="isolateValue">82%</output></label><input id="isolate" type="range" min="0" max="100" value="82"><small>适合主唱居中的立体声歌曲</small></div><div class="field"><label>识别灵敏度</label><select id="sensitivity"><option value="0.35">均衡</option><option value="0.48">保守</option><option value="0.25">灵敏</option></select></div><button class="primary" id="transcribe" disabled>自动分析并扒谱</button><button class="ghost" id="example">载入完整示例</button><section id="task-progress" aria-label="转录任务进度"></section><p class="status" id="status" role="status">等待音频</p></aside><article><section class="analysis-panel"><div><span>速度 BPM</span><input id="bpm" type="number" min="40" max="240" value="120"><small id="bpmConfidence">待分析</small></div><div><span>拍号</span><select id="meter"><option value="4">4 / 4</option><option value="3">3 / 4</option></select><small id="meterConfidence">待分析</small></div><div><span>调性</span><section><select id="key">${KEYS.map((k, i) => `<option value="${i}">${k}</option>`).join("")}</select><select id="mode"><option value="major">大调</option><option value="minor">小调</option></select></section><small id="keyConfidence">待分析</small></div></section><div class="toolbar"><div class="actions"><button id="play" disabled>▶ 演奏</button><button id="midi" disabled>导出 MIDI</button><button id="xml" disabled>导出 MusicXML</button><button id="staff-export" disabled>导出五线谱</button><button id="jianpu-export" disabled>导出简谱</button></div></div><div class="score-shell"><div class="score-content"><div id="staff" class="score"></div><div id="jianpu" class="score hidden"></div><div class="empty" id="empty"><div>♪</div><strong>完整乐谱会出现在这里</strong><span>导入歌曲后，一次完成分离、分析与转谱</span></div></div><nav class="score-tools" aria-label="谱面工具"><div class="tabs"><button class="active" data-view="staff">五线谱</button><button data-view="jianpu">简谱</button></div></nav></div></article></section><footer>本地处理 · 不上传音频 · 自动识别结果可手动修正</footer></main>`;
+const staffExportButton = document.querySelector<HTMLButtonElement>("#staff-export")!;
+staffExportButton.insertAdjacentHTML(
+  "beforebegin",
+  `<select id="staff-export-format" aria-label="五线谱导出格式"><option value="svg">五线谱 SVG</option><option value="png">五线谱 PNG</option><option value="pdf">五线谱 PDF</option></select>`,
+);
+const jianpuExportButton = document.querySelector<HTMLButtonElement>("#jianpu-export")!;
+jianpuExportButton.insertAdjacentHTML(
+  "beforebegin",
+  `<select id="jianpu-export-format" aria-label="简谱导出格式"><option value="svg">简谱 SVG</option><option value="png">简谱 PNG</option><option value="pdf">简谱 PDF</option></select>`,
+);
 document
   .querySelector("#midi")!
   .insertAdjacentHTML(
@@ -1534,10 +1544,18 @@ async function render() {
   );
   applyRollZoom();
   refreshSelection();
-  [play, $<HTMLButtonElement>("#midi"), $<HTMLButtonElement>("#xml")].forEach(
+  [
+    play,
+    $<HTMLButtonElement>("#midi"),
+    $<HTMLButtonElement>("#xml"),
+    $<HTMLButtonElement>("#staff-export"),
+    $<HTMLButtonElement>("#jianpu-export"),
+  ].forEach(
     (b) => (b.disabled = !notes.length),
   );
   $<HTMLSelectElement>("#midi-version").disabled = !notes.length;
+  $<HTMLSelectElement>("#staff-export-format").disabled = !notes.length;
+  $<HTMLSelectElement>("#jianpu-export-format").disabled = !notes.length;
   $<HTMLSelectElement>("#playback-version").disabled = !notes.length;
 }
 $("#boundary-review").addEventListener("click", async (event) => {
@@ -2225,7 +2243,15 @@ function midiVersion() {
     | "performance";
 }
 function downloadServerExport(
-  format: "midi" | "musicxml",
+  format:
+    | "midi"
+    | "musicxml"
+    | "staff.svg"
+    | "staff.png"
+    | "staff.pdf"
+    | "jianpu.svg"
+    | "jianpu.png"
+    | "jianpu.pdf",
   version: "score" | "performance" = "score",
 ) {
   if (!serverProject) return false;
@@ -2247,6 +2273,22 @@ $("#xml").addEventListener("click", () => {
     void import("./export").then(({ exportMusicXml }) =>
       exportMusicXml(notes, analysis),
     );
+});
+$("#staff-export").addEventListener("click", () => {
+  const format = $<HTMLSelectElement>("#staff-export-format").value as
+    | "svg"
+    | "png"
+    | "pdf";
+  if (!downloadServerExport(`staff.${format}`))
+    status("请先保存或载入服务端谱面");
+});
+$("#jianpu-export").addEventListener("click", () => {
+  const format = $<HTMLSelectElement>("#jianpu-export-format").value as
+    | "svg"
+    | "png"
+    | "pdf";
+  if (!downloadServerExport(`jianpu.${format}`))
+    status("请先保存或载入服务端谱面");
 });
 $<HTMLButtonElement>("#retry-job").disabled =
   !localStorage.getItem(FAILED_JOB_KEY);

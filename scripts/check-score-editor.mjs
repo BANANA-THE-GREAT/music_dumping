@@ -373,6 +373,19 @@ try {
         '{"time_seconds":0.02,"f0_hz":262.2,"periodicity":0.85}\n',
     }),
   );
+  await page.route("**/api/v1/projects/editor-check/exports/**", (route) => {
+    const fileName = route.request().url().split("/").at(-1);
+    route.fulfill({
+      status: 200,
+      contentType: fileName.endsWith(".svg")
+        ? "image/svg+xml"
+        : fileName.endsWith(".png")
+          ? "image/png"
+          : "application/pdf",
+      headers: { "Content-Disposition": `attachment; filename="${fileName}"` },
+      body: fileName.endsWith(".svg") ? "<svg></svg>" : "score",
+    });
+  });
   await page.route(
     "**/api/v1/projects/editor-check/boundary-suggestions/boundary-1",
     async (route) => {
@@ -429,6 +442,24 @@ try {
     () => document.querySelectorAll("#piano .roll-note").length === 2,
   );
   assert.equal(await page.locator("#piano .performance-note").count(), 2);
+  assert.deepEqual(await page.locator("#staff-export-format option").allTextContents(), [
+    "五线谱 SVG",
+    "五线谱 PNG",
+    "五线谱 PDF",
+  ]);
+  assert.deepEqual(await page.locator("#jianpu-export-format option").allTextContents(), [
+    "简谱 SVG",
+    "简谱 PNG",
+    "简谱 PDF",
+  ]);
+  await page.selectOption("#staff-export-format", "png");
+  const staffDownload = page.waitForEvent("download");
+  await page.click("#staff-export");
+  assert.equal((await staffDownload).suggestedFilename(), "staff.png");
+  await page.selectOption("#jianpu-export-format", "pdf");
+  const jianpuDownload = page.waitForEvent("download");
+  await page.click("#jianpu-export");
+  assert.equal((await jianpuDownload).suggestedFilename(), "jianpu.pdf");
   await page.selectOption("#playback-version", "score");
   await page.selectOption("#playback-mode", "score");
   await page.selectOption("#playback-start", "beginning");
