@@ -109,13 +109,16 @@ make build-renderer
 `make build-renderer` 默认使用以上 Debian 镜像，并显式传递 Docker build args。Inkscape
 与 Noto CJK 字体分层安装；网络中断后重复执行命令会复用已经成功完成的构建层。
 
-renderer 启动后可运行约 1、10、50 页的 SVG/PNG/PDF 基准：
+renderer 启动后可运行实际 1、10、50 页的 SVG/PDF 基准：
 
 ```bash
 make benchmark-renderer
 ```
 
-基准输出 JSONL，包含实际页数、耗时、文件大小及容器 cgroup 内存变化。
+脚本会先按 Verovio 返回的页数校准输入。基准输出 JSONL，包含实际页数、耗时、
+文件大小、结构校验结果及容器 cgroup 内存变化。PNG 是单张纵向位图，不对 10/50 页
+执行默认压力测试；可单独运行 `docker compose -f infra/compose.yaml exec -T renderer
+python /app/benchmark.py --target-pages 1 --formats png` 验证其尺寸和解码结构。
 
 前端构建后可打开 `http://localhost:8888/score-rendering-comparison.html`，选择一份已保存
 谱面，并排检查当前交互编辑器与导出简谱 SVG。该诊断页也支持

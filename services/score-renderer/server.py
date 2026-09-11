@@ -7,9 +7,17 @@ from functools import lru_cache
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from threading import BoundedSemaphore
+from threading import BoundedSemaphore, Lock
+from typing import Protocol, cast
 from urllib.parse import parse_qs, urlparse
-from xml.etree.ElementTree import Element, SubElement, fromstring, register_namespace, tostring
+from xml.etree.ElementTree import (
+    Element,
+    ParseError,
+    SubElement,
+    fromstring,
+    register_namespace,
+    tostring,
+)
 
 MAX_SVG_BYTES = 16 * 1024 * 1024
 CONTENT_TYPES = {"svg": "image/svg+xml", "png": "image/png", "pdf": "application/pdf"}
@@ -27,12 +35,36 @@ register_namespace("", SVG_NAMESPACE)
 register_namespace("inkscape", INKSCAPE_NAMESPACE)
 register_namespace("sodipodi", SODIPODI_NAMESPACE)
 RENDER_SLOTS = BoundedSemaphore(MAX_CONCURRENT_RENDERS)
+VEROVIO_LOCK = Lock()
+
+
+class VerovioToolkit(Protocol):
+    def getVersion(self) -> str: ...
+
+    def setOptions(self, options: dict[str, object]) -> None: ...
+
+    def loadData(self, data: str) -> bool: ...
+
+    def getPageCount(self) -> int: ...
+
+    def renderToSVG(self, page: int) -> str: ...
+
+
+VEROVIO_TOOLKIT: VerovioToolkit | None = None
+
+
+def initialize_engraver() -> VerovioToolkit:
+    global VEROVIO_TOOLKIT
+    if VEROVIO_TOOLKIT is None:
+        import verovio  # type: ignore[import-not-found]
+
+        VEROVIO_TOOLKIT = cast(VerovioToolkit, verovio.toolkit())
+    return VEROVIO_TOOLKIT
 
 
 @lru_cache
 def renderer_metadata() -> dict[str, str]:
-    import verovio
-
+    toolkit = initialize_engraver()
     inkscape_version = subprocess.run(
         ["inkscape", "--version"],
         check=True,
@@ -50,7 +82,7 @@ def renderer_metadata() -> dict[str, str]:
     if REQUIRED_FONT_FAMILY.casefold() not in font.casefold():
         raise RuntimeError(f"required font is unavailable: {REQUIRED_FONT_FAMILY}")
     return {
-        "engraver": f"Verovio {verovio.getVersion()}",
+        "engraver": f"Verovio {toolkit.getVersion()}",
         "converter": inkscape_version,
         "font": font,
         "page_width": str(PAGE_WIDTH),
@@ -63,23 +95,60 @@ def renderer_metadata() -> dict[str, str]:
 def render(svg: bytes, output_format: str) -> bytes:
     if output_format not in CONTENT_TYPES:
         raise ValueError("unsupported output format")
-    if not svg.lstrip().startswith(b"<svg"):
+    try:
+        root = fromstring(svg)
+    except (ParseError, ValueError) as error:
+        raise ValueError("request body must be an SVG document") from error
+    if root.tag not in {"svg", f"{{{SVG_NAMESPACE}}}svg"}:
         raise ValueError("request body must be an SVG document")
     if output_format == "svg":
         return svg
     with tempfile.TemporaryDirectory(prefix="vss-render-") as directory:
         source = Path(directory) / "score.svg"
         output = Path(directory) / f"score.{output_format}"
-        source.write_bytes(svg)
+        source.write_bytes(_prepare_pdf_svg(svg) if output_format == "pdf" else svg)
         command = [
             "inkscape",
             str(source),
             f"--export-filename={output}",
         ]
         if output_format == "png":
-            command.extend(("--export-area-drawing", f"--export-dpi={PNG_DPI}"))
+            command.extend(("--export-area-page", f"--export-dpi={PNG_DPI}"))
         subprocess.run(command, check=True, timeout=90, capture_output=True)
         return output.read_bytes()
+
+
+def _prepare_pdf_svg(svg: bytes) -> bytes:
+    root = fromstring(svg)
+    if "data-page-count" not in root.attrib:
+        return svg
+    root.set("height", str(PAGE_HEIGHT))
+    root.set("viewBox", f"0 0 {PAGE_WIDTH} {PAGE_HEIGHT}")
+    return cast(bytes, tostring(root, encoding="utf-8", xml_declaration=True))
+
+
+def _prefix_svg_ids(root: Element, prefix: str) -> None:
+    replacements: dict[str, str] = {}
+    for element in root.iter():
+        element_id = element.get("id")
+        if element_id:
+            replacements[element_id] = f"{prefix}-{element_id}"
+            element.set("id", replacements[element_id])
+    for element in root.iter():
+        for attribute, value in list(element.attrib.items()):
+            if value.startswith("#") and value[1:] in replacements:
+                element.set(attribute, f"#{replacements[value[1:]]}")
+                continue
+            updated = value
+            for original, replacement in replacements.items():
+                updated = updated.replace(f"url(#{original})", f"url(#{replacement})")
+            if attribute in {"aria-labelledby", "aria-describedby"}:
+                updated = " ".join(replacements.get(item, item) for item in updated.split())
+            if updated != value:
+                element.set(attribute, updated)
+        if element.tag == f"{{{SVG_NAMESPACE}}}style" and element.text:
+            for original, replacement in replacements.items():
+                element.text = element.text.replace(f"#{original}", f"#{replacement}")
 
 
 def _combine_svg_pages(pages: list[str]) -> bytes:
@@ -107,34 +176,34 @@ def _combine_svg_pages(pages: list[str]) -> bytes:
             },
         )
         page = fromstring(page_source)
+        _prefix_svg_ids(page, f"page-{index + 1}")
         page.set("x", "0")
         page.set("y", str(index * PAGE_HEIGHT))
         page.set("width", str(PAGE_WIDTH))
         page.set("height", str(PAGE_HEIGHT))
         root.append(page)
-    return tostring(root, encoding="utf-8", xml_declaration=True)
+    return cast(bytes, tostring(root, encoding="utf-8", xml_declaration=True))
 
 
 def engrave_musicxml(musicxml: bytes) -> bytes:
-    import verovio
-
-    toolkit = verovio.toolkit()
-    toolkit.setOptions(
-        {
-            "adjustPageHeight": False,
-            "breaks": "auto",
-            "footer": "none",
-            "header": "none",
-            "pageHeight": PAGE_HEIGHT,
-            "pageWidth": PAGE_WIDTH,
-            "scale": 42,
-        }
-    )
-    if not toolkit.loadData(musicxml.decode("utf-8")):
-        raise ValueError("Verovio could not load the MusicXML document")
-    return _combine_svg_pages(
-        [toolkit.renderToSVG(page) for page in range(1, toolkit.getPageCount() + 1)]
-    )
+    toolkit = initialize_engraver()
+    with VEROVIO_LOCK:
+        toolkit.setOptions(
+            {
+                "adjustPageHeight": False,
+                "breaks": "auto",
+                "footer": "none",
+                "header": "auto",
+                "pageHeight": PAGE_HEIGHT,
+                "pageWidth": PAGE_WIDTH,
+                "scale": 42,
+            }
+        )
+        if not toolkit.loadData(musicxml.decode("utf-8")):
+            raise ValueError("Verovio could not load the MusicXML document")
+        return _combine_svg_pages(
+            [toolkit.renderToSVG(page) for page in range(1, toolkit.getPageCount() + 1)]
+        )
 
 
 class RendererHandler(BaseHTTPRequestHandler):
@@ -253,4 +322,5 @@ class RendererHandler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
+    renderer_metadata()
     ThreadingHTTPServer(("0.0.0.0", 8090), RendererHandler).serve_forever()

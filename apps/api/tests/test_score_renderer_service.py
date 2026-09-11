@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import struct
 import sys
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -62,6 +63,9 @@ def test_renderer_returns_svg_without_starting_a_subprocess() -> None:
     svg = b'<svg xmlns="http://www.w3.org/2000/svg"></svg>'
     assert renderer.render(svg, "svg") == svg
 
+    declared_svg = b'<?xml version="1.0"?><svg xmlns="http://www.w3.org/2000/svg"></svg>'
+    assert renderer.render(declared_svg, "svg") == declared_svg
+
 
 def test_renderer_rejects_invalid_input_and_format() -> None:
     renderer = _renderer_module()
@@ -82,15 +86,16 @@ def test_renderer_uses_fixed_png_dpi(monkeypatch: pytest.MonkeyPatch) -> None:
 
     monkeypatch.setattr(renderer.subprocess, "run", fake_run)
     assert renderer.render(b"<svg></svg>", "png") == b"PNG"
-    assert "--export-area-drawing" in captured
+    assert "--export-area-page" in captured
     assert "--export-dpi=144" in captured
 
 
 def test_renderer_combines_pages_with_inkscape_page_boundaries() -> None:
     renderer = _renderer_module()
     page = (
-        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2100 2970">'
-        '<rect x="0" y="0" width="100" height="100"/></svg>'
+        '<svg xmlns="http://www.w3.org/2000/svg" id="root" viewBox="0 0 2100 2970">'
+        '<style>#shape{clip-path:url(#clip)}</style><defs><clipPath id="clip"/>'
+        '<path id="shape"/></defs><use href="#shape" aria-labelledby="shape"/></svg>'
     )
     combined = renderer._combine_svg_pages([page, page])
     root = renderer.fromstring(combined)
@@ -98,6 +103,21 @@ def test_renderer_combines_pages_with_inkscape_page_boundaries() -> None:
     assert root.get("height") == "5940"
     pages = root.findall(f".//{{{renderer.INKSCAPE_NAMESPACE}}}page")
     assert [item.get("y") for item in pages] == ["0", "2970"]
+    ids = [element.get("id") for element in root.iter() if element.get("id")]
+    assert len(ids) == len(set(ids))
+    assert "page-1-shape" in ids
+    assert "page-2-shape" in ids
+    uses = root.findall(f".//{{{renderer.SVG_NAMESPACE}}}use")
+    assert [item.get("href") for item in uses] == ["#page-1-shape", "#page-2-shape"]
+    styles = root.findall(f".//{{{renderer.SVG_NAMESPACE}}}style")
+    assert "#page-1-shape" in (styles[0].text or "")
+    assert "url(#page-2-clip)" in (styles[1].text or "")
+
+    pdf_svg = renderer.fromstring(renderer._prepare_pdf_svg(combined))
+    assert pdf_svg.get("height") == "2970"
+    assert pdf_svg.get("viewBox") == "0 0 2100 2970"
+    pdf_pages = pdf_svg.findall(f".//{{{renderer.INKSCAPE_NAMESPACE}}}page")
+    assert [item.get("y") for item in pdf_pages] == ["0", "2970"]
 
 
 def test_renderer_benchmark_generates_requested_measure_count() -> None:
@@ -108,13 +128,30 @@ def test_renderer_benchmark_generates_requested_measure_count() -> None:
     assert len(root.findall(".//note")) == 160
 
 
+def test_renderer_benchmark_validates_output_structures() -> None:
+    benchmark = _benchmark_module()
+    svg = b'<svg xmlns="http://www.w3.org/2000/svg" data-page-count="2"></svg>'
+    assert benchmark.validate_output(svg, "svg", 2) == {"validated_pages": 2}
+
+    png = b"\x89PNG\r\n\x1a\n" + b"\x00\x00\x00\rIHDR" + struct.pack(">II", 640, 480)
+    assert benchmark.validate_output(png, "png", 1) == {"width": 640, "height": 480}
+
+    pdf = b"%PDF-1.7\n1 0 obj<</Type /Page>>endobj\n%%EOF"
+    assert benchmark.validate_output(pdf, "pdf", 1) == {"structure_valid": True}
+
+
 def test_renderer_metadata_requires_noto_cjk(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     renderer = _renderer_module()
     renderer.renderer_metadata.cache_clear()
     fake_verovio = ModuleType("verovio")
-    fake_verovio.getVersion = lambda: "6.2.1"  # type: ignore[attr-defined]
+
+    class Toolkit:
+        def getVersion(self) -> str:
+            return "6.2.1"
+
+    fake_verovio.toolkit = Toolkit  # type: ignore[attr-defined]
     monkeypatch.setitem(sys.modules, "verovio", fake_verovio)
 
     def fake_run(command: list[str], **kwargs: object) -> object:
