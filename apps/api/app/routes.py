@@ -348,7 +348,10 @@ def _renderer_headers(
 
 @router.get("/projects/{project_id}/exports/staff.svg")
 def export_project_staff_svg(
-    project_id: str, session: SessionDep, settings: SettingsDep
+    project_id: str,
+    session: SessionDep,
+    settings: SettingsDep,
+    preview: bool = False,
 ) -> Response:
     project = _project_document(project_id, session)
     if settings.renderer_url:
@@ -369,20 +372,28 @@ def export_project_staff_svg(
         content=content,
         media_type="image/svg+xml",
         headers={
-            "Content-Disposition": f'attachment; filename="{project_id}.staff.svg"',
+            "Content-Disposition": (
+                f'{"inline" if preview else "attachment"}; '
+                f'filename="{project_id}.staff.svg"'
+            ),
             **_renderer_headers(renderer, "staff.svg", metadata),
         },
     )
 
 
 @router.get("/projects/{project_id}/exports/jianpu.svg")
-def export_project_jianpu_svg(project_id: str, session: SessionDep) -> Response:
+def export_project_jianpu_svg(
+    project_id: str, session: SessionDep, preview: bool = False
+) -> Response:
     content = render_jianpu_svg(_project_document(project_id, session))
     return Response(
         content=content,
         media_type="image/svg+xml",
         headers={
-            "Content-Disposition": f'attachment; filename="{project_id}.jianpu.svg"',
+            "Content-Disposition": (
+                f'{"inline" if preview else "attachment"}; '
+                f'filename="{project_id}.jianpu.svg"'
+            ),
             **_renderer_headers("native-jianpu-svg", "jianpu.svg"),
         },
     )

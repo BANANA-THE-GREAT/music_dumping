@@ -70,6 +70,9 @@ def test_jianpu_svg_uses_stable_layout_and_local_font_fallbacks() -> None:
     assert 'data-note-id="note-e4"' in content
     assert "fonts.googleapis.com" not in content
     assert "font-size:32px" in content
+    assert "1 = C · 4/4 · ♩ = 120 · 简谱版" in content
+    assert 'data-note-start="0" data-note-end="1"' in content
+    assert 'data-segment-start="0" data-segment-end="1" data-measure="1"' in content
     assert 'class="jp-rest-range" data-rest-start="1" data-rest-end="1.5"' in content
 
 

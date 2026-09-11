@@ -19,6 +19,7 @@ JIANPU_LINE_HEIGHT = 150
 JIANPU_EVENT_GAP = 12.0
 JIANPU_MEASURE_PADDING = 18.0
 JIANPU_CHORD_GAP = 10.0
+PITCH_CLASS_NAMES = ("C", "C♯", "D", "E♭", "E", "F", "F♯", "G", "A♭", "A", "B♭", "B")
 
 
 def _meter_at(project: ScoreProject, beat: float) -> MeterPoint:
@@ -188,6 +189,14 @@ def _jianpu_note_text(project: ScoreProject, note: ScoreNote) -> tuple[str, int,
     degree, octave, accidental = _jianpu_pitch(note.pitch_midi, project)
     prefix = "♯" if accidental > 0 else "♭" if accidental < 0 else ""
     return f"{prefix}{degree}", octave, accidental
+
+
+def _jianpu_metadata(project: ScoreProject) -> str:
+    meter = _meter_at(project, 0)
+    key = project.analysis.key_map[0] if project.analysis.key_map else None
+    tonic = PITCH_CLASS_NAMES[key.tonic % 12] if key else "C"
+    bpm = project.analysis.tempo_map[0].bpm if project.analysis.tempo_map else 120
+    return f"1 = {tonic} · {meter.numerator}/{meter.denominator} · ♩ = {bpm:g}"
 
 
 def _duration_marks(duration: float) -> tuple[int, int]:
@@ -367,7 +376,7 @@ def render_jianpu_svg(project: ScoreProject) -> bytes:
         ".jp-meta{font-family:sans-serif;font-size:15px;"
         "fill:#5f584e}</style>",
         _svg_text(JIANPU_WIDTH / 2, 45, project.score_name or project.source.file_name, 26),
-        _svg_text(JIANPU_WIDTH / 2, 74, f"1 = {meter.numerator}/{meter.denominator} · 简谱版", 15),
+        _svg_text(JIANPU_WIDTH / 2, 74, f"{_jianpu_metadata(project)} · 简谱版", 15),
     ]
     for line, system in enumerate(systems):
         top = JIANPU_TOP + line * JIANPU_LINE_HEIGHT
@@ -428,6 +437,11 @@ def render_jianpu_svg(project: ScoreProject) -> bytes:
                 content.append(
                     f'<g data-note-id="{escape(note.id)}" '
                     f'data-source-note-ids="{source_ids}" '
+                    f'data-note-start="{note.quantized_start:.6g}" '
+                    f'data-note-end="{note.quantized_start + note.quantized_duration:.6g}" '
+                    f'data-segment-start="{segment_start:.6g}" '
+                    f'data-segment-end="{segment_end:.6g}" '
+                    f'data-measure="{measure + 1}" '
                     f'data-continuation="{str(continuation).lower()}" '
                     f'data-layout-x="{x:.2f}">'
                 )

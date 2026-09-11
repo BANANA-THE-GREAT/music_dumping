@@ -1,13 +1,17 @@
 from __future__ import annotations
 
 import json
+import select
+import socket
 import subprocess
 import tempfile
+from collections.abc import Callable
 from functools import lru_cache
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from threading import BoundedSemaphore, Lock
+from time import monotonic
 from typing import Protocol, cast
 from urllib.parse import parse_qs, urlparse
 from xml.etree.ElementTree import (
@@ -36,6 +40,11 @@ register_namespace("inkscape", INKSCAPE_NAMESPACE)
 register_namespace("sodipodi", SODIPODI_NAMESPACE)
 RENDER_SLOTS = BoundedSemaphore(MAX_CONCURRENT_RENDERS)
 VEROVIO_LOCK = Lock()
+CancelCheck = Callable[[], bool]
+
+
+class RenderCancelled(RuntimeError):
+    pass
 
 
 class VerovioToolkit(Protocol):
@@ -92,7 +101,40 @@ def renderer_metadata() -> dict[str, str]:
     }
 
 
-def render(svg: bytes, output_format: str) -> bytes:
+def _stop_process(process: subprocess.Popen[bytes]) -> None:
+    process.terminate()
+    try:
+        process.wait(timeout=2)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        process.wait()
+
+
+def _run_converter(command: list[str], cancel_check: CancelCheck | None = None) -> None:
+    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    deadline = monotonic() + 90
+    while True:
+        if cancel_check and cancel_check():
+            _stop_process(process)
+            raise RenderCancelled("render request was cancelled")
+        remaining = deadline - monotonic()
+        if remaining <= 0:
+            _stop_process(process)
+            raise subprocess.TimeoutExpired(command, 90)
+        try:
+            stdout, stderr = process.communicate(timeout=min(0.1, remaining))
+            break
+        except subprocess.TimeoutExpired:
+            continue
+    if process.returncode:
+        raise subprocess.CalledProcessError(
+            process.returncode, command, output=stdout, stderr=stderr
+        )
+
+
+def render(
+    svg: bytes, output_format: str, cancel_check: CancelCheck | None = None
+) -> bytes:
     if output_format not in CONTENT_TYPES:
         raise ValueError("unsupported output format")
     try:
@@ -101,6 +143,8 @@ def render(svg: bytes, output_format: str) -> bytes:
         raise ValueError("request body must be an SVG document") from error
     if root.tag not in {"svg", f"{{{SVG_NAMESPACE}}}svg"}:
         raise ValueError("request body must be an SVG document")
+    if cancel_check and cancel_check():
+        raise RenderCancelled("render request was cancelled")
     if output_format == "svg":
         return svg
     with tempfile.TemporaryDirectory(prefix="vss-render-") as directory:
@@ -114,7 +158,7 @@ def render(svg: bytes, output_format: str) -> bytes:
         ]
         if output_format == "png":
             command.extend(("--export-area-page", f"--export-dpi={PNG_DPI}"))
-        subprocess.run(command, check=True, timeout=90, capture_output=True)
+        _run_converter(command, cancel_check)
         return output.read_bytes()
 
 
@@ -185,8 +229,12 @@ def _combine_svg_pages(pages: list[str]) -> bytes:
     return cast(bytes, tostring(root, encoding="utf-8", xml_declaration=True))
 
 
-def engrave_musicxml(musicxml: bytes) -> bytes:
+def engrave_musicxml(
+    musicxml: bytes, cancel_check: CancelCheck | None = None
+) -> bytes:
     toolkit = initialize_engraver()
+    if cancel_check and cancel_check():
+        raise RenderCancelled("render request was cancelled")
     with VEROVIO_LOCK:
         toolkit.setOptions(
             {
@@ -201,12 +249,30 @@ def engrave_musicxml(musicxml: bytes) -> bytes:
         )
         if not toolkit.loadData(musicxml.decode("utf-8")):
             raise ValueError("Verovio could not load the MusicXML document")
-        return _combine_svg_pages(
-            [toolkit.renderToSVG(page) for page in range(1, toolkit.getPageCount() + 1)]
-        )
+        pages: list[str] = []
+        for page in range(1, toolkit.getPageCount() + 1):
+            if cancel_check and cancel_check():
+                raise RenderCancelled("render request was cancelled")
+            pages.append(toolkit.renderToSVG(page))
+        return _combine_svg_pages(pages)
 
 
 class RendererHandler(BaseHTTPRequestHandler):
+    def _client_disconnected(self) -> bool:
+        try:
+            readable, _, _ = select.select([self.connection], [], [], 0)
+            if not readable:
+                return False
+            data = cast(
+                bytes,
+                self.connection.recv(1, socket.MSG_PEEK | socket.MSG_DONTWAIT),
+            )
+            return data == b""
+        except (BlockingIOError, InterruptedError):
+            return False
+        except OSError:
+            return True
+
     server_version = "VocalScoreRenderer/1.0"
 
     def _json(self, status: HTTPStatus, payload: dict[str, object]) -> None:
@@ -279,10 +345,17 @@ class RendererHandler(BaseHTTPRequestHandler):
                 )
                 return
             try:
-                svg = engrave_musicxml(source) if parsed.path == "/engrave" else source
-                output = render(svg, output_format)
+                svg = (
+                    engrave_musicxml(source, self._client_disconnected)
+                    if parsed.path == "/engrave"
+                    else source
+                )
+                output = render(svg, output_format, self._client_disconnected)
             finally:
                 RENDER_SLOTS.release()
+        except RenderCancelled:
+            self.close_connection = True
+            return
         except (UnicodeDecodeError, ValueError) as error:
             code = "INVALID_MUSICXML" if parsed.path == "/engrave" else "INVALID_SVG"
             self._json(HTTPStatus.BAD_REQUEST, {"code": code, "message": str(error)})
@@ -292,6 +365,9 @@ class RendererHandler(BaseHTTPRequestHandler):
                 HTTPStatus.UNPROCESSABLE_ENTITY,
                 {"code": "RENDER_FAILED", "message": str(error)},
             )
+            return
+        if self._client_disconnected():
+            self.close_connection = True
             return
         self.send_response(HTTPStatus.OK)
         self.send_header("Content-Type", CONTENT_TYPES[output_format])
@@ -315,7 +391,10 @@ class RendererHandler(BaseHTTPRequestHandler):
             page_count = "1"
         self.send_header("X-Renderer-Page-Count", page_count)
         self.end_headers()
-        self.wfile.write(output)
+        try:
+            self.wfile.write(output)
+        except (BrokenPipeError, ConnectionResetError):
+            self.close_connection = True
 
     def log_message(self, format: str, *args: object) -> None:
         print(f"score-renderer: {format % args}", flush=True)

@@ -11,6 +11,7 @@
         background: #eeeae2;
       }
       * { box-sizing: border-box; }
+      [hidden] { display: none !important; }
       body { margin: 0; }
       header {
         min-height: 64px;
@@ -86,7 +87,7 @@
         if (!projectId) return;
         const encoded = encodeURIComponent(projectId);
         editor.src = `/?project=${encoded}`;
-        exported.data = `/api/v1/projects/${encoded}/exports/jianpu.svg`;
+        exported.data = `/api/v1/projects/${encoded}/exports/jianpu.svg?preview=true`;
         editor.hidden = false;
         exported.hidden = false;
         editorEmpty.hidden = true;

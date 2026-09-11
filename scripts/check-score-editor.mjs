@@ -385,7 +385,9 @@ try {
         }),
       });
     }
-    const fileName = route.request().url().split("/").at(-1);
+    const exportUrl = new URL(route.request().url());
+    const fileName = exportUrl.pathname.split("/").at(-1);
+    const preview = exportUrl.searchParams.get("preview") === "true";
     route.fulfill({
       status: 200,
       contentType: fileName.endsWith(".svg")
@@ -393,8 +395,12 @@ try {
         : fileName.endsWith(".png")
           ? "image/png"
           : "application/pdf",
-      headers: { "Content-Disposition": `attachment; filename="${fileName}"` },
-      body: fileName.endsWith(".svg") ? "<svg></svg>" : "score",
+      headers: {
+        "Content-Disposition": `${preview ? "inline" : "attachment"}; filename="${fileName}"`,
+      },
+      body: fileName.endsWith(".svg")
+        ? '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 240"><rect width="400" height="240" fill="white"/><text x="200" y="120" text-anchor="middle">简谱导出</text></svg>'
+        : "score",
     });
   });
   await page.route(
@@ -555,6 +561,50 @@ try {
     () => document.querySelectorAll("#piano .roll-note").length === 14,
   );
   assert.deepEqual(errors, []);
+  await page.goto(
+    `${process.env.SCORE_URL || "http://127.0.0.1:4180"}/score-rendering-comparison.html`,
+  );
+  await page.waitForFunction(() =>
+    [...document.querySelectorAll("#project option")].some(
+      (option) => option.value === "editor-check",
+    ),
+  );
+  await page.selectOption("#project", "editor-check");
+  await page.waitForFunction(() =>
+    document.querySelector("#export")?.data.includes(
+      "/projects/editor-check/exports/jianpu.svg",
+    ),
+  );
+  assert.equal(await page.locator("#editor-empty").isHidden(), true);
+  assert.equal(await page.locator("#export-empty").isHidden(), true);
+  assert.equal(await page.locator("#editor").isVisible(), true);
+  assert.equal(await page.locator("#export").isVisible(), true);
+  await page.waitForFunction(
+    () => document.querySelector("#export")?.contentDocument?.querySelector("text"),
+  );
+  const mobilePanels = await page.locator("main section").evaluateAll((sections) =>
+    sections.map((section) => section.getBoundingClientRect().toJSON()),
+  );
+  assert.ok(mobilePanels[1].y > mobilePanels[0].y);
+  assert.equal(
+    await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+    true,
+  );
+  await page.screenshot({
+    path: `${process.env.SCREENSHOT_DIR || "/tmp"}/rendering-comparison-mobile.png`,
+    fullPage: true,
+  });
+  await page.setViewportSize({ width: 1300, height: 1000 });
+  const desktopPanels = await page.locator("main section").evaluateAll((sections) =>
+    sections.map((section) => section.getBoundingClientRect().toJSON()),
+  );
+  assert.ok(desktopPanels[1].x > desktopPanels[0].x);
+  await page.screenshot({
+    path: `${process.env.SCREENSHOT_DIR || "/tmp"}/rendering-comparison-desktop.png`,
+    fullPage: true,
+  });
+  assert.deepEqual(errors, []);
+  console.log("PASS: rendering comparison desktop/mobile layout and project binding");
   console.log(
     "PASS: quantization controls, F0 overlay, boundary review, revision sequencing and local reset (mock API only)",
   );

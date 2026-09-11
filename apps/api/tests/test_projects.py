@@ -504,6 +504,9 @@ def test_project_exports_standard_midi_and_musicxml(monkeypatch) -> None:
     revision_before = client.get(f"/v1/projects/{project_id}").json()["revision"]
     staff_png = client.get(f"/v1/projects/{project_id}/exports/staff.png")
     jianpu_pdf = client.get(f"/v1/projects/{project_id}/exports/jianpu.pdf")
+    jianpu_preview = client.get(
+        f"/v1/projects/{project_id}/exports/jianpu.svg?preview=true"
+    )
     assert staff_png.status_code == 200 and staff_png.content == b"PNG"
     assert staff_png.headers["content-type"].startswith("image/png")
     assert staff_png.headers["x-score-renderer"] == "verovio+inkscape"
@@ -513,6 +516,8 @@ def test_project_exports_standard_midi_and_musicxml(monkeypatch) -> None:
     assert jianpu_pdf.status_code == 200 and jianpu_pdf.content.startswith(b"%PDF")
     assert jianpu_pdf.headers["content-type"].startswith("application/pdf")
     assert jianpu_pdf.headers["x-score-renderer"] == "native-jianpu+inkscape"
+    assert jianpu_preview.status_code == 200
+    assert jianpu_preview.headers["content-disposition"].startswith("inline;")
     assert client.get(f"/v1/projects/{project_id}").json()["revision"] == revision_before
 
     audio = client.get(f"/v1/projects/{project_id}/audio")

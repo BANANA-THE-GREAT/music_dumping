@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import socket
 import struct
+import subprocess
 import sys
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -79,15 +81,56 @@ def test_renderer_uses_fixed_png_dpi(monkeypatch: pytest.MonkeyPatch) -> None:
     renderer = _renderer_module()
     captured: list[str] = []
 
-    def fake_run(command: list[str], **kwargs: object) -> None:
+    def fake_run(command: list[str], cancel_check: object = None) -> None:
         captured.extend(command)
         output = next(value.split("=", 1)[1] for value in command if "--export-filename=" in value)
         Path(output).write_bytes(b"PNG")
 
-    monkeypatch.setattr(renderer.subprocess, "run", fake_run)
+    monkeypatch.setattr(renderer, "_run_converter", fake_run)
     assert renderer.render(b"<svg></svg>", "png") == b"PNG"
     assert "--export-area-page" in captured
     assert "--export-dpi=144" in captured
+
+
+def test_renderer_cancels_converter_process(monkeypatch: pytest.MonkeyPatch) -> None:
+    renderer = _renderer_module()
+
+    class RunningProcess:
+        returncode = None
+        terminated = False
+
+        def communicate(self, timeout: float) -> tuple[bytes, bytes]:
+            raise subprocess.TimeoutExpired(["inkscape"], timeout)
+
+        def terminate(self) -> None:
+            self.terminated = True
+            self.returncode = -15
+
+        def wait(self, timeout: int | None = None) -> int:
+            assert self.terminated
+            return -15
+
+        def kill(self) -> None:
+            raise AssertionError("terminate should stop the fake process")
+
+    process = RunningProcess()
+    monkeypatch.setattr(renderer.subprocess, "Popen", lambda *args, **kwargs: process)
+    with pytest.raises(renderer.RenderCancelled):
+        renderer._run_converter(["inkscape"], lambda: True)
+    assert process.terminated
+
+
+def test_renderer_detects_disconnected_client_socket() -> None:
+    renderer = _renderer_module()
+    server_socket, client_socket = socket.socketpair()
+    handler = object.__new__(renderer.RendererHandler)
+    handler.connection = server_socket
+    try:
+        assert handler._client_disconnected() is False
+        client_socket.close()
+        assert handler._client_disconnected() is True
+    finally:
+        server_socket.close()
 
 
 def test_renderer_combines_pages_with_inkscape_page_boundaries() -> None:
@@ -221,7 +264,7 @@ def test_renderer_http_rejects_invalid_musicxml(
 ) -> None:
     renderer = _renderer_module()
 
-    def invalid(_: bytes) -> bytes:
+    def invalid(_: bytes, cancel_check: object = None) -> bytes:
         raise ValueError("Verovio could not load the MusicXML document")
 
     monkeypatch.setattr(renderer, "renderer_metadata", lambda: {})
