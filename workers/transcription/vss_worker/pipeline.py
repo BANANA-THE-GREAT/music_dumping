@@ -185,12 +185,13 @@ def build_real_project(
         result = evidence_transcriber.transcribe(vocal, work_dir / "evidence")
         detected = sorted(result.notes, key=lambda note: note.start_seconds)
         transcription_evidence = result.transcription_evidence
+    engine_name = type(active_transcriber).__name__
     pipeline_steps.append(
         {
             "stage": "transcribe_notes",
             "version": "1",
             "parameters": {
-                "implementation": type(active_transcriber).__name__,
+                "implementation": engine_name,
                 "elapsed_ms": round((time.perf_counter() - started) * 1000, 2),
                 "device": _runtime_device(active_transcriber),
                 "detected_notes": len(detected),
@@ -242,13 +243,14 @@ def build_real_project(
     progress("rendering", 0.96)
     project_id = str(uuid4())
     duration_ms = round(max((note.end_seconds for note in detected), default=0) * 1000)
+    base_name = file_name.rsplit(".", 1)[0] or file_name
     return {
         "schema_version": "1.0",
         "project_id": project_id,
         "project_group_id": upload_id,
-        "project_name": file_name.rsplit(".", 1)[0] or file_name,
-        "score_name": f"{file_name.rsplit('.', 1)[0] or file_name} · {type(active_transcriber).__name__}",
-        "engine": type(active_transcriber).__name__,
+        "project_name": base_name,
+        "score_name": f"{base_name} · {engine_name}",
+        "engine": engine_name,
         "source": {
             "file_name": file_name,
             "duration_ms": duration_ms,

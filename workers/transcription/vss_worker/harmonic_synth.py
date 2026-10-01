@@ -61,7 +61,10 @@ def synthesize_harmonic(
     )
     if frame_period <= 0:
         raise ValueError("F0 frame times must be strictly increasing")
-    if any(right.time_seconds <= left.time_seconds for left, right in zip(frames, frames[1:])):
+    if any(
+        right.time_seconds <= left.time_seconds
+        for left, right in zip(frames, frames[1:], strict=False)
+    ):
         raise ValueError("F0 frame times must be strictly increasing")
 
     sample_count = round(duration * sample_rate)
@@ -71,15 +74,19 @@ def synthesize_harmonic(
     voiced_count = sum(
         1 for frame in frames if frame.periodicity >= periodicity_threshold and frame.f0_hz > 0
     )
+    partials = range(1, harmonics + 1)
+    normalization = sum(1 / partial for partial in partials)
     for sample_index in range(sample_count):
         time_seconds = sample_index / sample_rate
-        while frame_index + 1 < len(frames) and frames[frame_index + 1].time_seconds <= time_seconds:
+        while (
+            frame_index + 1 < len(frames) and frames[frame_index + 1].time_seconds <= time_seconds
+        ):
             frame_index += 1
         frame = frames[frame_index]
         voiced = frame.periodicity >= periodicity_threshold and frame.f0_hz > 0
         if voiced:
-            harmonic = sum(math.sin(phase * partial) / partial for partial in range(1, harmonics + 1))
-            value = amplitude * min(1.0, frame.periodicity) * harmonic / sum(1 / p for p in range(1, harmonics + 1))
+            harmonic = sum(math.sin(phase * partial) / partial for partial in partials)
+            value = amplitude * min(1.0, frame.periodicity) * harmonic / normalization
             phase += 2 * math.pi * frame.f0_hz / sample_rate
         else:
             value = 0.0
