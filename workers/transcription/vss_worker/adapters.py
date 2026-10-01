@@ -10,6 +10,8 @@ class DetectedNote:
     end_seconds: float
     pitch_midi: int
     confidence: float
+    source_id: str | None = None
+    pitch_cents: float | None = None
 
 
 @dataclass(frozen=True)
@@ -32,6 +34,16 @@ class VocalSeparator(Protocol):
 
 class MelodyTranscriber(Protocol):
     def transcribe(self, vocal_path: Path) -> list[DetectedNote]: ...
+
+
+@dataclass(frozen=True)
+class EvidenceTranscription:
+    notes: list[DetectedNote]
+    transcription_evidence: dict[str, object]
+
+
+class EvidenceTranscriber(Protocol):
+    def transcribe(self, vocal_path: Path, evidence_dir: Path) -> EvidenceTranscription: ...
 
 
 class BeatTracker(Protocol):

@@ -18,6 +18,7 @@ class UploadRecord(Base):
     size_bytes: Mapped[int] = mapped_column(BigInteger)
     sha256: Mapped[str] = mapped_column(String(64), index=True)
     object_key: Mapped[str] = mapped_column(String(512), unique=True)
+    project_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
 
 

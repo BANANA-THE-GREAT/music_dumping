@@ -5,6 +5,7 @@ const note = (id: string, start = 0, pitch = 60): EditableNote => ({
   id,
   source_start_ms: start * 500,
   source_end_ms: start * 500 + 500,
+  source_note_ids: [`source-${id}`],
   pitch_midi: pitch,
   confidence: 0.9,
   quantized_start: start,
@@ -43,7 +44,14 @@ describe("score commands", () => {
       leftId: "a",
       rightId: "b",
     });
-    expect(result).toMatchObject([{ id: "a", quantized_duration: 2, source_end_ms: 1000 }]);
+    expect(result).toMatchObject([
+      {
+        id: "a",
+        quantized_duration: 2,
+        source_end_ms: 1000,
+        source_note_ids: ["source-a", "source-b"],
+      },
+    ]);
   });
 });
 

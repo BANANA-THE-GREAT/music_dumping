@@ -34,6 +34,10 @@ class Settings(BaseSettings):
     worker_backend: str = "thread"
     broker_url: str = "redis://localhost:6379/0"
     result_backend: str = "redis://localhost:6379/1"
+    game_model_path: Path = Path("/models/game/GAME-1.0-medium/model.pt")
+    game_root: Path = Path("/opt/game")
+    torchcrepe_root: Path = Path("/opt/torchcrepe")
+    renderer_url: str | None = None
 
 
 @lru_cache

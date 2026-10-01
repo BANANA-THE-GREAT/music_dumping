@@ -1,0 +1,954 @@
+{
+  "schema_version": "1.0",
+  "dataset_status": "authorized_real_vocals",
+  "description": "Vocadito isolated-vocal P0 baseline with singer-disjoint splits.",
+  "dataset": {
+    "name": "Vocadito",
+    "official_url": "https://zenodo.org/records/5578807",
+    "doi": "10.5281/zenodo.5578807",
+    "authors": [
+      "Rachel Bittner",
+      "Katherine Pasalo",
+      "Juan Jos\u00e9 Bosch",
+      "Gabriel Meseguer Brocal",
+      "David Rubinstein"
+    ],
+    "license": "CC BY 4.0",
+    "attribution": "Vocadito by Rachel Bittner, Katherine Pasalo, Juan Jos\u00e9 Bosch, Gabriel Meseguer Brocal, and David Rubinstein; licensed under CC BY 4.0. DOI: 10.5281/zenodo.5578807.",
+    "archive_md5": "dea40fd18f14d899643c4ba221b33a46",
+    "archive_sha256": "e0d6b99d3f9c594afe5ae5c4d7bdacebe569e53b809e90b89d1c771c4f9990e3",
+    "primary_reference": "annotator A1",
+    "alternate_reference": "annotator A2"
+  },
+  "split_policy": {
+    "unit": "singer_id",
+    "holdout_singers": [
+      "S1",
+      "S21",
+      "S28",
+      "S29",
+      "S6",
+      "S9"
+    ],
+    "tuning_singers": [
+      "S10",
+      "S11",
+      "S12",
+      "S13",
+      "S14",
+      "S15",
+      "S16",
+      "S17",
+      "S18",
+      "S19",
+      "S2",
+      "S20",
+      "S22",
+      "S23",
+      "S24",
+      "S25",
+      "S26",
+      "S27",
+      "S3",
+      "S4",
+      "S5",
+      "S7",
+      "S8"
+    ]
+  },
+  "tolerances": {
+    "pitch_cents": 50,
+    "onset_ms": 50,
+    "minimum_offset_ms": 50,
+    "offset_duration_ratio": 0.2
+  },
+  "quality_gate": {
+    "status": "preregistered_before_candidate_model_evaluation",
+    "candidate_onset_offset_f1_improvement": 0.03,
+    "candidate_recall_improvement": 0.05,
+    "maximum_precision_regression": 0.02,
+    "maximum_failure_rate": 0.02
+  },
+  "clips": [
+    {
+      "id": "vocadito_1",
+      "split": "holdout",
+      "tags": [
+        "vocadito",
+        "language:Tagalog",
+        "singer:S1"
+      ],
+      "audio": "../data/evaluation/vocadito/Audio/vocadito_1.wav",
+      "audio_license": "CC BY 4.0",
+      "duration_seconds": 33.212245,
+      "reference": "../data/evaluation/vocadito-prepared/references/a1/vocadito_1.json",
+      "alternate_reference": "../data/evaluation/vocadito-prepared/references/a2/vocadito_1.json",
+      "predictions": {
+        "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_1.json",
+        "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_1.json",
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_1.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_1.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_1.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_1.json"
+      }
+    },
+    {
+      "id": "vocadito_2",
+      "split": "tuning",
+      "tags": [
+        "vocadito",
+        "language:Spanish",
+        "singer:S2"
+      ],
+      "audio": "../data/evaluation/vocadito/Audio/vocadito_2.wav",
+      "audio_license": "CC BY 4.0",
+      "duration_seconds": 35.208005,
+      "reference": "../data/evaluation/vocadito-prepared/references/a1/vocadito_2.json",
+      "alternate_reference": "../data/evaluation/vocadito-prepared/references/a2/vocadito_2.json",
+      "predictions": {
+        "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_2.json",
+        "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_2.json",
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_2.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_2.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_2.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_2.json"
+      }
+    },
+    {
+      "id": "vocadito_3",
+      "split": "holdout",
+      "tags": [
+        "vocadito",
+        "language:Tagalog",
+        "singer:S1"
+      ],
+      "audio": "../data/evaluation/vocadito/Audio/vocadito_3.wav",
+      "audio_license": "CC BY 4.0",
+      "duration_seconds": 21.736327,
+      "reference": "../data/evaluation/vocadito-prepared/references/a1/vocadito_3.json",
+      "alternate_reference": "../data/evaluation/vocadito-prepared/references/a2/vocadito_3.json",
+      "predictions": {
+        "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_3.json",
+        "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_3.json",
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_3.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_3.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_3.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_3.json"
+      }
+    },
+    {
+      "id": "vocadito_4",
+      "split": "tuning",
+      "tags": [
+        "vocadito",
+        "language:Catalan/Valencian",
+        "singer:S3"
+      ],
+      "audio": "../data/evaluation/vocadito/Audio/vocadito_4.wav",
+      "audio_license": "CC BY 4.0",
+      "duration_seconds": 18.456009,
+      "reference": "../data/evaluation/vocadito-prepared/references/a1/vocadito_4.json",
+      "alternate_reference": "../data/evaluation/vocadito-prepared/references/a2/vocadito_4.json",
+      "predictions": {
+        "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_4.json",
+        "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_4.json",
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_4.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_4.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_4.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_4.json"
+      }
+    },
+    {
+      "id": "vocadito_5",
+      "split": "tuning",
+      "tags": [
+        "vocadito",
+        "language:Catalan/Valencian",
+        "singer:S4"
+      ],
+      "audio": "../data/evaluation/vocadito/Audio/vocadito_5.wav",
+      "audio_license": "CC BY 4.0",
+      "duration_seconds": 23.231995,
+      "reference": "../data/evaluation/vocadito-prepared/references/a1/vocadito_5.json",
+      "alternate_reference": "../data/evaluation/vocadito-prepared/references/a2/vocadito_5.json",
+      "predictions": {
+        "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_5.json",
+        "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_5.json",
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_5.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_5.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_5.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_5.json"
+      }
+    },
+    {
+      "id": "vocadito_6",
+      "split": "tuning",
+      "tags": [
+        "vocadito",
+        "language:English",
+        "singer:S5"
+      ],
+      "audio": "../data/evaluation/vocadito/Audio/vocadito_6.wav",
+      "audio_license": "CC BY 4.0",
+      "duration_seconds": 23.831995,
+      "reference": "../data/evaluation/vocadito-prepared/references/a1/vocadito_6.json",
+      "alternate_reference": "../data/evaluation/vocadito-prepared/references/a2/vocadito_6.json",
+      "predictions": {
+        "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_6.json",
+        "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_6.json",
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_6.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_6.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_6.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_6.json"
+      }
+    },
+    {
+      "id": "vocadito_7",
+      "split": "holdout",
+      "tags": [
+        "vocadito",
+        "language:Tagalog",
+        "singer:S6"
+      ],
+      "audio": "../data/evaluation/vocadito/Audio/vocadito_7.wav",
+      "audio_license": "CC BY 4.0",
+      "duration_seconds": 19.467347,
+      "reference": "../data/evaluation/vocadito-prepared/references/a1/vocadito_7.json",
+      "alternate_reference": "../data/evaluation/vocadito-prepared/references/a2/vocadito_7.json",
+      "predictions": {
+        "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_7.json",
+        "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_7.json",
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_7.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_7.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_7.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_7.json"
+      }
+    },
+    {
+      "id": "vocadito_8",
+      "split": "holdout",
+      "tags": [
+        "vocadito",
+        "language:Tagalog",
+        "singer:S1"
+      ],
+      "audio": "../data/evaluation/vocadito/Audio/vocadito_8.wav",
+      "audio_license": "CC BY 4.0",
+      "duration_seconds": 17.041633,
+      "reference": "../data/evaluation/vocadito-prepared/references/a1/vocadito_8.json",
+      "alternate_reference": "../data/evaluation/vocadito-prepared/references/a2/vocadito_8.json",
+      "predictions": {
+        "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_8.json",
+        "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_8.json",
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_8.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_8.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_8.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_8.json"
+      }
+    },
+    {
+      "id": "vocadito_9",
+      "split": "holdout",
+      "tags": [
+        "vocadito",
+        "language:Tagalog",
+        "singer:S6"
+      ],
+      "audio": "../data/evaluation/vocadito/Audio/vocadito_9.wav",
+      "audio_license": "CC BY 4.0",
+      "duration_seconds": 20.375011,
+      "reference": "../data/evaluation/vocadito-prepared/references/a1/vocadito_9.json",
+      "alternate_reference": "../data/evaluation/vocadito-prepared/references/a2/vocadito_9.json",
+      "predictions": {
+        "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_9.json",
+        "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_9.json",
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_9.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_9.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_9.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_9.json"
+      }
+    },
+    {
+      "id": "vocadito_10",
+      "split": "tuning",
+      "tags": [
+        "vocadito",
+        "language:English",
+        "singer:S7"
+      ],
+      "audio": "../data/evaluation/vocadito/Audio/vocadito_10.wav",
+      "audio_license": "CC BY 4.0",
+      "duration_seconds": 9.097823,
+      "reference": "../data/evaluation/vocadito-prepared/references/a1/vocadito_10.json",
+      "alternate_reference": "../data/evaluation/vocadito-prepared/references/a2/vocadito_10.json",
+      "predictions": {
+        "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_10.json",
+        "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_10.json",
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_10.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_10.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_10.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_10.json"
+      }
+    },
+    {
+      "id": "vocadito_11",
+      "split": "tuning",
+      "tags": [
+        "vocadito",
+        "language:English",
+        "singer:S8"
+      ],
+      "audio": "../data/evaluation/vocadito/Audio/vocadito_11.wav",
+      "audio_license": "CC BY 4.0",
+      "duration_seconds": 12.983991,
+      "reference": "../data/evaluation/vocadito-prepared/references/a1/vocadito_11.json",
+      "alternate_reference": "../data/evaluation/vocadito-prepared/references/a2/vocadito_11.json",
+      "predictions": {
+        "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_11.json",
+        "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_11.json",
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_11.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_11.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_11.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_11.json"
+      }
+    },
+    {
+      "id": "vocadito_12",
+      "split": "holdout",
+      "tags": [
+        "vocadito",
+        "language:English",
+        "singer:S9"
+      ],
+      "audio": "../data/evaluation/vocadito/Audio/vocadito_12.wav",
+      "audio_license": "CC BY 4.0",
+      "duration_seconds": 15.153492,
+      "reference": "../data/evaluation/vocadito-prepared/references/a1/vocadito_12.json",
+      "alternate_reference": "../data/evaluation/vocadito-prepared/references/a2/vocadito_12.json",
+      "predictions": {
+        "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_12.json",
+        "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_12.json",
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_12.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_12.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_12.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_12.json"
+      }
+    },
+    {
+      "id": "vocadito_13",
+      "split": "tuning",
+      "tags": [
+        "vocadito",
+        "language:French",
+        "singer:S10"
+      ],
+      "audio": "../data/evaluation/vocadito/Audio/vocadito_13.wav",
+      "audio_license": "CC BY 4.0",
+      "duration_seconds": 22.36,
+      "reference": "../data/evaluation/vocadito-prepared/references/a1/vocadito_13.json",
+      "alternate_reference": "../data/evaluation/vocadito-prepared/references/a2/vocadito_13.json",
+      "predictions": {
+        "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_13.json",
+        "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_13.json",
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_13.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_13.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_13.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_13.json"
+      }
+    },
+    {
+      "id": "vocadito_14",
+      "split": "tuning",
+      "tags": [
+        "vocadito",
+        "language:English",
+        "singer:S11"
+      ],
+      "audio": "../data/evaluation/vocadito/Audio/vocadito_14.wav",
+      "audio_license": "CC BY 4.0",
+      "duration_seconds": 12.197823,
+      "reference": "../data/evaluation/vocadito-prepared/references/a1/vocadito_14.json",
+      "alternate_reference": "../data/evaluation/vocadito-prepared/references/a2/vocadito_14.json",
+      "predictions": {
+        "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_14.json",
+        "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_14.json",
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_14.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_14.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_14.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_14.json"
+      }
+    },
+    {
+      "id": "vocadito_15",
+      "split": "tuning",
+      "tags": [
+        "vocadito",
+        "language:English",
+        "singer:S12"
+      ],
+      "audio": "../data/evaluation/vocadito/Audio/vocadito_15.wav",
+      "audio_license": "CC BY 4.0",
+      "duration_seconds": 20.28,
+      "reference": "../data/evaluation/vocadito-prepared/references/a1/vocadito_15.json",
+      "alternate_reference": "../data/evaluation/vocadito-prepared/references/a2/vocadito_15.json",
+      "predictions": {
+        "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_15.json",
+        "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_15.json",
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_15.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_15.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_15.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_15.json"
+      }
+    },
+    {
+      "id": "vocadito_16",
+      "split": "holdout",
+      "tags": [
+        "vocadito",
+        "language:Tagalog",
+        "singer:S6"
+      ],
+      "audio": "../data/evaluation/vocadito/Audio/vocadito_16.wav",
+      "audio_license": "CC BY 4.0",
+      "duration_seconds": 17.277143,
+      "reference": "../data/evaluation/vocadito-prepared/references/a1/vocadito_16.json",
+      "alternate_reference": "../data/evaluation/vocadito-prepared/references/a2/vocadito_16.json",
+      "predictions": {
+        "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_16.json",
+        "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_16.json",
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_16.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_16.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_16.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_16.json"
+      }
+    },
+    {
+      "id": "vocadito_17",
+      "split": "tuning",
+      "tags": [
+        "vocadito",
+        "language:none",
+        "singer:S12"
+      ],
+      "audio": "../data/evaluation/vocadito/Audio/vocadito_17.wav",
+      "audio_license": "CC BY 4.0",
+      "duration_seconds": 23.568005,
+      "reference": "../data/evaluation/vocadito-prepared/references/a1/vocadito_17.json",
+      "alternate_reference": "../data/evaluation/vocadito-prepared/references/a2/vocadito_17.json",
+      "predictions": {
+        "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_17.json",
+        "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_17.json",
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_17.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_17.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_17.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_17.json"
+      }
+    },
+    {
+      "id": "vocadito_18",
+      "split": "tuning",
+      "tags": [
+        "vocadito",
+        "language:English",
+        "singer:S13"
+      ],
+      "audio": "../data/evaluation/vocadito/Audio/vocadito_18.wav",
+      "audio_license": "CC BY 4.0",
+      "duration_seconds": 29.138821,
+      "reference": "../data/evaluation/vocadito-prepared/references/a1/vocadito_18.json",
+      "alternate_reference": "../data/evaluation/vocadito-prepared/references/a2/vocadito_18.json",
+      "predictions": {
+        "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_18.json",
+        "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_18.json",
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_18.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_18.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_18.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_18.json"
+      }
+    },
+    {
+      "id": "vocadito_19",
+      "split": "tuning",
+      "tags": [
+        "vocadito",
+        "language:English",
+        "singer:S14"
+      ],
+      "audio": "../data/evaluation/vocadito/Audio/vocadito_19.wav",
+      "audio_license": "CC BY 4.0",
+      "duration_seconds": 30.493492,
+      "reference": "../data/evaluation/vocadito-prepared/references/a1/vocadito_19.json",
+      "alternate_reference": "../data/evaluation/vocadito-prepared/references/a2/vocadito_19.json",
+      "predictions": {
+        "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_19.json",
+        "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_19.json",
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_19.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_19.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_19.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_19.json"
+      }
+    },
+    {
+      "id": "vocadito_20",
+      "split": "tuning",
+      "tags": [
+        "vocadito",
+        "language:English",
+        "singer:S15"
+      ],
+      "audio": "../data/evaluation/vocadito/Audio/vocadito_20.wav",
+      "audio_license": "CC BY 4.0",
+      "duration_seconds": 8.713492,
+      "reference": "../data/evaluation/vocadito-prepared/references/a1/vocadito_20.json",
+      "alternate_reference": "../data/evaluation/vocadito-prepared/references/a2/vocadito_20.json",
+      "predictions": {
+        "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_20.json",
+        "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_20.json",
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_20.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_20.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_20.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_20.json"
+      }
+    },
+    {
+      "id": "vocadito_21",
+      "split": "tuning",
+      "tags": [
+        "vocadito",
+        "language:English",
+        "singer:S16"
+      ],
+      "audio": "../data/evaluation/vocadito/Audio/vocadito_21.wav",
+      "audio_license": "CC BY 4.0",
+      "duration_seconds": 22.0,
+      "reference": "../data/evaluation/vocadito-prepared/references/a1/vocadito_21.json",
+      "alternate_reference": "../data/evaluation/vocadito-prepared/references/a2/vocadito_21.json",
+      "predictions": {
+        "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_21.json",
+        "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_21.json",
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_21.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_21.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_21.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_21.json"
+      }
+    },
+    {
+      "id": "vocadito_22",
+      "split": "tuning",
+      "tags": [
+        "vocadito",
+        "language:English",
+        "singer:S17"
+      ],
+      "audio": "../data/evaluation/vocadito/Audio/vocadito_22.wav",
+      "audio_license": "CC BY 4.0",
+      "duration_seconds": 18.333492,
+      "reference": "../data/evaluation/vocadito-prepared/references/a1/vocadito_22.json",
+      "alternate_reference": "../data/evaluation/vocadito-prepared/references/a2/vocadito_22.json",
+      "predictions": {
+        "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_22.json",
+        "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_22.json",
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_22.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_22.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_22.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_22.json"
+      }
+    },
+    {
+      "id": "vocadito_23",
+      "split": "tuning",
+      "tags": [
+        "vocadito",
+        "language:French",
+        "singer:S18"
+      ],
+      "audio": "../data/evaluation/vocadito/Audio/vocadito_23.wav",
+      "audio_license": "CC BY 4.0",
+      "duration_seconds": 18.037823,
+      "reference": "../data/evaluation/vocadito-prepared/references/a1/vocadito_23.json",
+      "alternate_reference": "../data/evaluation/vocadito-prepared/references/a2/vocadito_23.json",
+      "predictions": {
+        "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_23.json",
+        "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_23.json",
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_23.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_23.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_23.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_23.json"
+      }
+    },
+    {
+      "id": "vocadito_24",
+      "split": "tuning",
+      "tags": [
+        "vocadito",
+        "language:French",
+        "singer:S19"
+      ],
+      "audio": "../data/evaluation/vocadito/Audio/vocadito_24.wav",
+      "audio_license": "CC BY 4.0",
+      "duration_seconds": 14.757823,
+      "reference": "../data/evaluation/vocadito-prepared/references/a1/vocadito_24.json",
+      "alternate_reference": "../data/evaluation/vocadito-prepared/references/a2/vocadito_24.json",
+      "predictions": {
+        "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_24.json",
+        "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_24.json",
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_24.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_24.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_24.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_24.json"
+      }
+    },
+    {
+      "id": "vocadito_25",
+      "split": "tuning",
+      "tags": [
+        "vocadito",
+        "language:French",
+        "singer:S20"
+      ],
+      "audio": "../data/evaluation/vocadito/Audio/vocadito_25.wav",
+      "audio_license": "CC BY 4.0",
+      "duration_seconds": 14.657823,
+      "reference": "../data/evaluation/vocadito-prepared/references/a1/vocadito_25.json",
+      "alternate_reference": "../data/evaluation/vocadito-prepared/references/a2/vocadito_25.json",
+      "predictions": {
+        "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_25.json",
+        "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_25.json",
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_25.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_25.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_25.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_25.json"
+      }
+    },
+    {
+      "id": "vocadito_26",
+      "split": "holdout",
+      "tags": [
+        "vocadito",
+        "language:French",
+        "singer:S21"
+      ],
+      "audio": "../data/evaluation/vocadito/Audio/vocadito_26.wav",
+      "audio_license": "CC BY 4.0",
+      "duration_seconds": 12.857823,
+      "reference": "../data/evaluation/vocadito-prepared/references/a1/vocadito_26.json",
+      "alternate_reference": "../data/evaluation/vocadito-prepared/references/a2/vocadito_26.json",
+      "predictions": {
+        "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_26.json",
+        "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_26.json",
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_26.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_26.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_26.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_26.json"
+      }
+    },
+    {
+      "id": "vocadito_27",
+      "split": "tuning",
+      "tags": [
+        "vocadito",
+        "language:French",
+        "singer:S22"
+      ],
+      "audio": "../data/evaluation/vocadito/Audio/vocadito_27.wav",
+      "audio_license": "CC BY 4.0",
+      "duration_seconds": 14.017823,
+      "reference": "../data/evaluation/vocadito-prepared/references/a1/vocadito_27.json",
+      "alternate_reference": "../data/evaluation/vocadito-prepared/references/a2/vocadito_27.json",
+      "predictions": {
+        "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_27.json",
+        "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_27.json",
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_27.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_27.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_27.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_27.json"
+      }
+    },
+    {
+      "id": "vocadito_28",
+      "split": "holdout",
+      "tags": [
+        "vocadito",
+        "language:French",
+        "singer:S21"
+      ],
+      "audio": "../data/evaluation/vocadito/Audio/vocadito_28.wav",
+      "audio_license": "CC BY 4.0",
+      "duration_seconds": 12.897823,
+      "reference": "../data/evaluation/vocadito-prepared/references/a1/vocadito_28.json",
+      "alternate_reference": "../data/evaluation/vocadito-prepared/references/a2/vocadito_28.json",
+      "predictions": {
+        "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_28.json",
+        "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_28.json",
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_28.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_28.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_28.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_28.json"
+      }
+    },
+    {
+      "id": "vocadito_29",
+      "split": "tuning",
+      "tags": [
+        "vocadito",
+        "language:French",
+        "singer:S23"
+      ],
+      "audio": "../data/evaluation/vocadito/Audio/vocadito_29.wav",
+      "audio_license": "CC BY 4.0",
+      "duration_seconds": 14.893492,
+      "reference": "../data/evaluation/vocadito-prepared/references/a1/vocadito_29.json",
+      "alternate_reference": "../data/evaluation/vocadito-prepared/references/a2/vocadito_29.json",
+      "predictions": {
+        "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_29.json",
+        "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_29.json",
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_29.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_29.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_29.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_29.json"
+      }
+    },
+    {
+      "id": "vocadito_30",
+      "split": "tuning",
+      "tags": [
+        "vocadito",
+        "language:French+English",
+        "singer:S24"
+      ],
+      "audio": "../data/evaluation/vocadito/Audio/vocadito_30.wav",
+      "audio_license": "CC BY 4.0",
+      "duration_seconds": 13.017823,
+      "reference": "../data/evaluation/vocadito-prepared/references/a1/vocadito_30.json",
+      "alternate_reference": "../data/evaluation/vocadito-prepared/references/a2/vocadito_30.json",
+      "predictions": {
+        "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_30.json",
+        "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_30.json",
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_30.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_30.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_30.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_30.json"
+      }
+    },
+    {
+      "id": "vocadito_31",
+      "split": "tuning",
+      "tags": [
+        "vocadito",
+        "language:French",
+        "singer:S23"
+      ],
+      "audio": "../data/evaluation/vocadito/Audio/vocadito_31.wav",
+      "audio_license": "CC BY 4.0",
+      "duration_seconds": 14.033492,
+      "reference": "../data/evaluation/vocadito-prepared/references/a1/vocadito_31.json",
+      "alternate_reference": "../data/evaluation/vocadito-prepared/references/a2/vocadito_31.json",
+      "predictions": {
+        "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_31.json",
+        "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_31.json",
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_31.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_31.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_31.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_31.json"
+      }
+    },
+    {
+      "id": "vocadito_32",
+      "split": "tuning",
+      "tags": [
+        "vocadito",
+        "language:English",
+        "singer:S25"
+      ],
+      "audio": "../data/evaluation/vocadito/Audio/vocadito_32.wav",
+      "audio_license": "CC BY 4.0",
+      "duration_seconds": 25.033492,
+      "reference": "../data/evaluation/vocadito-prepared/references/a1/vocadito_32.json",
+      "alternate_reference": "../data/evaluation/vocadito-prepared/references/a2/vocadito_32.json",
+      "predictions": {
+        "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_32.json",
+        "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_32.json",
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_32.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_32.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_32.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_32.json"
+      }
+    },
+    {
+      "id": "vocadito_33",
+      "split": "tuning",
+      "tags": [
+        "vocadito",
+        "language:English",
+        "singer:S26"
+      ],
+      "audio": "../data/evaluation/vocadito/Audio/vocadito_33.wav",
+      "audio_license": "CC BY 4.0",
+      "duration_seconds": 30.0,
+      "reference": "../data/evaluation/vocadito-prepared/references/a1/vocadito_33.json",
+      "alternate_reference": "../data/evaluation/vocadito-prepared/references/a2/vocadito_33.json",
+      "predictions": {
+        "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_33.json",
+        "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_33.json",
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_33.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_33.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_33.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_33.json"
+      }
+    },
+    {
+      "id": "vocadito_34",
+      "split": "tuning",
+      "tags": [
+        "vocadito",
+        "language:English",
+        "singer:S27"
+      ],
+      "audio": "../data/evaluation/vocadito/Audio/vocadito_34.wav",
+      "audio_license": "CC BY 4.0",
+      "duration_seconds": 24.853492,
+      "reference": "../data/evaluation/vocadito-prepared/references/a1/vocadito_34.json",
+      "alternate_reference": "../data/evaluation/vocadito-prepared/references/a2/vocadito_34.json",
+      "predictions": {
+        "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_34.json",
+        "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_34.json",
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_34.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_34.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_34.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_34.json"
+      }
+    },
+    {
+      "id": "vocadito_35",
+      "split": "holdout",
+      "tags": [
+        "vocadito",
+        "language:Mandarin",
+        "singer:S28"
+      ],
+      "audio": "../data/evaluation/vocadito/Audio/vocadito_35.wav",
+      "audio_license": "CC BY 4.0",
+      "duration_seconds": 13.8,
+      "reference": "../data/evaluation/vocadito-prepared/references/a1/vocadito_35.json",
+      "alternate_reference": "../data/evaluation/vocadito-prepared/references/a2/vocadito_35.json",
+      "predictions": {
+        "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_35.json",
+        "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_35.json",
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_35.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_35.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_35.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_35.json"
+      }
+    },
+    {
+      "id": "vocadito_36",
+      "split": "holdout",
+      "tags": [
+        "vocadito",
+        "language:Mandarin",
+        "singer:S28"
+      ],
+      "audio": "../data/evaluation/vocadito/Audio/vocadito_36.wav",
+      "audio_license": "CC BY 4.0",
+      "duration_seconds": 23.277823,
+      "reference": "../data/evaluation/vocadito-prepared/references/a1/vocadito_36.json",
+      "alternate_reference": "../data/evaluation/vocadito-prepared/references/a2/vocadito_36.json",
+      "predictions": {
+        "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_36.json",
+        "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_36.json",
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_36.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_36.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_36.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_36.json"
+      }
+    },
+    {
+      "id": "vocadito_37",
+      "split": "holdout",
+      "tags": [
+        "vocadito",
+        "language:Hawaiian+English",
+        "singer:S29"
+      ],
+      "audio": "../data/evaluation/vocadito/Audio/vocadito_37.wav",
+      "audio_license": "CC BY 4.0",
+      "duration_seconds": 38.736009,
+      "reference": "../data/evaluation/vocadito-prepared/references/a1/vocadito_37.json",
+      "alternate_reference": "../data/evaluation/vocadito-prepared/references/a2/vocadito_37.json",
+      "predictions": {
+        "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_37.json",
+        "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_37.json",
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_37.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_37.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_37.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_37.json"
+      }
+    },
+    {
+      "id": "vocadito_38",
+      "split": "holdout",
+      "tags": [
+        "vocadito",
+        "language:English",
+        "singer:S29"
+      ],
+      "audio": "../data/evaluation/vocadito/Audio/vocadito_38.wav",
+      "audio_license": "CC BY 4.0",
+      "duration_seconds": 27.84,
+      "reference": "../data/evaluation/vocadito-prepared/references/a1/vocadito_38.json",
+      "alternate_reference": "../data/evaluation/vocadito-prepared/references/a2/vocadito_38.json",
+      "predictions": {
+        "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_38.json",
+        "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_38.json",
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_38.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_38.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_38.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_38.json"
+      }
+    },
+    {
+      "id": "vocadito_39",
+      "split": "holdout",
+      "tags": [
+        "vocadito",
+        "language:English",
+        "singer:S29"
+      ],
+      "audio": "../data/evaluation/vocadito/Audio/vocadito_39.wav",
+      "audio_license": "CC BY 4.0",
+      "duration_seconds": 31.68,
+      "reference": "../data/evaluation/vocadito-prepared/references/a1/vocadito_39.json",
+      "alternate_reference": "../data/evaluation/vocadito-prepared/references/a2/vocadito_39.json",
+      "predictions": {
+        "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_39.json",
+        "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_39.json",
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_39.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_39.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_39.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_39.json"
+      }
+    },
+    {
+      "id": "vocadito_40",
+      "split": "holdout",
+      "tags": [
+        "vocadito",
+        "language:English",
+        "singer:S9"
+      ],
+      "audio": "../data/evaluation/vocadito/Audio/vocadito_40.wav",
+      "audio_license": "CC BY 4.0",
+      "duration_seconds": 18.577823,
+      "reference": "../data/evaluation/vocadito-prepared/references/a1/vocadito_40.json",
+      "alternate_reference": "../data/evaluation/vocadito-prepared/references/a2/vocadito_40.json",
+      "predictions": {
+        "basic_pitch_raw": "../data/evaluation/vocadito-results/basic_pitch_raw/vocadito_40.json",
+        "basic_pitch_refined": "../data/evaluation/vocadito-results/basic_pitch_refined/vocadito_40.json",
+        "basic_pitch_quantized": "../data/evaluation/vocadito-results/basic_pitch_quantized/vocadito_40.json",
+        "game_1_0_small": "../data/evaluation/vocadito-results/game_1_0_small/vocadito_40.json",
+        "game_1_0_medium": "../data/evaluation/vocadito-results/game_1_0_medium/vocadito_40.json",
+        "some_continuous256_5spk": "../data/evaluation/vocadito-results/some_continuous256_5spk/vocadito_40.json"
+      }
+    }
+  ]
+}

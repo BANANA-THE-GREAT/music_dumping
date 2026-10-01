@@ -6,10 +6,67 @@ from uuid import uuid4
 from vss_worker.adapters import (
     AudioNormalizer,
     DetectedNote,
+    EvidenceTranscriber,
     MelodyTranscriber,
     Progress,
     VocalSeparator,
 )
+from vss_worker.melody import quantized_notes, refine_melody
+
+
+def _transcription_diagnostics(vocal_path: Path, notes: list[DetectedNote]) -> dict[str, object]:
+    try:
+        import soundfile as sf  # type: ignore[import-not-found]
+
+        samples, sample_rate = sf.read(vocal_path, always_2d=False, dtype="float32")
+        if getattr(samples, "ndim", 1) > 1:
+            samples = samples.mean(axis=1)
+        frame_size = max(1, int(sample_rate * 0.02))
+        energies = [
+            float((frame * frame).mean() ** 0.5)
+            for frame in (
+                samples[start : start + frame_size] for start in range(0, len(samples), frame_size)
+            )
+            if len(frame)
+        ]
+        peak = max(energies, default=0.0)
+        threshold = max(0.003, peak * 0.08)
+        first_loud = next(
+            (index for index, energy in enumerate(energies) if energy >= threshold), len(energies)
+        )
+        leading_silence_ms = round(first_loud * 20)
+        low_energy_notes = (
+            [
+                note
+                for note in notes
+                if note.start_seconds < len(samples) / sample_rate
+                and energies[min(len(energies) - 1, max(0, int(note.start_seconds * 50)))]
+                < threshold
+            ]
+            if energies
+            else []
+        )
+        leading_notes = [note for note in notes if note.start_seconds * 1000 < leading_silence_ms]
+        return {
+            "input_duration_ms": round(len(samples) / sample_rate * 1000),
+            "leading_silence_ms": leading_silence_ms,
+            "low_energy_threshold": round(threshold, 6),
+            "notes_in_leading_silence": len(leading_notes),
+            "low_energy_note_count": len(low_energy_notes),
+        }
+    except Exception:
+        return {
+            "input_duration_ms": round(max((note.end_seconds for note in notes), default=0) * 1000),
+            "leading_silence_ms": 0,
+            "low_energy_threshold": 0,
+            "notes_in_leading_silence": 0,
+            "low_energy_note_count": 0,
+        }
+
+
+def _runtime_device(adapter: object) -> str:
+    device = getattr(adapter, "device", None)
+    return device if isinstance(device, str) else "worker-default"
 
 
 def _estimate_bpm(notes: list[DetectedNote]) -> float:
@@ -85,6 +142,7 @@ def build_real_project(
     normalizer: AudioNormalizer,
     separator: VocalSeparator,
     transcriber: MelodyTranscriber,
+    evidence_transcriber: EvidenceTranscriber | None = None,
     progress: Progress,
 ) -> dict[str, object]:
     pipeline_steps: list[dict[str, object]] = []
@@ -112,30 +170,39 @@ def build_real_project(
             "parameters": {
                 "implementation": type(separator).__name__,
                 "elapsed_ms": round((time.perf_counter() - started) * 1000, 2),
-                "device": "worker-default",
+                "device": _runtime_device(separator),
             },
         }
     )
     progress("transcribing", 0.65)
     started = time.perf_counter()
-    detected = sorted(transcriber.transcribe(vocal), key=lambda note: note.start_seconds)
+    transcription_evidence = None
+    active_transcriber: object = transcriber
+    if evidence_transcriber is None:
+        detected = sorted(transcriber.transcribe(vocal), key=lambda note: note.start_seconds)
+    else:
+        active_transcriber = evidence_transcriber
+        result = evidence_transcriber.transcribe(vocal, work_dir / "evidence")
+        detected = sorted(result.notes, key=lambda note: note.start_seconds)
+        transcription_evidence = result.transcription_evidence
     pipeline_steps.append(
         {
             "stage": "transcribe_notes",
             "version": "1",
             "parameters": {
-                "implementation": type(transcriber).__name__,
+                "implementation": type(active_transcriber).__name__,
                 "elapsed_ms": round((time.perf_counter() - started) * 1000, 2),
-                "device": "worker-default",
+                "device": _runtime_device(active_transcriber),
                 "detected_notes": len(detected),
             },
         }
     )
     progress("tracking_beats", 0.76)
     started = time.perf_counter()
-    bpm = _estimate_bpm(detected)
-    tonic, mode = _estimate_key(detected)
-    numerator, denominator, meter_confidence = estimate_meter(detected)
+    melody = refine_melody(detected)
+    bpm = _estimate_bpm(melody)
+    tonic, mode = _estimate_key(melody)
+    numerator, denominator, meter_confidence = estimate_meter(melody)
     pipeline_steps.append(
         {
             "stage": "analyze_music",
@@ -149,39 +216,51 @@ def build_real_project(
             },
         }
     )
-    seconds_per_beat = 60 / bpm
     progress("postprocessing", 0.86)
-    notes = []
-    for note in detected:
-        start = round(note.start_seconds / seconds_per_beat * 4) / 4
-        duration = max(
-            0.25,
-            round((note.end_seconds - note.start_seconds) / seconds_per_beat * 4) / 4,
-        )
-        notes.append(
-            {
-                "id": str(uuid4()),
-                "source_start_ms": round(note.start_seconds * 1000),
-                "source_end_ms": round(note.end_seconds * 1000),
-                "pitch_midi": note.pitch_midi,
-                "confidence": note.confidence,
-                "quantized_start": start,
-                "quantized_duration": duration,
-                "origin": "model",
-            }
-        )
+    notes = quantized_notes(melody, bpm)
+    performance_source = quantized_notes(melody, bpm, monophonic=False)
+    performance_notes = [
+        {
+            key: value
+            for key, value in note.items()
+            if key not in {"quantized_start", "quantized_duration"}
+        }
+        for note in performance_source
+    ]
+    pipeline_steps.append(
+        {
+            "stage": "melody_refinement",
+            "version": "1",
+            "parameters": {
+                "method": "confidence_continuity_viterbi",
+                "mode": "balanced",
+                "input_notes": len(detected),
+                "output_notes": len(notes),
+            },
+        }
+    )
     progress("rendering", 0.96)
     project_id = str(uuid4())
     duration_ms = round(max((note.end_seconds for note in detected), default=0) * 1000)
     return {
         "schema_version": "1.0",
         "project_id": project_id,
+        "project_group_id": upload_id,
+        "project_name": file_name.rsplit(".", 1)[0] or file_name,
+        "score_name": f"{file_name.rsplit('.', 1)[0] or file_name} · {type(active_transcriber).__name__}",
+        "engine": type(active_transcriber).__name__,
         "source": {
             "file_name": file_name,
             "duration_ms": duration_ms,
             "audio_object_key": object_key,
-            "vocal_object_key": f"work/{project_id}/stems/htdemucs/normalized/vocals.wav",
+            "vocal_object_key": f"work/{work_dir.name}/{vocal.relative_to(work_dir).as_posix()}",
         },
+        "transcription_input": {
+            "variant": "vocal_stem",
+            "object_key": f"work/{work_dir.name}/{vocal.relative_to(work_dir).as_posix()}",
+            "separator": type(separator).__name__,
+        },
+        "transcription_diagnostics": _transcription_diagnostics(vocal, detected),
         "analysis": {
             "tempo_map": [{"time_ms": 0, "bpm": bpm}],
             "meter_map": [{"beat": 0, "numerator": numerator, "denominator": denominator}],
@@ -189,6 +268,9 @@ def build_real_project(
             "confidence": {"tempo": 0.65, "meter": meter_confidence, "key": 0.6},
         },
         "notes": notes,
+        "performance_notes": performance_notes,
+        "raw_notes": quantized_notes(detected, bpm, monophonic=False),
+        "transcription_evidence": transcription_evidence,
         "pipeline": [
             {
                 "stage": "audio_to_melody",

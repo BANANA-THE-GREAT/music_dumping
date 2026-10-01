@@ -2,7 +2,7 @@ from datetime import datetime
 from enum import StrEnum
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class HealthResponse(BaseModel):
@@ -43,11 +43,12 @@ class UploadResponse(BaseModel):
     size_bytes: int
     sha256: str
     created_at: datetime
+    project_name: str | None = None
 
 
 class JobOptions(BaseModel):
     separator: Literal["fake", "demucs"] = "fake"
-    transcriber: Literal["fake", "basic_pitch"] = "fake"
+    transcriber: Literal["fake", "basic_pitch", "game_f0"] = "fake"
     detect_meter: bool = True
     detect_key: bool = True
     auto_start: bool = True
@@ -103,15 +104,67 @@ class SourceAudio(BaseModel):
     vocal_object_key: str | None = None
 
 
+class TranscriptionInput(BaseModel):
+    variant: Literal["source", "vocal_stem"]
+    object_key: str
+    separator: str | None = None
+
+
+class TranscriptionDiagnostics(BaseModel):
+    input_duration_ms: int = Field(ge=0)
+    leading_silence_ms: int = Field(ge=0)
+    low_energy_threshold: float = Field(ge=0)
+    notes_in_leading_silence: int = Field(ge=0)
+    low_energy_note_count: int = Field(ge=0)
+
+
 class ScoreNote(BaseModel):
     id: str
     source_start_ms: int = Field(ge=0)
     source_end_ms: int = Field(ge=0)
+    source_note_ids: list[str] = Field(default_factory=list)
     pitch_midi: int = Field(ge=0, le=127)
     confidence: float = Field(ge=0, le=1)
     quantized_start: float = Field(ge=0)
     quantized_duration: float = Field(gt=0)
     origin: Literal["model", "user"]
+
+
+class PitchBendPoint(BaseModel):
+    offset_ms: int = Field(ge=0)
+    cents: float = Field(ge=-200, le=200)
+
+
+class PerformanceNote(BaseModel):
+    id: str
+    source_start_ms: int = Field(ge=0)
+    source_end_ms: int = Field(ge=0)
+    source_note_ids: list[str] = Field(default_factory=list)
+    pitch_midi: int = Field(ge=0, le=127)
+    confidence: float = Field(ge=0, le=1)
+    origin: Literal["model", "user"]
+    pitch_bends: list[PitchBendPoint] = Field(default_factory=list)
+
+
+class QuantizationConflict(BaseModel):
+    beat: float = Field(ge=0)
+    note_ids: list[str] = Field(min_length=2)
+
+
+class QuantizationSettings(BaseModel):
+    enabled: bool = True
+    grid: float = Field(default=0.25, gt=0)
+    strength: float = Field(default=1, ge=0, le=1)
+    offset_ms: int = 0
+    conflicts: list[QuantizationConflict] = Field(default_factory=list)
+
+
+class AudioAlignment(BaseModel):
+    offset_ms: int = Field(default=0, ge=-2_000, le=2_000)
+    source: Literal["manual", "automatic", "default"] = "default"
+    status: Literal["unconfirmed", "confirmed"] = "unconfirmed"
+    candidate_offset_ms: int | None = Field(default=None, ge=-2_000, le=2_000)
+    confidence: float | None = Field(default=None, ge=0, le=1)
 
 
 class PipelineStep(BaseModel):
@@ -120,14 +173,99 @@ class PipelineStep(BaseModel):
     parameters: dict[str, object] = Field(default_factory=dict)
 
 
+class ModelProvenance(BaseModel):
+    name: str = Field(min_length=1)
+    implementation: str = Field(min_length=1)
+    code_revision: str = Field(min_length=1)
+    model_revision: str | None = None
+    weight_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+    parameters: dict[str, object] = Field(default_factory=dict)
+    device: str | None = None
+
+
+class F0TrackArtifact(BaseModel):
+    object_key: str = Field(min_length=1)
+    format: Literal["jsonl"] = "jsonl"
+    frame_period_ms: float = Field(gt=0)
+    frame_count: int = Field(ge=0)
+    voiced_frame_count: int = Field(ge=0)
+    duration_ms: int = Field(ge=0)
+    provenance: ModelProvenance
+
+    @model_validator(mode="after")
+    def validate_voiced_frame_count(self) -> "F0TrackArtifact":
+        if self.voiced_frame_count > self.frame_count:
+            raise ValueError("voiced_frame_count cannot exceed frame_count")
+        return self
+
+
+class BoundarySuggestion(BaseModel):
+    id: str
+    source_note_id: str
+    kind: Literal["adjust_end"] = "adjust_end"
+    original_end_ms: int = Field(ge=0)
+    proposed_end_ms: int = Field(ge=0)
+    confidence: float = Field(ge=0, le=1)
+    reason: Literal["f0_voicing_extension", "f0_voicing_contraction"]
+    review_status: Literal["pending", "accepted", "rejected", "superseded"] = "pending"
+    superseded_reason: Literal[
+        "manual_timing_edit", "target_deleted", "target_structure_changed"
+    ] | None = None
+    reviewed_revision: int | None = Field(default=None, ge=1)
+    accepted_from_origin: Literal["model", "user"] | None = None
+    accepted_from_quantized_duration: float | None = Field(default=None, gt=0)
+    review_batch_id: str | None = None
+
+    @model_validator(mode="after")
+    def validate_changed_boundary(self) -> "BoundarySuggestion":
+        if self.proposed_end_ms == self.original_end_ms:
+            raise ValueError("proposed_end_ms must differ from original_end_ms")
+        return self
+
+
+class TranscriptionEvidence(BaseModel):
+    note_model: ModelProvenance
+    f0_track: F0TrackArtifact | None = None
+    boundary_suggestions: list[BoundarySuggestion] = Field(default_factory=list)
+    last_boundary_batch_id: str | None = None
+
+
 class ScoreProject(BaseModel):
     schema_version: Literal["1.0"] = "1.0"
     project_id: str
+    project_group_id: str | None = None
+    project_name: str | None = None
+    score_name: str | None = None
+    engine: str | None = None
     source: SourceAudio
+    transcription_input: TranscriptionInput | None = None
+    transcription_diagnostics: TranscriptionDiagnostics | None = None
     analysis: Analysis
     notes: list[ScoreNote]
+    performance_notes: list[PerformanceNote] | None = None
+    quantization: QuantizationSettings = Field(default_factory=QuantizationSettings)
+    audio_alignment: AudioAlignment = Field(default_factory=AudioAlignment)
+    raw_notes: list[ScoreNote] | None = None
+    transcription_evidence: TranscriptionEvidence | None = None
     pipeline: list[PipelineStep]
     revision: int = Field(ge=1)
+
+    @model_validator(mode="after")
+    def populate_legacy_performance_notes(self) -> "ScoreProject":
+        if self.performance_notes is None:
+            self.performance_notes = [
+                PerformanceNote(
+                    id=note.id,
+                    source_start_ms=note.source_start_ms,
+                    source_end_ms=note.source_end_ms,
+                    source_note_ids=list(note.source_note_ids),
+                    pitch_midi=note.pitch_midi,
+                    confidence=note.confidence,
+                    origin=note.origin,
+                )
+                for note in self.notes
+            ]
+        return self
 
 
 class ProjectSummary(BaseModel):
@@ -139,9 +277,57 @@ class ProjectSummary(BaseModel):
     updated_at: datetime
 
 
+class ProjectCatalogSummary(BaseModel):
+    project_id: str | None = None
+    project_group_id: str
+    upload_id: str
+    project_name: str
+    score_name: str | None = None
+    engine: str | None = None
+    file_name: str
+    duration_ms: int = 0
+    note_count: int = 0
+    revision: int = 1
+    updated_at: datetime
+
+
+class ProjectRenameRequest(BaseModel):
+    expected_revision: int = Field(ge=1)
+    name: str = Field(min_length=1, max_length=255)
+
+
+class ProjectBulkDeleteRequest(BaseModel):
+    project_ids: list[str] = Field(min_length=1, max_length=200)
+
+
 class ProjectPatch(BaseModel):
     expected_revision: int = Field(ge=1)
     notes: list[ScoreNote] | None = None
+
+
+class BoundarySuggestionReviewRequest(BaseModel):
+    expected_revision: int = Field(ge=1)
+    action: Literal["accept", "reject", "reset"]
+
+
+class BoundaryBatchReviewRequest(BaseModel):
+    expected_revision: int = Field(ge=1)
+    threshold: float = Field(default=0.85, ge=0, le=1)
+    action: Literal["preview", "accept", "reset"] = "accept"
+
+
+class AudioAlignmentRequest(BaseModel):
+    expected_revision: int = Field(ge=1)
+    offset_ms: int = Field(ge=-2_000, le=2_000)
+    source: Literal["manual", "automatic", "default"] = "manual"
+    status: Literal["unconfirmed", "confirmed"] = "confirmed"
+
+
+class MelodyRequest(BaseModel):
+    expected_revision: int = Field(ge=1)
+    mode: Literal["raw", "conservative", "balanced"] = "balanced"
+    low_pitch: int = Field(default=48, ge=0, le=127)
+    high_pitch: int = Field(default=84, ge=0, le=127)
 
 
 class RequantizeRequest(BaseModel):
@@ -151,14 +337,30 @@ class RequantizeRequest(BaseModel):
     denominator: Literal[2, 4, 8, 16]
     tonic: int = Field(ge=0, le=11)
     mode: Literal["major", "minor"]
+    enabled: bool = True
     grid: float = 0.25
+    strength: float = Field(default=1, ge=0, le=1)
+    offset_ms: int = Field(default=0, ge=-10_000, le=10_000)
+    tempo_map: list[TempoPoint] | None = None
+
+    @model_validator(mode="after")
+    def normalize_tempo_points(self) -> "RequantizeRequest":
+        if self.tempo_map is None:
+            self.tempo_map = [TempoPoint(time_ms=0, bpm=self.bpm)]
+        else:
+            from app.tempo import normalize_tempo_map
+
+            self.tempo_map = normalize_tempo_map(self.tempo_map)
+        return self
 
     @field_validator("grid")
     @classmethod
     def validate_grid(cls, value: float) -> float:
-        if value not in {0.125, 0.25, 0.5, 1.0}:
-            raise ValueError("grid must be one of 0.125, 0.25, 0.5, or 1.0")
-        return value
+        choices = (0.125, 1 / 6, 0.25, 1 / 3, 0.5, 1.0)
+        closest = min(choices, key=lambda choice: abs(choice - value))
+        if abs(closest - value) > 1e-6:
+            raise ValueError("grid must be a supported straight or triplet value")
+        return closest
 
 
 class ErrorResponse(BaseModel):

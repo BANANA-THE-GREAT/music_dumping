@@ -49,6 +49,14 @@ def build_fake_project(
             "confidence": {"tempo": 0.95, "meter": 0.9, "key": 0.92},
         },
         "notes": notes,
+        "performance_notes": [
+            {
+                key: value
+                for key, value in note.items()
+                if key not in {"quantized_start", "quantized_duration"}
+            }
+            for note in notes
+        ],
         "pipeline": [
             {
                 "stage": "fake_transcription",

@@ -41,6 +41,104 @@
         "title": "Analysis",
         "type": "object"
       },
+      "AudioAlignment": {
+        "properties": {
+          "candidate_offset_ms": {
+            "anyOf": [
+              {
+                "maximum": 2000.0,
+                "minimum": -2000.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Candidate Offset Ms"
+          },
+          "confidence": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confidence"
+          },
+          "offset_ms": {
+            "default": 0,
+            "maximum": 2000.0,
+            "minimum": -2000.0,
+            "title": "Offset Ms",
+            "type": "integer"
+          },
+          "source": {
+            "default": "default",
+            "enum": [
+              "manual",
+              "automatic",
+              "default"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "status": {
+            "default": "unconfirmed",
+            "enum": [
+              "unconfirmed",
+              "confirmed"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "title": "AudioAlignment",
+        "type": "object"
+      },
+      "AudioAlignmentRequest": {
+        "properties": {
+          "expected_revision": {
+            "minimum": 1.0,
+            "title": "Expected Revision",
+            "type": "integer"
+          },
+          "offset_ms": {
+            "maximum": 2000.0,
+            "minimum": -2000.0,
+            "title": "Offset Ms",
+            "type": "integer"
+          },
+          "source": {
+            "default": "manual",
+            "enum": [
+              "manual",
+              "automatic",
+              "default"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "status": {
+            "default": "confirmed",
+            "enum": [
+              "unconfirmed",
+              "confirmed"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "expected_revision",
+          "offset_ms"
+        ],
+        "title": "AudioAlignmentRequest",
+        "type": "object"
+      },
       "Body_upload_audio_v1_uploads_post": {
         "properties": {
           "file": {
@@ -53,6 +151,238 @@
           "file"
         ],
         "title": "Body_upload_audio_v1_uploads_post",
+        "type": "object"
+      },
+      "BoundaryBatchReviewRequest": {
+        "properties": {
+          "action": {
+            "default": "accept",
+            "enum": [
+              "preview",
+              "accept",
+              "reset"
+            ],
+            "title": "Action",
+            "type": "string"
+          },
+          "expected_revision": {
+            "minimum": 1.0,
+            "title": "Expected Revision",
+            "type": "integer"
+          },
+          "threshold": {
+            "default": 0.85,
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Threshold",
+            "type": "number"
+          }
+        },
+        "required": [
+          "expected_revision"
+        ],
+        "title": "BoundaryBatchReviewRequest",
+        "type": "object"
+      },
+      "BoundarySuggestion": {
+        "properties": {
+          "accepted_from_origin": {
+            "anyOf": [
+              {
+                "enum": [
+                  "model",
+                  "user"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accepted From Origin"
+          },
+          "accepted_from_quantized_duration": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accepted From Quantized Duration"
+          },
+          "confidence": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence",
+            "type": "number"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "const": "adjust_end",
+            "default": "adjust_end",
+            "title": "Kind",
+            "type": "string"
+          },
+          "original_end_ms": {
+            "minimum": 0.0,
+            "title": "Original End Ms",
+            "type": "integer"
+          },
+          "proposed_end_ms": {
+            "minimum": 0.0,
+            "title": "Proposed End Ms",
+            "type": "integer"
+          },
+          "reason": {
+            "enum": [
+              "f0_voicing_extension",
+              "f0_voicing_contraction"
+            ],
+            "title": "Reason",
+            "type": "string"
+          },
+          "review_batch_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Batch Id"
+          },
+          "review_status": {
+            "default": "pending",
+            "enum": [
+              "pending",
+              "accepted",
+              "rejected",
+              "superseded"
+            ],
+            "title": "Review Status",
+            "type": "string"
+          },
+          "reviewed_revision": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewed Revision"
+          },
+          "source_note_id": {
+            "title": "Source Note Id",
+            "type": "string"
+          },
+          "superseded_reason": {
+            "anyOf": [
+              {
+                "enum": [
+                  "manual_timing_edit",
+                  "target_deleted",
+                  "target_structure_changed"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Superseded Reason"
+          }
+        },
+        "required": [
+          "id",
+          "source_note_id",
+          "original_end_ms",
+          "proposed_end_ms",
+          "confidence",
+          "reason"
+        ],
+        "title": "BoundarySuggestion",
+        "type": "object"
+      },
+      "BoundarySuggestionReviewRequest": {
+        "properties": {
+          "action": {
+            "enum": [
+              "accept",
+              "reject",
+              "reset"
+            ],
+            "title": "Action",
+            "type": "string"
+          },
+          "expected_revision": {
+            "minimum": 1.0,
+            "title": "Expected Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expected_revision",
+          "action"
+        ],
+        "title": "BoundarySuggestionReviewRequest",
+        "type": "object"
+      },
+      "F0TrackArtifact": {
+        "properties": {
+          "duration_ms": {
+            "minimum": 0.0,
+            "title": "Duration Ms",
+            "type": "integer"
+          },
+          "format": {
+            "const": "jsonl",
+            "default": "jsonl",
+            "title": "Format",
+            "type": "string"
+          },
+          "frame_count": {
+            "minimum": 0.0,
+            "title": "Frame Count",
+            "type": "integer"
+          },
+          "frame_period_ms": {
+            "exclusiveMinimum": 0.0,
+            "title": "Frame Period Ms",
+            "type": "number"
+          },
+          "object_key": {
+            "minLength": 1,
+            "title": "Object Key",
+            "type": "string"
+          },
+          "provenance": {
+            "$ref": "#/components/schemas/ModelProvenance"
+          },
+          "voiced_frame_count": {
+            "minimum": 0.0,
+            "title": "Voiced Frame Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "object_key",
+          "frame_period_ms",
+          "frame_count",
+          "voiced_frame_count",
+          "duration_ms",
+          "provenance"
+        ],
+        "title": "F0TrackArtifact",
         "type": "object"
       },
       "HTTPValidationError": {
@@ -138,7 +468,8 @@
             "default": "fake",
             "enum": [
               "fake",
-              "basic_pitch"
+              "basic_pitch",
+              "game_f0"
             ],
             "title": "Transcriber",
             "type": "string"
@@ -287,6 +618,44 @@
         "title": "KeyPoint",
         "type": "object"
       },
+      "MelodyRequest": {
+        "properties": {
+          "expected_revision": {
+            "minimum": 1.0,
+            "title": "Expected Revision",
+            "type": "integer"
+          },
+          "high_pitch": {
+            "default": 84,
+            "maximum": 127.0,
+            "minimum": 0.0,
+            "title": "High Pitch",
+            "type": "integer"
+          },
+          "low_pitch": {
+            "default": 48,
+            "maximum": 127.0,
+            "minimum": 0.0,
+            "title": "Low Pitch",
+            "type": "integer"
+          },
+          "mode": {
+            "default": "balanced",
+            "enum": [
+              "raw",
+              "conservative",
+              "balanced"
+            ],
+            "title": "Mode",
+            "type": "string"
+          }
+        },
+        "required": [
+          "expected_revision"
+        ],
+        "title": "MelodyRequest",
+        "type": "object"
+      },
       "MeterPoint": {
         "properties": {
           "beat": {
@@ -313,6 +682,133 @@
         "title": "MeterPoint",
         "type": "object"
       },
+      "ModelProvenance": {
+        "properties": {
+          "code_revision": {
+            "minLength": 1,
+            "title": "Code Revision",
+            "type": "string"
+          },
+          "device": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device"
+          },
+          "implementation": {
+            "minLength": 1,
+            "title": "Implementation",
+            "type": "string"
+          },
+          "model_revision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Revision"
+          },
+          "name": {
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "parameters": {
+            "additionalProperties": true,
+            "title": "Parameters",
+            "type": "object"
+          },
+          "weight_sha256": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weight Sha256"
+          }
+        },
+        "required": [
+          "name",
+          "implementation",
+          "code_revision"
+        ],
+        "title": "ModelProvenance",
+        "type": "object"
+      },
+      "PerformanceNote": {
+        "properties": {
+          "confidence": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence",
+            "type": "number"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "origin": {
+            "enum": [
+              "model",
+              "user"
+            ],
+            "title": "Origin",
+            "type": "string"
+          },
+          "pitch_bends": {
+            "items": {
+              "$ref": "#/components/schemas/PitchBendPoint"
+            },
+            "title": "Pitch Bends",
+            "type": "array"
+          },
+          "pitch_midi": {
+            "maximum": 127.0,
+            "minimum": 0.0,
+            "title": "Pitch Midi",
+            "type": "integer"
+          },
+          "source_end_ms": {
+            "minimum": 0.0,
+            "title": "Source End Ms",
+            "type": "integer"
+          },
+          "source_note_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Source Note Ids",
+            "type": "array"
+          },
+          "source_start_ms": {
+            "minimum": 0.0,
+            "title": "Source Start Ms",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "source_start_ms",
+          "source_end_ms",
+          "pitch_midi",
+          "confidence",
+          "origin"
+        ],
+        "title": "PerformanceNote",
+        "type": "object"
+      },
       "PipelineStep": {
         "properties": {
           "parameters": {
@@ -334,6 +830,127 @@
           "version"
         ],
         "title": "PipelineStep",
+        "type": "object"
+      },
+      "PitchBendPoint": {
+        "properties": {
+          "cents": {
+            "maximum": 200.0,
+            "minimum": -200.0,
+            "title": "Cents",
+            "type": "number"
+          },
+          "offset_ms": {
+            "minimum": 0.0,
+            "title": "Offset Ms",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "offset_ms",
+          "cents"
+        ],
+        "title": "PitchBendPoint",
+        "type": "object"
+      },
+      "ProjectBulkDeleteRequest": {
+        "properties": {
+          "project_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 200,
+            "minItems": 1,
+            "title": "Project Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "project_ids"
+        ],
+        "title": "ProjectBulkDeleteRequest",
+        "type": "object"
+      },
+      "ProjectCatalogSummary": {
+        "properties": {
+          "duration_ms": {
+            "default": 0,
+            "title": "Duration Ms",
+            "type": "integer"
+          },
+          "engine": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Engine"
+          },
+          "file_name": {
+            "title": "File Name",
+            "type": "string"
+          },
+          "note_count": {
+            "default": 0,
+            "title": "Note Count",
+            "type": "integer"
+          },
+          "project_group_id": {
+            "title": "Project Group Id",
+            "type": "string"
+          },
+          "project_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Id"
+          },
+          "project_name": {
+            "title": "Project Name",
+            "type": "string"
+          },
+          "revision": {
+            "default": 1,
+            "title": "Revision",
+            "type": "integer"
+          },
+          "score_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score Name"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "upload_id": {
+            "title": "Upload Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "project_group_id",
+          "upload_id",
+          "project_name",
+          "file_name",
+          "updated_at"
+        ],
+        "title": "ProjectCatalogSummary",
         "type": "object"
       },
       "ProjectPatch": {
@@ -362,6 +979,27 @@
           "expected_revision"
         ],
         "title": "ProjectPatch",
+        "type": "object"
+      },
+      "ProjectRenameRequest": {
+        "properties": {
+          "expected_revision": {
+            "minimum": 1.0,
+            "title": "Expected Revision",
+            "type": "integer"
+          },
+          "name": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "expected_revision",
+          "name"
+        ],
+        "title": "ProjectRenameRequest",
         "type": "object"
       },
       "ProjectSummary": {
@@ -401,6 +1039,65 @@
           "updated_at"
         ],
         "title": "ProjectSummary",
+        "type": "object"
+      },
+      "QuantizationConflict": {
+        "properties": {
+          "beat": {
+            "minimum": 0.0,
+            "title": "Beat",
+            "type": "number"
+          },
+          "note_ids": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 2,
+            "title": "Note Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "beat",
+          "note_ids"
+        ],
+        "title": "QuantizationConflict",
+        "type": "object"
+      },
+      "QuantizationSettings": {
+        "properties": {
+          "conflicts": {
+            "items": {
+              "$ref": "#/components/schemas/QuantizationConflict"
+            },
+            "title": "Conflicts",
+            "type": "array"
+          },
+          "enabled": {
+            "default": true,
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "grid": {
+            "default": 0.25,
+            "exclusiveMinimum": 0.0,
+            "title": "Grid",
+            "type": "number"
+          },
+          "offset_ms": {
+            "default": 0,
+            "title": "Offset Ms",
+            "type": "integer"
+          },
+          "strength": {
+            "default": 1,
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Strength",
+            "type": "number"
+          }
+        },
+        "title": "QuantizationSettings",
         "type": "object"
       },
       "ReadinessResponse": {
@@ -457,6 +1154,11 @@
             "title": "Denominator",
             "type": "integer"
           },
+          "enabled": {
+            "default": true,
+            "title": "Enabled",
+            "type": "boolean"
+          },
           "expected_revision": {
             "minimum": 1.0,
             "title": "Expected Revision",
@@ -480,6 +1182,34 @@
             "minimum": 1.0,
             "title": "Numerator",
             "type": "integer"
+          },
+          "offset_ms": {
+            "default": 0,
+            "maximum": 10000.0,
+            "minimum": -10000.0,
+            "title": "Offset Ms",
+            "type": "integer"
+          },
+          "strength": {
+            "default": 1,
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Strength",
+            "type": "number"
+          },
+          "tempo_map": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/TempoPoint"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tempo Map"
           },
           "tonic": {
             "maximum": 11.0,
@@ -540,6 +1270,13 @@
             "title": "Source End Ms",
             "type": "integer"
           },
+          "source_note_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Source Note Ids",
+            "type": "array"
+          },
           "source_start_ms": {
             "minimum": 0.0,
             "title": "Source Start Ms",
@@ -564,12 +1301,40 @@
           "analysis": {
             "$ref": "#/components/schemas/Analysis"
           },
+          "audio_alignment": {
+            "$ref": "#/components/schemas/AudioAlignment"
+          },
+          "engine": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Engine"
+          },
           "notes": {
             "items": {
               "$ref": "#/components/schemas/ScoreNote"
             },
             "title": "Notes",
             "type": "array"
+          },
+          "performance_notes": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/PerformanceNote"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Performance Notes"
           },
           "pipeline": {
             "items": {
@@ -578,9 +1343,48 @@
             "title": "Pipeline",
             "type": "array"
           },
+          "project_group_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Group Id"
+          },
           "project_id": {
             "title": "Project Id",
             "type": "string"
+          },
+          "project_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Name"
+          },
+          "quantization": {
+            "$ref": "#/components/schemas/QuantizationSettings"
+          },
+          "raw_notes": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ScoreNote"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Raw Notes"
           },
           "revision": {
             "minimum": 1.0,
@@ -593,8 +1397,49 @@
             "title": "Schema Version",
             "type": "string"
           },
+          "score_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score Name"
+          },
           "source": {
             "$ref": "#/components/schemas/SourceAudio"
+          },
+          "transcription_diagnostics": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TranscriptionDiagnostics"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "transcription_evidence": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TranscriptionEvidence"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "transcription_input": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TranscriptionInput"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -663,6 +1508,117 @@
         "title": "TempoPoint",
         "type": "object"
       },
+      "TranscriptionDiagnostics": {
+        "properties": {
+          "input_duration_ms": {
+            "minimum": 0.0,
+            "title": "Input Duration Ms",
+            "type": "integer"
+          },
+          "leading_silence_ms": {
+            "minimum": 0.0,
+            "title": "Leading Silence Ms",
+            "type": "integer"
+          },
+          "low_energy_note_count": {
+            "minimum": 0.0,
+            "title": "Low Energy Note Count",
+            "type": "integer"
+          },
+          "low_energy_threshold": {
+            "minimum": 0.0,
+            "title": "Low Energy Threshold",
+            "type": "number"
+          },
+          "notes_in_leading_silence": {
+            "minimum": 0.0,
+            "title": "Notes In Leading Silence",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "input_duration_ms",
+          "leading_silence_ms",
+          "low_energy_threshold",
+          "notes_in_leading_silence",
+          "low_energy_note_count"
+        ],
+        "title": "TranscriptionDiagnostics",
+        "type": "object"
+      },
+      "TranscriptionEvidence": {
+        "properties": {
+          "boundary_suggestions": {
+            "items": {
+              "$ref": "#/components/schemas/BoundarySuggestion"
+            },
+            "title": "Boundary Suggestions",
+            "type": "array"
+          },
+          "f0_track": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/F0TrackArtifact"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "last_boundary_batch_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Boundary Batch Id"
+          },
+          "note_model": {
+            "$ref": "#/components/schemas/ModelProvenance"
+          }
+        },
+        "required": [
+          "note_model"
+        ],
+        "title": "TranscriptionEvidence",
+        "type": "object"
+      },
+      "TranscriptionInput": {
+        "properties": {
+          "object_key": {
+            "title": "Object Key",
+            "type": "string"
+          },
+          "separator": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Separator"
+          },
+          "variant": {
+            "enum": [
+              "source",
+              "vocal_stem"
+            ],
+            "title": "Variant",
+            "type": "string"
+          }
+        },
+        "required": [
+          "variant",
+          "object_key"
+        ],
+        "title": "TranscriptionInput",
+        "type": "object"
+      },
       "UploadResponse": {
         "properties": {
           "content_type": {
@@ -681,6 +1637,17 @@
           "id": {
             "title": "Id",
             "type": "string"
+          },
+          "project_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Name"
           },
           "sha256": {
             "title": "Sha256",
@@ -984,6 +1951,28 @@
         "summary": "Retry Job"
       }
     },
+    "/v1/project-catalog": {
+      "get": {
+        "operationId": "list_project_catalog_v1_project_catalog_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProjectCatalogSummary"
+                  },
+                  "title": "Response List Project Catalog V1 Project Catalog Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Project Catalog"
+      }
+    },
     "/v1/projects": {
       "get": {
         "operationId": "list_projects_v1_projects_get",
@@ -1004,6 +1993,48 @@
           }
         },
         "summary": "List Projects"
+      }
+    },
+    "/v1/projects/bulk-delete": {
+      "post": {
+        "operationId": "bulk_delete_projects_v1_projects_bulk_delete_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectBulkDeleteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "integer"
+                  },
+                  "title": "Response Bulk Delete Projects V1 Projects Bulk Delete Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Bulk Delete Projects"
       }
     },
     "/v1/projects/{project_id}": {
@@ -1122,9 +2153,216 @@
         "summary": "Update Project"
       }
     },
+    "/v1/projects/{project_id}/alignment": {
+      "patch": {
+        "operationId": "update_audio_alignment_v1_projects__project_id__alignment_patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AudioAlignmentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScoreProject"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Audio Alignment"
+      }
+    },
     "/v1/projects/{project_id}/audio": {
       "get": {
         "operationId": "stream_project_audio_v1_projects__project_id__audio_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "variant",
+            "required": false,
+            "schema": {
+              "default": "source",
+              "enum": [
+                "source",
+                "vocals"
+              ],
+              "title": "Variant",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Stream Project Audio"
+      }
+    },
+    "/v1/projects/{project_id}/boundary-suggestions/batch": {
+      "post": {
+        "operationId": "review_boundary_batch_v1_projects__project_id__boundary_suggestions_batch_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BoundaryBatchReviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScoreProject"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Review Boundary Batch"
+      }
+    },
+    "/v1/projects/{project_id}/boundary-suggestions/{suggestion_id}": {
+      "post": {
+        "operationId": "review_boundary_suggestion_v1_projects__project_id__boundary_suggestions__suggestion_id__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "suggestion_id",
+            "required": true,
+            "schema": {
+              "title": "Suggestion Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BoundarySuggestionReviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScoreProject"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Review Boundary Suggestion"
+      }
+    },
+    "/v1/projects/{project_id}/evidence/f0": {
+      "get": {
+        "operationId": "stream_project_f0_v1_projects__project_id__evidence_f0_get",
         "parameters": [
           {
             "in": "path",
@@ -1156,7 +2394,118 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Stream Project Audio"
+        "summary": "Stream Project F0"
+      }
+    },
+    "/v1/projects/{project_id}/exports/jianpu.pdf": {
+      "get": {
+        "operationId": "export_project_jianpu_pdf_v1_projects__project_id__exports_jianpu_pdf_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Export Project Jianpu Pdf"
+      }
+    },
+    "/v1/projects/{project_id}/exports/jianpu.png": {
+      "get": {
+        "operationId": "export_project_jianpu_png_v1_projects__project_id__exports_jianpu_png_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Export Project Jianpu Png"
+      }
+    },
+    "/v1/projects/{project_id}/exports/jianpu.svg": {
+      "get": {
+        "operationId": "export_project_jianpu_svg_v1_projects__project_id__exports_jianpu_svg_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Export Project Jianpu Svg"
       }
     },
     "/v1/projects/{project_id}/exports/midi": {
@@ -1169,6 +2518,20 @@
             "required": true,
             "schema": {
               "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "version",
+            "required": false,
+            "schema": {
+              "default": "score",
+              "enum": [
+                "score",
+                "performance"
+              ],
+              "title": "Version",
               "type": "string"
             }
           }
@@ -1231,6 +2594,215 @@
           }
         },
         "summary": "Export Project Musicxml"
+      }
+    },
+    "/v1/projects/{project_id}/exports/staff.pdf": {
+      "get": {
+        "operationId": "export_project_staff_pdf_v1_projects__project_id__exports_staff_pdf_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Export Project Staff Pdf"
+      }
+    },
+    "/v1/projects/{project_id}/exports/staff.png": {
+      "get": {
+        "operationId": "export_project_staff_png_v1_projects__project_id__exports_staff_png_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Export Project Staff Png"
+      }
+    },
+    "/v1/projects/{project_id}/exports/staff.svg": {
+      "get": {
+        "operationId": "export_project_staff_svg_v1_projects__project_id__exports_staff_svg_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Export Project Staff Svg"
+      }
+    },
+    "/v1/projects/{project_id}/melody": {
+      "post": {
+        "operationId": "refine_project_melody_v1_projects__project_id__melody_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MelodyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScoreProject"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Refine Project Melody"
+      }
+    },
+    "/v1/projects/{project_id}/name": {
+      "patch": {
+        "operationId": "rename_project_v1_projects__project_id__name_patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectRenameRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScoreProject"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Rename Project"
       }
     },
     "/v1/projects/{project_id}/requantize": {
@@ -1350,6 +2922,55 @@
           }
         },
         "summary": "Delete Unused Upload"
+      }
+    },
+    "/v1/uploads/{upload_id}/name": {
+      "patch": {
+        "operationId": "rename_audio_project_v1_uploads__upload_id__name_patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "upload_id",
+            "required": true,
+            "schema": {
+              "title": "Upload Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectRenameRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Rename Audio Project"
       }
     }
   }

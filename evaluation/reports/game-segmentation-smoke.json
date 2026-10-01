@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "date": "2026-09-07",
+  "image_id": "sha256:51dae80c5e7e77dce5997a89a09ce1c2d174e4b6bf421d1e26bbcdb63e989925",
+  "source_clip": "Vocadito vocadito_20.wav",
+  "source_duration_seconds": 8.713492,
+  "inserted_silence_seconds": 2.0,
+  "synthetic_duration_seconds": 19.426984,
+  "segmentation": {
+    "method": "silence",
+    "threshold_db": -40.0,
+    "minimum_slice_ms": 1000,
+    "minimum_silence_ms": 200,
+    "maximum_silence_kept_ms": 100,
+    "overlap_ms": 0,
+    "segments": [
+      {
+        "offset_seconds": 0.46,
+        "duration_seconds": 8.16
+      },
+      {
+        "offset_seconds": 11.16,
+        "duration_seconds": 8.266984126984127
+      }
+    ]
+  },
+  "note_count": 64,
+  "first_copy_note_count": 32,
+  "second_copy_note_count": 32,
+  "notes_crossing_inserted_silence": 0,
+  "segment_offset_shift_error_ms": 13.492,
+  "pitch_mismatches_between_diffusion_samples": 9,
+  "checks": {
+    "multiple_segments": true,
+    "non_overlapping_slices": true,
+    "offset_within_slicer_hop": true,
+    "equal_copy_note_counts": true,
+    "no_notes_cross_inserted_silence": true
+  },
+  "passed": true
+}

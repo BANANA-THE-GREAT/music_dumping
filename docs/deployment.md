@@ -1,18 +1,42 @@
 # 部署与运维
 
+## 依赖隔离与后端工具
+
+Docker 部署不使用宿主机的 Node.js、npm 或 Python 环境：
+
+- Web 在 Node.js 22 构建容器内执行 `npm ci`、测试和构建，生成的静态文件及浏览器模型由 Nginx 容器提供。最终 Web 镜像运行 Nginx，无需宿主机 Node/npm 或 `/tmp` 中的依赖。
+- 浏览器 API 客户端默认访问同源 `/api`。容器内 Nginx 转发至 API，并支持 200 MiB 音频上传、流式进度和长任务；本地 Vite 开发及预览使用相同路径代理到 `127.0.0.1:8000`。
+- API 镜像安装 FastAPI、数据库客户端和任务调度依赖；通过 Redis 将音频处理任务交给 Worker。
+- Worker 镜像安装 FFmpeg（含 FFprobe）、libsndfile、OpenMP 运行库、Demucs 和 Basic Pitch 及其 Python 依赖。默认使用 PyTorch 官方 CPU 安装源；叠加 `infra/compose.gpu.yaml` 时改用 CUDA wheel、申请 GPU，并以 `VSS_INFERENCE_DEVICE` 控制推理设备。构建时检查工具版本和主要模块导入。
+- API 与 Worker 共享 `app-data` 卷。Demucs 首次推理下载的权重写入 `model-cache` 卷，重建 Worker 后可复用；首次推理需要联网。
+
+只构建后端镜像并检查工具，不启动或停止服务：
+
+```bash
+docker compose -f infra/compose.yaml build api worker
+docker compose -f infra/compose.yaml run --rm --no-deps worker ffmpeg -version
+docker compose -f infra/compose.yaml run --rm --no-deps worker python -c "from basic_pitch.inference import Model; import demucs.separate; print('model dependencies OK')"
+```
+
+首次构建需要下载音频处理和机器学习依赖，耗时及镜像体积会明显大于普通 API。`.dockerignore` 会排除宿主机的 `node_modules`、`.venv`、本地配置和音频数据，避免将这些文件发送到构建环境。若本地 API 已占用 8000 端口，应先停止该进程，再启动 Compose 的 API 服务。
+
 ## 启动前检查
 
 生产环境应修改 Compose 中的数据库、MinIO 凭据，不把数据库和 Redis 端口暴露到公网，并在 Web/API 前配置 TLS 反向代理。应用数据位于 `app-data`，PostgreSQL 元数据位于 `postgres-data`；两者必须成组备份。
 
 ```bash
 docker compose -f infra/compose.yaml config
-docker compose -f infra/compose.yaml build
-docker compose -f infra/compose.yaml up -d
+docker compose -f infra/compose.yaml build api worker web
+docker compose -f infra/compose.yaml up -d --wait web worker
+curl --fail http://localhost:8888/api/health/ready
 curl --fail http://localhost:8000/health/live
 curl --fail http://localhost:8000/health/ready
 ```
 
 API 启动时先执行 Alembic migration。`ready` 失败时不要继续切换流量，应先检查 API 日志、数据库连接和 Redis 健康状态。
+Compose 会等待 API 和数据库健康后再启动 Web 与 Worker。此启动方式使用 PostgreSQL、Redis 和共享文件卷，不启动尚未接入应用的 MinIO 服务。默认 Web/API 端口仅绑定宿主机回环地址。
+
+前端代码修改后运行 `docker compose -f infra/compose.yaml up -d --build --wait web`；日常启动不需要 `--build`。当前为静态文件服务模式，不提供热更新。本地开发的 SQLite 和 `data/` 文件不会自动迁入容器的数据卷，切换前应按需要迁移或保留本地数据。
 
 ## 备份与恢复
 
@@ -37,6 +61,29 @@ curl --fail http://localhost:8000/v1/projects/PROJECT_ID
 ```
 
 第二个请求应返回 404。数据库/数据卷备份中的副本会持续到备份保留期结束，因此用户说明中应明确这一点。
+
+## GPU Worker
+
+GPU 模式要求宿主机 Docker 已配置 NVIDIA Container Toolkit。项目默认仍使用 CPU；GPU override 只修改 Worker 的 PyTorch 构建参数、设备环境变量和 GPU 设备申请。
+
+quality 镜像替换 PyTorch 时会先卸载基础镜像中的 CPU wheel，再安装 `torch==2.8.0+cu128`。不要使用 `--force-reinstall`，否则 pip 会从 PyTorch wheel 索引重复下载 setuptools 等已满足依赖，并可能触发上游索引文件的哈希不匹配。镜像构建阶段会通过 `torch.version.cuda` 检查 wheel 类型，GPU 设备是否真正可用仍须在启动后检查。
+
+```bash
+scripts/setup-nvidia-container-toolkit.sh
+docker run --rm --gpus all vocal-score-studio-worker:latest \
+  python -c "import torch; assert torch.cuda.is_available(); print(torch.cuda.get_device_name(0))"
+docker compose -f infra/compose.yaml -f infra/compose.gpu.yaml config
+docker compose -f infra/compose.yaml -f infra/compose.gpu.yaml build worker
+docker compose -f infra/compose.yaml -f infra/compose.gpu.yaml up -d --no-build --wait worker
+docker compose -f infra/compose.yaml -f infra/compose.gpu.yaml exec worker \
+  python -c "import torch; assert torch.cuda.is_available(); print(torch.cuda.get_device_name(0))"
+```
+
+设置 `VSS_INFERENCE_DEVICE=cpu` 可以让 GPU 镜像临时走 CPU；设置为 `cuda` 时不可用即报错；默认 `auto` 根据 PyTorch 的 CUDA 检测结果选择。GPU override 默认设置 `VSS_CUDA_VISIBLE_DEVICES=0`，避免 GAME 自动启用多卡预测。实验 GAME + torchcrepe GPU 镜像使用 `scripts/build-quality-worker-gpu.sh` 构建，启动时还需设置 `VSS_WORKER_DOCKERFILE=infra/docker/Dockerfile.worker-quality` 并添加 `--no-build`。
+
+GPU override 同时默认设置 `HF_HUB_OFFLINE=1`。Demucs 权重已经存在于 `model-cache` 时，这会跳过每个子进程的远端元数据请求；本机实测模型加载由 `69.41s` 降至 `0.34s`。空缓存首次下载时使用 `VSS_HF_HUB_OFFLINE=0` 启动一次，确认权重落盘后再恢复离线模式。
+
+2026-09-08 的实机验收环境为 RTX 5060 Ti 16 GiB、PyTorch `2.8.0+cu128`、CUDA `12.8`。15 段 Vocadito holdout 的 GPU 等价性报告位于 `evaluation/reports/gpu-holdout-comparison.json`；真实 quality 任务峰值显存约 `3.35 GiB`。当前 Worker 仍按单并发串行运行 Demucs、GAME 和 torchcrepe，不要仅凭显存余量提高 Celery 并发。
 
 ## 升级与回滚
 

@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "split": "tuning",
+  "f0_evaluation": {
+    "periodicity_thresholds": [0.1, 0.2, 0.3, 0.4, 0.5],
+    "pitch_tolerance_cents": 50
+  },
+  "boundary_grid": {
+    "periodicity_thresholds": [0.1, 0.2, 0.3, 0.4],
+    "pitch_tolerances_cents": [50, 100, 150],
+    "maximum_gap_ms": [20, 40],
+    "maximum_contraction_ms": 400,
+    "maximum_extension_ms": 400,
+    "minimum_overlap_ms": 30
+  },
+  "selection": {
+    "ranking": "Maximize onset-offset F1, then recall, on tuning only.",
+    "minimum_f1_improvement": 0.01,
+    "maximum_precision_regression": 0.02
+  }
+}

@@ -1,6 +1,14 @@
 import type {
+  BoundarySuggestionReviewRequest,
+  BoundaryBatchReviewRequest,
+  AudioAlignmentRequest,
+  F0Frame,
   JobResponse,
+  MelodyOptions,
   ProjectSummary,
+  ProjectCatalogSummary,
+  ProjectBulkDeleteRequest,
+  ProjectBulkDeleteResponse,
   RequantizeRequest,
   ScoreProject,
   ScoreProjectNote,
@@ -15,34 +23,51 @@ export class ApiError extends Error {
     super(message);
   }
 }
+
+export type ProjectExportFormat =
+  | "midi"
+  | "musicxml"
+  | "staff.svg"
+  | "staff.png"
+  | "staff.pdf"
+  | "jianpu.svg"
+  | "jianpu.png"
+  | "jianpu.pdf";
+
+export interface ProjectExportDownload {
+  blob: Blob;
+  fileName: string;
+}
+
 export class VocalScoreApi {
-  constructor(private baseUrl = "http://localhost:8000") {}
+  constructor(private baseUrl = "/api") {}
+  private async fail(response: Response): Promise<never> {
+    let message = `API request failed (${response.status})`;
+    let detail: unknown;
+    try {
+      const body = await response.json();
+      detail = body.detail;
+      if (typeof detail === "string") message = detail;
+      else if (detail && typeof detail === "object" && "code" in detail)
+        message = String(detail.code);
+    } catch {}
+    throw new ApiError(response.status, message, detail);
+  }
   private async request<T>(path: string, init?: RequestInit): Promise<T> {
     const response = await fetch(`${this.baseUrl}${path}`, init);
-    if (!response.ok) {
-      let message = `API request failed (${response.status})`;
-      let detail: unknown;
-      try {
-        const body = await response.json();
-        detail = body.detail;
-        if (typeof detail === "string") message = detail;
-        else if (detail && typeof detail === "object" && "code" in detail)
-          message = String(detail.code);
-      } catch {}
-      throw new ApiError(response.status, message, detail);
-    }
+    if (!response.ok) await this.fail(response);
     return response.status === 204
       ? (undefined as T)
       : (response.json() as Promise<T>);
   }
-  upload(file: File): Promise<UploadResponse> {
+  upload(file: File, signal?: AbortSignal): Promise<UploadResponse> {
     const body = new FormData();
     body.append("file", file);
-    return this.request("/v1/uploads", { method: "POST", body });
+    return this.request("/v1/uploads", { method: "POST", body, signal });
   }
   createJob(
     uploadId: string,
-    quality: "demo" | "high" = "demo",
+    quality: "demo" | "high" | "experimental" = "demo",
   ): Promise<JobResponse> {
     return this.request("/v1/jobs", {
       method: "POST",
@@ -50,9 +75,11 @@ export class VocalScoreApi {
       body: JSON.stringify({
         upload_id: uploadId,
         options:
-          quality === "high"
-            ? { separator: "demucs", transcriber: "basic_pitch" }
-            : { separator: "fake", transcriber: "fake" },
+          quality === "experimental"
+            ? { separator: "demucs", transcriber: "game_f0" }
+            : quality === "high"
+              ? { separator: "demucs", transcriber: "basic_pitch" }
+              : { separator: "fake", transcriber: "fake" },
       }),
     });
   }
@@ -65,8 +92,35 @@ export class VocalScoreApi {
   listProjects(): Promise<ProjectSummary[]> {
     return this.request("/v1/projects");
   }
+  listProjectCatalog(): Promise<ProjectCatalogSummary[]> {
+    return this.request("/v1/project-catalog");
+  }
+  renameProject(id: string, expectedRevision: number, name: string): Promise<ScoreProject> {
+    return this.request(`/v1/projects/${id}/name`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ expected_revision: expectedRevision, name }),
+    });
+  }
+  renameAudioProject(id: string, name: string): Promise<UploadResponse> {
+    return this.request(`/v1/uploads/${id}/name`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ expected_revision: 1, name }),
+    });
+  }
+  deleteUpload(id: string): Promise<void> {
+    return this.request(`/v1/uploads/${id}`, { method: "DELETE" });
+  }
   deleteProject(id: string): Promise<void> {
     return this.request(`/v1/projects/${id}`, { method: "DELETE" });
+  }
+  bulkDeleteProjects(request: ProjectBulkDeleteRequest): Promise<ProjectBulkDeleteResponse> {
+    return this.request("/v1/projects/bulk-delete", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(request),
+    });
   }
   updateProject(
     id: string,
@@ -79,6 +133,34 @@ export class VocalScoreApi {
       body: JSON.stringify({ expected_revision: expectedRevision, notes }),
     });
   }
+  reviewBoundarySuggestion(
+    id: string,
+    suggestionId: string,
+    request: BoundarySuggestionReviewRequest,
+  ): Promise<ScoreProject> {
+    return this.request(
+      `/v1/projects/${id}/boundary-suggestions/${suggestionId}`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(request),
+      },
+    );
+  }
+  reviewBoundaryBatch(id: string, request: BoundaryBatchReviewRequest): Promise<ScoreProject> {
+    return this.request(`/v1/projects/${id}/boundary-suggestions/batch`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(request),
+    });
+  }
+  updateAudioAlignment(id: string, request: AudioAlignmentRequest): Promise<ScoreProject> {
+    return this.request(`/v1/projects/${id}/alignment`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(request),
+    });
+  }
   requantizeProject(
     id: string,
     request: RequantizeRequest,
@@ -89,11 +171,49 @@ export class VocalScoreApi {
       body: JSON.stringify(request),
     });
   }
-  exportUrl(id: string, format: "midi" | "musicxml"): string {
-    return `${this.baseUrl}/v1/projects/${id}/exports/${format}`;
+  exportUrl(
+    id: string,
+    format: ProjectExportFormat,
+    version: "score" | "performance" = "score",
+  ): string {
+    const query = format === "midi" ? `?version=${version}` : "";
+    return `${this.baseUrl}/v1/projects/${id}/exports/${format}${query}`;
   }
-  audioUrl(id: string): string {
-    return `${this.baseUrl}/v1/projects/${id}/audio`;
+  async downloadExport(
+    id: string,
+    format: ProjectExportFormat,
+    version: "score" | "performance" = "score",
+  ): Promise<ProjectExportDownload> {
+    const response = await fetch(this.exportUrl(id, format, version));
+    if (!response.ok) await this.fail(response);
+    const disposition = response.headers.get("content-disposition") || "";
+    const match = /filename="?([^";]+)"?/i.exec(disposition);
+    return {
+      blob: await response.blob(),
+      fileName: match?.[1] || `${id}.${format}`,
+    };
+  }
+  audioUrl(id: string, variant: "source" | "vocals" = "source"): string {
+    return `${this.baseUrl}/v1/projects/${id}/audio${variant === "vocals" ? "?variant=vocals" : ""}`;
+  }
+  async getF0Track(id: string): Promise<F0Frame[]> {
+    const response = await fetch(`${this.baseUrl}/v1/projects/${id}/evidence/f0`);
+    if (!response.ok) await this.fail(response);
+    return (await response.text())
+      .split("\n")
+      .filter(Boolean)
+      .map((line) => JSON.parse(line) as F0Frame);
+  }
+  refineMelody(
+    id: string,
+    expectedRevision: number,
+    options: MelodyOptions,
+  ): Promise<ScoreProject> {
+    return this.request(`/v1/projects/${id}/melody`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ expected_revision: expectedRevision, ...options }),
+    });
   }
   cancelJob(id: string): Promise<JobResponse> {
     return this.request(`/v1/jobs/${id}/cancel`, { method: "POST" });

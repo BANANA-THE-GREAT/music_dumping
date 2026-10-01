@@ -1,6 +1,8 @@
+import math
 import time
 from collections.abc import Iterator
-from typing import Annotated
+from typing import Annotated, Literal
+from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile, status
 from fastapi.responses import FileResponse, StreamingResponse
@@ -12,14 +14,33 @@ from app.database import SessionLocal, get_session
 from app.exporters import project_to_midi, project_to_musicxml
 from app.job_runner import dispatch_job
 from app.models import JobRecord, ProjectRecord, UploadRecord
-from app.project_service import requantize
+from app.project_service import (
+    boundary_quantized_duration,
+    requantize,
+    synchronize_score_edits,
+)
+from app.renderer_client import (
+    RendererFailedError,
+    RendererUnavailableError,
+    convert_svg,
+    engrave_musicxml,
+)
+from app.renderers import render_jianpu_svg, render_staff_svg
 from app.repository import create_job, create_upload, job_response
 from app.schemas import (
+    AudioAlignmentRequest,
+    BoundaryBatchReviewRequest,
+    BoundarySuggestionReviewRequest,
     JobCreate,
     JobResponse,
     JobStage,
     JobStatus,
+    MelodyRequest,
+    PipelineStep,
+    ProjectBulkDeleteRequest,
+    ProjectCatalogSummary,
     ProjectPatch,
+    ProjectRenameRequest,
     ProjectSummary,
     RequantizeRequest,
     ScoreProject,
@@ -30,6 +51,36 @@ from app.storage import UploadTooLargeError, remove_project_files, resolve_data_
 router = APIRouter(prefix="/v1")
 SessionDep = Annotated[Session, Depends(get_session)]
 SettingsDep = Annotated[Settings, Depends(get_settings)]
+
+
+def _hydrate_project_metadata(
+    record: ProjectRecord, session: Session
+) -> tuple[ScoreProject, UploadRecord | None, bool]:
+    project = ScoreProject.model_validate(record.document)
+    job = session.get(JobRecord, record.job_id)
+    upload = session.get(UploadRecord, job.upload_id) if job else None
+    if upload is None:
+        return project, None, False
+    changed = False
+    audio_name = upload.file_name.rsplit(".", 1)[0] or upload.file_name
+    if not project.project_group_id:
+        project.project_group_id = upload.id
+        changed = True
+    if not project.project_name or project.project_name == "未命名项目":
+        project.project_name = upload.project_name or audio_name
+        changed = True
+    if not project.score_name or project.score_name == "未命名谱面":
+        records = session.scalars(
+            select(ProjectRecord)
+            .join(JobRecord, ProjectRecord.job_id == JobRecord.id)
+            .where(JobRecord.upload_id == upload.id)
+            .order_by(ProjectRecord.created_at, ProjectRecord.id)
+        ).all()
+        project.score_name = f"{audio_name}-{records.index(record) + 1}"
+        changed = True
+    if changed:
+        record.document = project.model_dump(mode="json")
+    return project, upload, changed
 
 
 @router.post("/uploads", response_model=UploadResponse, status_code=status.HTTP_201_CREATED)
@@ -102,7 +153,7 @@ def job_events(job_id: str, session: SessionDep) -> StreamingResponse:
 
 @router.post("/jobs/{job_id}/cancel", response_model=JobResponse)
 def cancel_job(job_id: str, session: SessionDep) -> JobResponse:
-    record = session.get(JobRecord, job_id)
+    record = session.scalar(select(JobRecord).where(JobRecord.id == job_id).with_for_update())
     if record is None:
         raise HTTPException(status_code=404, detail="Job not found")
     if record.status in {JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED}:
@@ -135,7 +186,10 @@ def get_project(project_id: str, session: SessionDep) -> ScoreProject:
     record = session.get(ProjectRecord, project_id)
     if record is None:
         raise HTTPException(status_code=404, detail="Project not found")
-    return ScoreProject.model_validate(record.document)
+    project, _, changed = _hydrate_project_metadata(record, session)
+    if changed:
+        session.commit()
+    return project
 
 
 @router.get("/projects", response_model=list[ProjectSummary])
@@ -159,20 +213,101 @@ def list_projects(session: SessionDep) -> list[ProjectSummary]:
     return summaries
 
 
+@router.get("/project-catalog", response_model=list[ProjectCatalogSummary])
+def list_project_catalog(session: SessionDep) -> list[ProjectCatalogSummary]:
+    records = session.scalars(
+        select(ProjectRecord).order_by(ProjectRecord.updated_at.desc()).limit(200)
+    )
+    summaries: list[ProjectCatalogSummary] = []
+    represented_uploads: set[str] = set()
+    metadata_changed = False
+    for record in records:
+        project, upload, changed = _hydrate_project_metadata(record, session)
+        metadata_changed = metadata_changed or changed
+        if upload:
+            represented_uploads.add(upload.id)
+        summaries.append(
+            ProjectCatalogSummary(
+                project_id=project.project_id,
+                project_group_id=project.project_group_id or (upload.id if upload else ""),
+                upload_id=upload.id if upload else "",
+                project_name=upload.project_name
+                if upload and upload.project_name
+                else (project.project_name or "未命名项目"),
+                score_name=project.score_name or "未命名谱面",
+                engine=project.engine or "unknown",
+                file_name=project.source.file_name,
+                duration_ms=project.source.duration_ms,
+                note_count=len(project.notes),
+                revision=record.revision,
+                updated_at=record.updated_at,
+            )
+        )
+    if metadata_changed:
+        session.commit()
+    uploads = session.scalars(
+        select(UploadRecord).order_by(UploadRecord.created_at.desc()).limit(200)
+    )
+    for upload in uploads:
+        if upload.id in represented_uploads:
+            continue
+        summaries.append(
+            ProjectCatalogSummary(
+                project_group_id=upload.id,
+                upload_id=upload.id,
+                project_name=upload.project_name or upload.file_name.rsplit(".", 1)[0],
+                file_name=upload.file_name,
+                updated_at=upload.created_at,
+            )
+        )
+    summaries.sort(key=lambda item: item.updated_at, reverse=True)
+    return summaries
+
+
 def _project_document(project_id: str, session: Session) -> ScoreProject:
     record = session.get(ProjectRecord, project_id)
     if record is None:
         raise HTTPException(status_code=404, detail="Project not found")
-    return ScoreProject.model_validate(record.document)
+    project, _, changed = _hydrate_project_metadata(record, session)
+    if changed:
+        session.commit()
+    return project
+
+
+@router.patch("/projects/{project_id}/name", response_model=ScoreProject)
+def rename_project(
+    project_id: str, request: ProjectRenameRequest, session: SessionDep
+) -> ScoreProject:
+    record, project = _editable_project(project_id, request.expected_revision, session)
+    project.score_name = request.name
+    return _save_project(record, project, session)
+
+
+@router.patch("/uploads/{upload_id}/name", response_model=UploadResponse)
+def rename_audio_project(
+    upload_id: str, request: ProjectRenameRequest, session: SessionDep
+) -> UploadResponse:
+    upload = session.get(UploadRecord, upload_id)
+    if upload is None:
+        raise HTTPException(status_code=404, detail="Upload not found")
+    upload.project_name = request.name
+    session.commit()
+    session.refresh(upload)
+    return UploadResponse.model_validate(upload, from_attributes=True)
 
 
 @router.get("/projects/{project_id}/exports/midi")
-def export_project_midi(project_id: str, session: SessionDep) -> Response:
-    content = project_to_midi(_project_document(project_id, session))
+def export_project_midi(
+    project_id: str,
+    session: SessionDep,
+    version: Literal["score", "performance"] = "score",
+) -> Response:
+    content = project_to_midi(_project_document(project_id, session), version)
+    suffix = ".performance" if version == "performance" else ""
     return Response(
         content=content,
         media_type="audio/midi",
-        headers={"Content-Disposition": f'attachment; filename="{project_id}.mid"'},
+        headers={"Content-Disposition": f'attachment; filename="{project_id}{suffix}.mid"'},
     )
 
 
@@ -186,24 +321,201 @@ def export_project_musicxml(project_id: str, session: SessionDep) -> Response:
     )
 
 
+def _renderer_http_error(error: Exception) -> HTTPException:
+    if isinstance(error, RendererUnavailableError):
+        return HTTPException(
+            status_code=503,
+            detail={"code": "SCORE_RENDERER_UNAVAILABLE", "message": str(error)},
+        )
+    return HTTPException(
+        status_code=502,
+        detail={"code": "SCORE_RENDER_FAILED", "message": str(error)},
+    )
+
+
+def _renderer_headers(
+    renderer: str, output_format: str, metadata: dict[str, str] | None = None
+) -> dict[str, str]:
+    headers = {
+        "X-Score-Renderer": renderer,
+        "X-Score-Format": output_format,
+    }
+    for key, value in (metadata or {}).items():
+        header = "-".join(part.capitalize() for part in key.split("_"))
+        headers[f"X-Score-Renderer-{header}"] = value
+    return headers
+
+
+@router.get("/projects/{project_id}/exports/staff.svg")
+def export_project_staff_svg(
+    project_id: str,
+    session: SessionDep,
+    settings: SettingsDep,
+    preview: bool = False,
+) -> Response:
+    project = _project_document(project_id, session)
+    if settings.renderer_url:
+        renderer = "verovio"
+        try:
+            result = engrave_musicxml(
+                project_to_musicxml(project), "svg", settings.renderer_url
+            )
+            content = result.content
+            metadata = result.metadata
+        except (RendererUnavailableError, RendererFailedError) as error:
+            raise _renderer_http_error(error) from error
+    else:
+        renderer = "native-staff-svg"
+        content = render_staff_svg(project)
+        metadata = None
+    return Response(
+        content=content,
+        media_type="image/svg+xml",
+        headers={
+            "Content-Disposition": (
+                f'{"inline" if preview else "attachment"}; '
+                f'filename="{project_id}.staff.svg"'
+            ),
+            **_renderer_headers(renderer, "staff.svg", metadata),
+        },
+    )
+
+
+@router.get("/projects/{project_id}/exports/jianpu.svg")
+def export_project_jianpu_svg(
+    project_id: str, session: SessionDep, preview: bool = False
+) -> Response:
+    content = render_jianpu_svg(_project_document(project_id, session))
+    return Response(
+        content=content,
+        media_type="image/svg+xml",
+        headers={
+            "Content-Disposition": (
+                f'{"inline" if preview else "attachment"}; '
+                f'filename="{project_id}.jianpu.svg"'
+            ),
+            **_renderer_headers("native-jianpu-svg", "jianpu.svg"),
+        },
+    )
+
+
+def _converted_score_export(
+    project_id: str,
+    notation: Literal["staff", "jianpu"],
+    output_format: Literal["png", "pdf"],
+    session: Session,
+    settings: Settings,
+) -> Response:
+    project = _project_document(project_id, session)
+    try:
+        if notation == "staff":
+            result = engrave_musicxml(
+                project_to_musicxml(project), output_format, settings.renderer_url
+            )
+        else:
+            result = convert_svg(
+                render_jianpu_svg(project), output_format, settings.renderer_url
+            )
+    except (RendererUnavailableError, RendererFailedError) as error:
+        raise _renderer_http_error(error) from error
+    media_type = "image/png" if output_format == "png" else "application/pdf"
+    return Response(
+        content=result.content,
+        media_type=media_type,
+        headers={
+            "Content-Disposition": (
+                f'attachment; filename="{project_id}.{notation}.{output_format}"'
+            ),
+            **_renderer_headers(
+                "verovio+inkscape"
+                if notation == "staff"
+                else "native-jianpu+inkscape",
+                f"{notation}.{output_format}",
+                result.metadata,
+            ),
+        },
+    )
+
+
+@router.get("/projects/{project_id}/exports/staff.png")
+def export_project_staff_png(
+    project_id: str, session: SessionDep, settings: SettingsDep
+) -> Response:
+    return _converted_score_export(project_id, "staff", "png", session, settings)
+
+
+@router.get("/projects/{project_id}/exports/staff.pdf")
+def export_project_staff_pdf(
+    project_id: str, session: SessionDep, settings: SettingsDep
+) -> Response:
+    return _converted_score_export(project_id, "staff", "pdf", session, settings)
+
+
+@router.get("/projects/{project_id}/exports/jianpu.png")
+def export_project_jianpu_png(
+    project_id: str, session: SessionDep, settings: SettingsDep
+) -> Response:
+    return _converted_score_export(project_id, "jianpu", "png", session, settings)
+
+
+@router.get("/projects/{project_id}/exports/jianpu.pdf")
+def export_project_jianpu_pdf(
+    project_id: str, session: SessionDep, settings: SettingsDep
+) -> Response:
+    return _converted_score_export(project_id, "jianpu", "pdf", session, settings)
+
+
 @router.get("/projects/{project_id}/audio")
 def stream_project_audio(
-    project_id: str, session: SessionDep, settings: SettingsDep
+    project_id: str,
+    session: SessionDep,
+    settings: SettingsDep,
+    variant: Literal["source", "vocals"] = "source",
 ) -> FileResponse:
     record = session.get(ProjectRecord, project_id)
     if record is None:
         raise HTTPException(status_code=404, detail="Project not found")
     project = ScoreProject.model_validate(record.document)
-    path = resolve_data_path(settings, project.source.audio_object_key)
+    object_key = (
+        project.source.audio_object_key if variant == "source" else project.source.vocal_object_key
+    )
+    if not object_key:
+        raise HTTPException(status_code=404, detail="Separated vocals are not available")
+    path = resolve_data_path(settings, object_key)
+    if variant == "vocals" and not path.is_file():
+        # Older documents incorrectly used the project ID rather than the worker job ID.
+        path = resolve_data_path(
+            settings, f"work/{record.job_id}/stems/htdemucs/normalized/vocals.wav"
+        )
     if not path.is_file():
         raise HTTPException(status_code=404, detail="Project audio not found")
     job = session.get(JobRecord, record.job_id)
     upload = session.get(UploadRecord, job.upload_id) if job else None
     return FileResponse(
         path,
-        media_type=upload.content_type if upload else "application/octet-stream",
-        filename=project.source.file_name,
+        media_type="audio/wav"
+        if variant == "vocals"
+        else upload.content_type
+        if upload
+        else "application/octet-stream",
+        filename="vocals.wav" if variant == "vocals" else project.source.file_name,
     )
+
+
+@router.get("/projects/{project_id}/evidence/f0")
+def stream_project_f0(project_id: str, session: SessionDep, settings: SettingsDep) -> FileResponse:
+    project = _project_document(project_id, session)
+    artifact = (
+        project.transcription_evidence.f0_track
+        if project.transcription_evidence is not None
+        else None
+    )
+    if artifact is None:
+        raise HTTPException(status_code=404, detail="F0 evidence is not available")
+    path = resolve_data_path(settings, artifact.object_key)
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="F0 evidence file not found")
+    return FileResponse(path, media_type="application/x-ndjson", filename="f0.jsonl")
 
 
 def _editable_project(
@@ -235,7 +547,259 @@ def _save_project(record: ProjectRecord, project: ScoreProject, session: Session
 def update_project(project_id: str, request: ProjectPatch, session: SessionDep) -> ScoreProject:
     record, project = _editable_project(project_id, request.expected_revision, session)
     if request.notes is not None:
-        project.notes = request.notes
+        synchronize_score_edits(project, request.notes, record.revision + 1)
+    return _save_project(record, project, session)
+
+
+@router.post("/projects/{project_id}/boundary-suggestions/batch", response_model=ScoreProject)
+def review_boundary_batch(
+    project_id: str,
+    request: BoundaryBatchReviewRequest,
+    session: SessionDep,
+) -> ScoreProject:
+    # Register the static /batch path before /{suggestion_id}; FastAPI matches in order.
+    return _review_boundary_batch(project_id, request, session)
+
+
+@router.post(
+    "/projects/{project_id}/boundary-suggestions/{suggestion_id}",
+    response_model=ScoreProject,
+)
+def review_boundary_suggestion(
+    project_id: str,
+    suggestion_id: str,
+    request: BoundarySuggestionReviewRequest,
+    session: SessionDep,
+) -> ScoreProject:
+    from app.schemas import PipelineStep
+
+    record, project = _editable_project(project_id, request.expected_revision, session)
+    evidence = project.transcription_evidence
+    if evidence is None:
+        raise HTTPException(status_code=404, detail={"code": "SUGGESTION_NOT_FOUND"})
+    suggestion = next(
+        (item for item in evidence.boundary_suggestions if item.id == suggestion_id), None
+    )
+    if suggestion is None:
+        raise HTTPException(status_code=404, detail={"code": "SUGGESTION_NOT_FOUND"})
+    if suggestion.review_status == "superseded":
+        raise HTTPException(status_code=409, detail={"code": "SUGGESTION_SUPERSEDED"})
+    if request.action != "reset" and suggestion.review_status != "pending":
+        raise HTTPException(status_code=409, detail={"code": "SUGGESTION_ALREADY_REVIEWED"})
+    if request.action == "reset" and suggestion.review_status == "pending":
+        raise HTTPException(status_code=409, detail={"code": "SUGGESTION_NOT_REVIEWED"})
+
+    target = next(
+        (note for note in project.notes if suggestion.source_note_id in note.source_note_ids),
+        None,
+    )
+    performance_target = next(
+        (
+            note
+            for note in project.performance_notes or []
+            if suggestion.source_note_id in note.source_note_ids
+        ),
+        None,
+    )
+    changes_note = request.action == "accept" or (
+        request.action == "reset" and suggestion.review_status == "accepted"
+    )
+    if changes_note:
+        if target is None or performance_target is None:
+            raise HTTPException(status_code=409, detail={"code": "SUGGESTION_TARGET_MISSING"})
+        expected_end = (
+            suggestion.original_end_ms if request.action == "accept" else suggestion.proposed_end_ms
+        )
+        if target.source_end_ms != expected_end:
+            raise HTTPException(status_code=409, detail={"code": "SUGGESTION_TARGET_CHANGED"})
+        if performance_target.source_end_ms != expected_end:
+            raise HTTPException(status_code=409, detail={"code": "SUGGESTION_TARGET_CHANGED"})
+        if request.action == "reset":
+            expected_duration = boundary_quantized_duration(
+                project, target, suggestion.proposed_end_ms
+            )
+            if not math.isclose(target.quantized_duration, expected_duration):
+                raise HTTPException(status_code=409, detail={"code": "SUGGESTION_TARGET_CHANGED"})
+
+    next_revision = record.revision + 1
+    if request.action == "accept":
+        assert target is not None
+        assert performance_target is not None
+        suggestion.accepted_from_origin = target.origin
+        suggestion.accepted_from_quantized_duration = target.quantized_duration
+        target.source_end_ms = suggestion.proposed_end_ms
+        target.quantized_duration = boundary_quantized_duration(
+            project, target, target.source_end_ms
+        )
+        target.origin = "user"
+        performance_target.source_end_ms = suggestion.proposed_end_ms
+        performance_target.origin = "user"
+        suggestion.review_status = "accepted"
+        suggestion.superseded_reason = None
+        suggestion.reviewed_revision = next_revision
+    elif request.action == "reject":
+        suggestion.review_status = "rejected"
+        suggestion.superseded_reason = None
+        suggestion.reviewed_revision = next_revision
+    else:
+        if changes_note:
+            assert target is not None
+            assert performance_target is not None
+            target.source_end_ms = suggestion.original_end_ms
+            target.quantized_duration = (
+                suggestion.accepted_from_quantized_duration
+                if suggestion.accepted_from_quantized_duration is not None
+                else boundary_quantized_duration(project, target, target.source_end_ms)
+            )
+            target.origin = suggestion.accepted_from_origin or "model"
+            performance_target.source_end_ms = suggestion.original_end_ms
+            performance_target.origin = suggestion.accepted_from_origin or "model"
+        suggestion.review_status = "pending"
+        suggestion.superseded_reason = None
+        suggestion.reviewed_revision = None
+        suggestion.accepted_from_origin = None
+        suggestion.accepted_from_quantized_duration = None
+    project.pipeline.append(
+        PipelineStep(
+            stage="boundary_suggestion_review",
+            version="1",
+            parameters={"suggestion_id": suggestion.id, "action": request.action},
+        )
+    )
+    return _save_project(record, project, session)
+
+
+def _review_boundary_batch(
+    project_id: str,
+    request: BoundaryBatchReviewRequest,
+    session: SessionDep,
+) -> ScoreProject:
+    record, project = _editable_project(project_id, request.expected_revision, session)
+    evidence = project.transcription_evidence
+    if evidence is None:
+        raise HTTPException(status_code=404, detail={"code": "SUGGESTION_NOT_FOUND"})
+    pending = [
+        item
+        for item in evidence.boundary_suggestions
+        if item.review_status == "pending" and item.confidence >= request.threshold
+    ]
+    if request.action == "preview":
+        return project
+    if request.action == "reset":
+        batch_id = evidence.last_boundary_batch_id
+        if not batch_id:
+            raise HTTPException(status_code=409, detail={"code": "NO_BOUNDARY_BATCH"})
+        restored = 0
+        for suggestion in evidence.boundary_suggestions:
+            if suggestion.review_batch_id != batch_id or suggestion.review_status != "accepted":
+                continue
+            target = next(
+                (
+                    note
+                    for note in project.notes
+                    if suggestion.source_note_id in note.source_note_ids
+                ),
+                None,
+            )
+            performance_target = next(
+                (
+                    note
+                    for note in project.performance_notes or []
+                    if suggestion.source_note_id in note.source_note_ids
+                ),
+                None,
+            )
+            if (
+                target is None
+                or performance_target is None
+                or target.source_end_ms != suggestion.proposed_end_ms
+            ):
+                continue
+            target.source_end_ms = suggestion.original_end_ms
+            target.quantized_duration = suggestion.accepted_from_quantized_duration or (
+                boundary_quantized_duration(project, target, target.source_end_ms)
+            )
+            target.origin = suggestion.accepted_from_origin or "model"
+            performance_target.source_end_ms = suggestion.original_end_ms
+            performance_target.origin = suggestion.accepted_from_origin or "model"
+            suggestion.review_status = "pending"
+            suggestion.superseded_reason = None
+            suggestion.reviewed_revision = None
+            suggestion.review_batch_id = None
+            suggestion.accepted_from_origin = None
+            suggestion.accepted_from_quantized_duration = None
+            restored += 1
+        evidence.last_boundary_batch_id = None
+        project.pipeline.append(
+            PipelineStep(
+                stage="boundary_suggestion_batch_reset",
+                version="1",
+                parameters={"restored": restored, "batch_id": batch_id},
+            )
+        )
+        return _save_project(record, project, session)
+
+    batch_id = str(uuid4())
+    changed = 0
+    for suggestion in pending:
+        target = next(
+            (note for note in project.notes if suggestion.source_note_id in note.source_note_ids),
+            None,
+        )
+        performance_target = next(
+            (
+                note
+                for note in project.performance_notes or []
+                if suggestion.source_note_id in note.source_note_ids
+            ),
+            None,
+        )
+        if (
+            target is None
+            or performance_target is None
+            or target.source_end_ms != suggestion.original_end_ms
+        ):
+            continue
+        suggestion.accepted_from_origin = target.origin
+        suggestion.accepted_from_quantized_duration = target.quantized_duration
+        target.source_end_ms = suggestion.proposed_end_ms
+        target.quantized_duration = boundary_quantized_duration(
+            project, target, target.source_end_ms
+        )
+        target.origin = "user"
+        performance_target.source_end_ms = suggestion.proposed_end_ms
+        performance_target.origin = "user"
+        suggestion.review_status = "accepted"
+        suggestion.superseded_reason = None
+        suggestion.review_batch_id = batch_id
+        suggestion.reviewed_revision = record.revision + 1
+        changed += 1
+    evidence.last_boundary_batch_id = batch_id if changed else None
+    project.pipeline.append(
+        PipelineStep(
+            stage="boundary_suggestion_batch_accept",
+            version="1",
+            parameters={"threshold": request.threshold, "accepted": changed, "batch_id": batch_id},
+        )
+    )
+    return _save_project(record, project, session)
+
+
+@router.patch("/projects/{project_id}/alignment", response_model=ScoreProject)
+def update_audio_alignment(
+    project_id: str, request: AudioAlignmentRequest, session: SessionDep
+) -> ScoreProject:
+    record, project = _editable_project(project_id, request.expected_revision, session)
+    project.audio_alignment.offset_ms = request.offset_ms
+    project.audio_alignment.source = request.source
+    project.audio_alignment.status = request.status
+    project.pipeline.append(
+        PipelineStep(
+            stage="audio_alignment",
+            version="1",
+            parameters={"offset_ms": request.offset_ms, "source": request.source},
+        )
+    )
     return _save_project(record, project, session)
 
 
@@ -257,9 +821,13 @@ def delete_project(project_id: str, session: SessionDep, settings: SettingsDep) 
         session.delete(project)
         session.commit()
         return Response(status_code=status.HTTP_204_NO_CONTENT)
+    if job.status in {JobStatus.QUEUED, JobStatus.RUNNING, JobStatus.CANCELLING}:
+        raise HTTPException(status_code=409, detail={"code": "PROJECT_JOB_RUNNING"})
     upload = session.get(UploadRecord, job.upload_id)
     object_key = upload.object_key if upload else None
     session.delete(project)
+    # There are no ORM relationships to order these dependent DELETE statements.
+    session.flush()
     session.delete(job)
     session.flush()
     other_job = session.scalar(
@@ -271,6 +839,128 @@ def delete_project(project_id: str, session: SessionDep, settings: SettingsDep) 
     if object_key is not None and other_job is None:
         remove_project_files(settings, object_key, job.id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/projects/bulk-delete", status_code=status.HTTP_200_OK)
+def bulk_delete_projects(
+    request: ProjectBulkDeleteRequest, session: SessionDep, settings: SettingsDep
+) -> dict[str, int]:
+    records = [session.get(ProjectRecord, project_id) for project_id in set(request.project_ids)]
+    missing = sum(record is None for record in records)
+    existing = [record for record in records if record is not None]
+    running = [
+        record.id
+        for record in existing
+        if (job := session.get(JobRecord, record.job_id)) is not None
+        and job.status in {JobStatus.QUEUED, JobStatus.RUNNING, JobStatus.CANCELLING}
+    ]
+    if running:
+        raise HTTPException(
+            status_code=409, detail={"code": "PROJECT_JOB_RUNNING", "project_ids": running}
+        )
+
+    upload_ids = {
+        job.upload_id
+        for record in existing
+        if (job := session.get(JobRecord, record.job_id)) is not None
+    }
+    object_keys: dict[str, str] = {}
+    cleanup_jobs: list[tuple[str, str]] = []
+    for record in existing:
+        job = session.get(JobRecord, record.job_id)
+        upload = session.get(UploadRecord, job.upload_id) if job else None
+        if job is not None:
+            if upload is not None:
+                object_keys[upload.id] = upload.object_key
+                cleanup_jobs.append((upload.object_key, job.id))
+            session.delete(record)
+            session.flush()
+            session.delete(job)
+        if upload is not None:
+            object_keys[upload.id] = upload.object_key
+    session.flush()
+    removed_uploads = 0
+    for upload_id in upload_ids:
+        if (
+            session.scalar(select(JobRecord.id).where(JobRecord.upload_id == upload_id).limit(1))
+            is not None
+        ):
+            continue
+        upload = session.get(UploadRecord, upload_id)
+        if upload is not None:
+            object_keys.setdefault(upload_id, upload.object_key)
+            session.delete(upload)
+            removed_uploads += 1
+    session.commit()
+    for object_key, job_id in cleanup_jobs:
+        if object_key:
+            remove_project_files(settings, object_key, job_id)
+    return {
+        "deleted_projects": len(existing),
+        "deleted_uploads": removed_uploads,
+        "missing": missing,
+    }
+
+
+@router.post("/projects/{project_id}/melody", response_model=ScoreProject)
+def refine_project_melody(
+    project_id: str, request: MelodyRequest, session: SessionDep
+) -> ScoreProject:
+    from vss_worker.adapters import DetectedNote
+    from vss_worker.melody import quantized_notes, refine_melody
+
+    from app.schemas import PerformanceNote, PipelineStep, ScoreNote
+
+    if request.low_pitch > request.high_pitch:
+        raise HTTPException(status_code=422, detail="Invalid vocal pitch range")
+    record, project = _editable_project(project_id, request.expected_revision, session)
+    if project.raw_notes is None:
+        project.raw_notes = [n.model_copy(deep=True) for n in project.notes]
+    if request.mode == "raw":
+        project.notes = [n.model_copy(deep=True) for n in project.raw_notes]
+        performance_source = project.raw_notes
+    else:
+        detected = [
+            DetectedNote(
+                n.source_start_ms / 1000,
+                n.source_end_ms / 1000,
+                n.pitch_midi,
+                n.confidence,
+                n.source_note_ids[0] if n.source_note_ids else n.id,
+            )
+            for n in project.raw_notes
+        ]
+        refined = refine_melody(detected, request.mode, request.low_pitch, request.high_pitch)
+        bpm = project.analysis.tempo_map[0].bpm
+        project.notes = [ScoreNote.model_validate(n) for n in quantized_notes(refined, bpm)]
+        performance_source = [
+            ScoreNote.model_validate(n) for n in quantized_notes(refined, bpm, monophonic=False)
+        ]
+    project.performance_notes = [
+        PerformanceNote(
+            id=note.id,
+            source_start_ms=note.source_start_ms,
+            source_end_ms=note.source_end_ms,
+            source_note_ids=list(note.source_note_ids),
+            pitch_midi=note.pitch_midi,
+            confidence=note.confidence,
+            origin=note.origin,
+        )
+        for note in performance_source
+    ]
+    project.pipeline.append(
+        PipelineStep(
+            stage="melody_refinement",
+            version="1",
+            parameters={
+                "method": "confidence_continuity_viterbi",
+                **request.model_dump(exclude={"expected_revision"}),
+                "input_notes": len(project.raw_notes),
+                "output_notes": len(project.notes),
+            },
+        )
+    )
+    return _save_project(record, project, session)
 
 
 @router.delete("/uploads/{upload_id}", status_code=status.HTTP_204_NO_CONTENT)

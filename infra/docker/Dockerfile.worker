@@ -1,8 +1,10 @@
-FROM python:3.11-slim
+ARG WORKER_DEPENDENCY_IMAGE=vocal-score-studio-worker-deps:local
+FROM ${WORKER_DEPENDENCY_IMAGE}
 WORKDIR /app
-RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg && rm -rf /var/lib/apt/lists/*
+ENV PIP_DEFAULT_TIMEOUT=120 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
 COPY pyproject.toml ./
 COPY apps/api apps/api
 COPY workers/transcription workers/transcription
-RUN pip install --no-cache-dir ".[models]"
+RUN pip install --no-cache-dir --no-deps --no-build-isolation .
 CMD ["python", "-m", "celery", "-A", "vss_worker.celery_app:celery_app", "worker", "--loglevel=INFO", "--concurrency=1"]

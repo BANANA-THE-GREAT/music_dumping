@@ -1,0 +1,7 @@
+services:
+  worker:
+    environment:
+      CUDA_VISIBLE_DEVICES: ${VSS_CUDA_VISIBLE_DEVICES:-0}
+      HF_HUB_OFFLINE: ${VSS_HF_HUB_OFFLINE:-1}
+      VSS_INFERENCE_DEVICE: ${VSS_INFERENCE_DEVICE:-auto}
+    gpus: all

@@ -1,4 +1,5 @@
 import type { RawNote, ScoreNote } from "./types";
+import { scoreMeasures } from "./notation";
 
 const MAJOR_SCALE = [0, 2, 4, 5, 7, 9, 11];
 const MINOR_SCALE = [0, 2, 3, 5, 7, 8, 10];
@@ -132,14 +133,15 @@ export function cleanAndQuantize(
 function abcPitch(midi: number): string {
   const octave = Math.floor(midi / 12) - 1;
   let name = PITCH_NAMES[((midi % 12) + 12) % 12];
+  if (!name.startsWith("^")) name = "=" + name;
   if (octave >= 5) name = name.toLowerCase() + "'".repeat(octave - 5);
   else if (octave < 4) name += ",".repeat(4 - octave);
   return name;
 }
 
 function abcLength(beats: number): string {
-  const eighths = Math.max(1, Math.round(beats * 2));
-  return eighths === 1 ? "" : String(eighths);
+  const units = Math.max(1, Math.round(beats * 8));
+  return units === 4 ? "" : `${units}/4`;
 }
 
 export function toAbc(
@@ -149,23 +151,38 @@ export function toAbc(
   denominator: 4 | 8 = 4,
   key = "C",
 ): string {
-  if (!notes.length)
-    return `X:1\nT:等待转录\nM:${meter}/${denominator}\nL:1/8\nK:${key}\nz8|`;
-  const tokens: string[] = [];
-  let cursor = 0;
-  let bar = 0;
-  const measureBeats = (meter * 4) / denominator;
-  for (const note of notes) {
-    const rest = note.startBeat - cursor;
-    if (rest >= 0.24) tokens.push(`z${abcLength(rest)}`);
-    while (note.startBeat >= bar + measureBeats) {
-      tokens.push("|");
-      bar += measureBeats;
+  return mappedAbc(notes, bpm, meter, denominator, key).abc;
+}
+
+export function mappedAbc(
+  notes: ScoreNote[],
+  bpm: number,
+  meter: 2 | 3 | 4 | 6 = 4,
+  denominator: 4 | 8 = 4,
+  key = "C",
+) {
+  let abc = `X:1\nT:人声转录结果\nM:${meter}/${denominator}\nL:1/8\nQ:1/4=${bpm}\nK:${key}\n`;
+  const mapping: Array<{ offset: number; index: number }> = [];
+  const restMapping: Array<{ offset: number; start: number; end: number }> = [];
+  for (const measure of scoreMeasures(notes, (meter * 4) / denominator)) {
+    for (const segment of measure) {
+      if (segment.index !== null)
+        mapping.push({ offset: abc.length, index: segment.index });
+      else
+        restMapping.push({
+          offset: abc.length,
+          start: segment.start,
+          end: segment.start + segment.duration,
+        });
+      abc += `${segment.index === null ? "z" : abcPitch(notes[segment.index].pitchMidi)}${abcLength(segment.duration)}${segment.index !== null && segment.continues ? "-" : ""} `;
     }
-    tokens.push(`${abcPitch(note.pitchMidi)}${abcLength(note.durationBeats)}`);
-    cursor = note.startBeat + note.durationBeats;
+    abc += "| ";
   }
-  return `X:1\nT:人声转录结果\nM:${meter}/${denominator}\nL:1/8\nQ:1/4=${bpm}\nK:${key}\n${tokens.join(" ")} |]`;
+  return {
+    abc: notes.length ? abc.trimEnd() + "]" : abc + "z8 |]",
+    mapping,
+    restMapping,
+  };
 }
 
 export function demoNotes(): RawNote[] {

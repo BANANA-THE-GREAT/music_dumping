@@ -5,6 +5,7 @@
 - `apps/web`：Vite + TypeScript 单页界面；负责上传、进度、谱面、播放、校音和下载。
 - `apps/api`：FastAPI；负责上传、任务、项目 revision、重新量化和导出。
 - `workers/transcription`：可由线程或 Celery 执行的推理管线。
+- `services/score-renderer`：无数据库权限的内部 HTTP 服务；Verovio 负责 MusicXML 刻谱，Inkscape 负责 SVG 到 PNG/PDF 转换。
 - `packages/contracts`：前后端共享的 TypeScript 数据结构与 API 客户端。
 - `infra`：PostgreSQL、Redis、MinIO、API、Worker 和 Web 容器定义。
 
@@ -16,9 +17,17 @@
 ScoreProject ← 后处理/量化 ← BPM 与调性估计
      ↓              ↓
 revision 编辑      MIDI / MusicXML
+                         ↓
+              Verovio / 简谱 SVG 布局
+                         ↓
+                  SVG / PNG / PDF
 ```
 
 `ScoreProject` JSON 是权威数据；MusicXML 和 MIDI 均为可重复生成的导出物。每次修改必须携带 `expected_revision`，过期客户端收到 HTTP 409，避免静默覆盖。
+
+谱面图片同样是可重复生成的派生物。五线谱主链路为 `ScoreProject -> MusicXML -> Verovio`；
+简谱主链路直接把谱面版音符转换为固定坐标 SVG，并保留 `data-note-id`、来源音符 ID、
+跨小节延音和休止区间。PNG/PDF 只在内部 renderer 容器中由 Inkscape 转换，渲染失败不会写回项目。
 
 开发环境默认用 SQLite 和线程 Worker。线程 Worker 启动时会把上次进程中断的运行态任务标记为可重试失败，避免任务永久卡住。容器环境用 PostgreSQL、Redis 和 Celery；API 与 Worker 共享 `/data`，生产化时可将本地存储适配器替换为 S3 兼容对象存储。
 

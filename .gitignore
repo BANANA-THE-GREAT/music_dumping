@@ -2,6 +2,7 @@
 node_modules/
 dist/
 coverage/
+.artifacts/
 *.tsbuildinfo
 
 # Python
@@ -26,6 +27,7 @@ test-data/*.wav
 
 # Runtime data
 data/
+infra/experiments/sources/
 uploads/
 stems/
 exports/

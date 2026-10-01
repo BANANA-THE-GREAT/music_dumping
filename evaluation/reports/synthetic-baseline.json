@@ -1,0 +1,89 @@
+{
+  "schema_version": "1.0",
+  "manifest": "evaluation/manifest.json",
+  "dataset_status": "synthetic_scaffold_only",
+  "tolerances": {
+    "pitch_cents": 50,
+    "onset_ms": 50,
+    "minimum_offset_ms": 50,
+    "offset_duration_ratio": 0.2
+  },
+  "quality_gate": {
+    "status": "preregistered_pending_authorized_holdout",
+    "candidate_onset_offset_f1_improvement": 0.03,
+    "candidate_recall_improvement": 0.05,
+    "maximum_precision_regression": 0.02,
+    "maximum_failure_rate": 0.02,
+    "notes": "The gate applies to the future authorized holdout split and must not be tuned after candidate results are inspected. Manual edit time and operation count must also show no material regression."
+  },
+  "clips": [
+    {
+      "id": "cc0-synthetic-scale",
+      "split": "tooling",
+      "tags": [
+        "synthetic",
+        "scale",
+        "cc0"
+      ],
+      "results": {
+        "basic_pitch_raw_fixture": {
+          "onset_pitch": {
+            "true_positives": 3,
+            "false_positives": 1,
+            "false_negatives": 1,
+            "precision": 0.75,
+            "recall": 0.75,
+            "f1": 0.75,
+            "mean_onset_error_ms": 13.333333333333343,
+            "mean_offset_error_ms": 13.333333333333345
+          },
+          "onset_offset_pitch": {
+            "true_positives": 3,
+            "false_positives": 1,
+            "false_negatives": 1,
+            "precision": 0.75,
+            "recall": 0.75,
+            "f1": 0.75,
+            "mean_onset_error_ms": 13.333333333333343,
+            "mean_offset_error_ms": 13.333333333333345
+          },
+          "errors": {
+            "missed_notes": 1,
+            "extra_notes": 1,
+            "octave_errors": 0,
+            "possible_splits": 0,
+            "possible_merges": 0,
+            "weak_note_misses": 0
+          }
+        }
+      }
+    }
+  ],
+  "aggregate": {
+    "basic_pitch_raw_fixture": {
+      "clip_count": 1,
+      "onset_pitch": {
+        "precision_macro": 0.75,
+        "recall_macro": 0.75,
+        "f1_macro": 0.75,
+        "mean_onset_error_ms": 13.333333333333343,
+        "mean_offset_error_ms": 13.333333333333345
+      },
+      "onset_offset_pitch": {
+        "precision_macro": 0.75,
+        "recall_macro": 0.75,
+        "f1_macro": 0.75,
+        "mean_onset_error_ms": 13.333333333333343,
+        "mean_offset_error_ms": 13.333333333333345
+      },
+      "errors": {
+        "missed_notes": 1,
+        "extra_notes": 1,
+        "octave_errors": 0,
+        "possible_splits": 0,
+        "possible_merges": 0,
+        "weak_note_misses": 0
+      }
+    }
+  }
+}
